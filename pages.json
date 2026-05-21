@@ -1,0 +1,274 @@
+{
+	"pages": [ // pages数组中第一项表示应用启动页
+		{
+			"path": "pages/welcome/welcome",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc",
+				"disableScroll": true
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc",
+				"disableScroll": true
+			}
+		},
+		{
+			"path": "pages/login/phone-login",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc",
+				"disableScroll": true
+			}
+		},
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/home/home",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/friend/friend",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/playmate/publish",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/playmate/reply-list",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/message/message",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/message/chat",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/message/contact-list",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/message/search",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/mine/mine",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/live/rank",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#090b12"
+			}
+		},
+		{
+			"path": "pages/live-room/live-room",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#000000",
+				"disableScroll": true,
+				"app-plus": {
+					"bounce": "none"
+				}
+			}
+		},
+		{
+			"path": "pages/user-profile/user-profile",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/category-list",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/category-search",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/search",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/cart",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/product-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/evaluate-list",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/order-submit",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/add-friend",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/visitor-list",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/relation-list",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/edit-profile",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/more-settings",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/wallet",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/order-list",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/merchant-center",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/anchor-center",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/all-functions",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/qrcode",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/note-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/user/video-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#000000",
+				"disableScroll": true
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationStyle": "custom",
+		"backgroundColor": "#f8fafc",
+		"backgroundColorTop": "#f8fafc",
+		"backgroundColorBottom": "#f8fafc",
+		"app-plus": {
+			"bounce": "none"
+		}
+	},
+	"uniIdRouter": {}
+}
