@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>千隅项目设计与开发规范对照表</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: rgba(255, 255, 255, 0.82);
+      --panel-strong: rgba(255, 255, 255, 0.94);
+      --line: rgba(226, 232, 240, 0.9);
+      --text: #0f172a;
+      --text-soft: #475467;
+      --text-muted: #667085;
+      --brand: #fe2c55;
+      --brand-soft: #d94f7b;
+      --blue-soft: #8db8ff;
+      --shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font: 15px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255, 205, 223, 0.52) 0%, rgba(255, 205, 223, 0) 28%),
+        radial-gradient(circle at top right, rgba(203, 223, 255, 0.42) 0%, rgba(203, 223, 255, 0) 26%),
+        linear-gradient(180deg, #fcfdff 0%, #f8fbff 32%, #f4f7fc 100%);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: 32px;
+      background:
+        radial-gradient(circle at top left, rgba(255, 188, 206, 0.32) 0%, rgba(255, 188, 206, 0) 30%),
+        radial-gradient(circle at top right, rgba(190, 219, 255, 0.28) 0%, rgba(190, 219, 255, 0) 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 248, 251, 0.96) 100%);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .hero h1 {
+      margin: 10px 0 12px;
+      font-size: clamp(32px, 5vw, 46px);
+      line-height: 1.12;
+    }
+
+    .hero p {
+      max-width: 880px;
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 16px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.76);
+      color: var(--brand-soft);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid rgba(255, 255, 255, 0.86);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.74);
+      color: var(--text-soft);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 24px;
+      margin-top: 24px;
+      align-items: start;
+    }
+
+    .side {
+      position: sticky;
+      top: 18px;
+      padding: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.86);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .side h2 {
+      margin: 0 0 14px;
+      font-size: 16px;
+    }
+
+    .side nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .side a {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 14px;
+      color: var(--text-soft);
+      transition: background-color .18s ease, color .18s ease, transform .18s ease;
+    }
+
+    .side a:hover {
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--brand);
+      transform: translateX(2px);
+    }
+
+    .content {
+      display: grid;
+      gap: 22px;
+    }
+
+    .section {
+      padding: 26px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: var(--radius);
+      background: var(--panel-strong);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .section h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.25;
+    }
+
+    .section h3 {
+      margin: 22px 0 10px;
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    .section p,
+    .section li {
+      color: var(--text-soft);
+    }
+
+    .note {
+      margin: 10px 0 0;
+      padding: 14px 16px;
+      border: 1px solid rgba(255, 151, 174, 0.16);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(255, 151, 174, 0.08) 0%, rgba(199, 214, 255, 0.12) 100%);
+      color: var(--text-soft);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+
+    th,
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(248, 250, 252, 0.9);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    td {
+      color: var(--text-soft);
+      font-size: 14px;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .swatch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06) inset;
+      flex-shrink: 0;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-top: 14px;
+    }
+
+    .mini-card {
+      padding: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .mini-card h4 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .mini-card p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+
+    .list {
+      margin: 12px 0 0;
+      padding-left: 20px;
+    }
+
+    .footer {
+      margin-top: 18px;
+      padding: 18px 22px;
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 1080px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .side {
+        position: static;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(100% - 24px, 1440px);
+      }
+
+      .hero,
+      .section {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="eyebrow">千隅 · 设计 / UI / 开发规范</div>
+      <h1>千隅项目设计与开发规范对照表</h1>
+      <p>
+        这份 HTML 浏览版与 <strong>docs/qianyu-design-dev-standards.md</strong> 同步，作为项目后续业务扩展、公共组件抽象、
+        UI 风格统一、目录结构与依赖边界的长期对照标准。浏览器可直接打开查看。
+      </p>
+      <div class="chip-row">
+        <span class="chip">Vue 3 + script setup</span>
+        <span class="chip">Mock-first</span>
+        <span class="chip">Callback-first</span>
+        <span class="chip">SVG 优先</span>
+        <span class="chip">浅色主风格 + 直播深色沉浸</span>
+        <span class="chip">公共组件必须同步维护文档</span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="side">
+        <h2>目录导航</h2>
+        <nav>
+          <a href="#s1">1. 文档定位</a>
+          <a href="#s2">2. 产品主体</a>
+          <a href="#s3">3. 视觉风格</a>
+          <a href="#s4">4. 页面布局与主题</a>
+          <a href="#s5">5. 开发规范与调用</a>
+          <a href="#s6">6. 目录与公共组件</a>
+          <a href="#s7">7. 组件封装要求</a>
+          <a href="#s8">8. 业务落地清单</a>
+          <a href="#s9">9. 文档维护要求</a>
+          <a href="#s10">10. 当前执行基线</a>
+          <a href="#s11">11. 主要参考文件</a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section class="section" id="s1">
+          <h2>1. 文档定位</h2>
+          <p>本文档用于统一当前项目的产品方向、UI 风格、色彩表面层、目录结构、组件职责、调用规范、依赖边界与长期维护规则。</p>
+          <div class="note">后续所有新增业务、公共组件、主题优化、样式重构，都需要对照本文档执行；规范变更时，Markdown 与 HTML 版都要同步更新。</div>
+        </section>
+
+        <section class="section" id="s2">
+          <h2>2. 产品主体与体验方向</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>维度</th><th>当前规范</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>产品主体</td><td>年轻化内容社交 + 直播 + 电商 + 玩伴 / 小窝陪伴工具</td></tr>
+                <tr><td>体验关键词</td><td>年轻、轻盈、陪伴感、内容感、可记录、可发现、低压互动</td></tr>
+                <tr><td>内容表达方式</td><td>先浏览、再轻互动、再深入，不强推高压社交</td></tr>
+                <tr><td>业务结构</td><td>首页承接商城/直播/推荐，玩伴承接小窝式表达与共鸣，消息承接关系沉淀，我的承接记录与身份资产</td></tr>
+                <tr><td>交互目标</td><td>用户能快速理解页面、快速找到入口、点击后有即时反馈，后续能平滑替换真实 API / AI 能力</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="s3">
+          <h2>3. 视觉风格总则</h2>
+          <h3>3.1 总体风格</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>项目</th><th>规范</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>主风格</td><td>轻玻璃感、浅色渐变、圆角卡片、柔和阴影、轻社交氛围</td></tr>
+                <tr><td>情绪表达</td><td>不走厚重商务风，不走强游戏风，强调年轻化 + 轻陪伴 + 内容感</td></tr>
+                <tr><td>卡片语言</td><td>大圆角、浅底、微阴影、局部渐变、必要时可加入轻流光</td></tr>
+                <tr><td>图标风格</td><td>优先 SVG，线条简洁、识别明确、可适配多语言，不依赖中文占位字</td></tr>
+                <tr><td>触感反馈</td><td>点击有按压态、必要时有轻动画 / 轻震动，不做噪音式动效</td></tr>
+                <tr><td>模块差异</td><td>直播维持沉浸式深色；其余内容页以浅色主题为主</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>3.2 模块风格对照</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>模块</th><th>主题</th><th>风格说明</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>首页-商城 / 推荐</td><td>浅色</td><td>粉白 / 蓝白渐变背景，顶部毛玻璃子导航，内容卡片轻盈</td></tr>
+                <tr><td>首页-直播</td><td>深色</td><td>黑色沉浸式、强内容导向、榜单与分类并存、突出房间内容流</td></tr>
+                <tr><td>直播间</td><td>深色</td><td>全屏沉浸、顶部信息悬浮、底部输入与礼物浮层、强调实时互动氛围</td></tr>
+                <tr><td>玩伴 / 小窝</td><td>浅色</td><td>粉蓝年轻化、轻社交、轻陪伴、轻反馈、轻流光</td></tr>
+                <tr><td>个人中心 / 资料页</td><td>浅色</td><td>内容记录型、层级清晰、统一子页面表面层</td></tr>
+                <tr><td>商城子页面</td><td>浅色</td><td>更偏商品导购，头部按钮与工具图标保持统一 SVG 与柔和渐变</td></tr>
+                <tr><td>消息列表</td><td>浅色</td><td>清爽、结构化、联系人 + 会话双层信息、强调可读性与轻操作</td></tr>
+                <tr><td>私聊页</td><td>浅色</td><td>柔和浅渐变、对话气泡清晰、工具栏与输入栏稳定可用</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>3.3 色彩系统</h3>
+          <div class="grid">
+            <div class="mini-card"><h4><span class="swatch"><span class="dot" style="background:#fe2c55"></span>品牌主强调色</span></h4><p>#fe2c55，用于激活态、选中态、关键 CTA、刷新高亮。</p></div>
+            <div class="mini-card"><h4><span class="swatch"><span class="dot" style="background:#d94f7b"></span>品牌辅强调色</span></h4><p>#d94f7b，用于图标描边、胶囊标签、次级高亮。</p></div>
+            <div class="mini-card"><h4><span class="swatch"><span class="dot" style="background:#f8fafc"></span>浅色主背景</span></h4><p>#f8fafc，作为常规浅色页面基础底色。</p></div>
+            <div class="mini-card"><h4><span class="swatch"><span class="dot" style="background:#000000"></span>深色背景</span></h4><p>#000000，直播与深色沉浸页面使用。</p></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>角色</th><th>当前主值</th><th>使用规范</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>浅色渐变背景</td><td>#fcfdff → #f8fbff → #f4f7fc</td><td>个人中心 / 推荐 / 通用内容背景</td></tr>
+                <tr><td>商城渐变背景</td><td>#fff9fb → #fff2f7 → #f8fafc → #f3f6fb</td><td>商城内容与商城子页</td></tr>
+                <tr><td>主文字色</td><td>#0f172a</td><td>标题、重点信息</td></tr>
+                <tr><td>次文字色</td><td>#475467</td><td>正文、说明、描述</td></tr>
+                <tr><td>辅助文字色</td><td>#667085 / #98a2b3</td><td>标签、提示、次级说明</td></tr>
+                <tr><td>分割 / 边框色</td><td>#e8edf3 / rgba(226,232,240,0.72)</td><td>轻边框、浅分隔线</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>3.4 视觉尺寸与形态</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>项目</th><th>当前规范</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>开发单位</td><td>以 rpx 为主，安全区 / 滚动联动 / 系统高度换算时使用 px</td></tr>
+                <tr><td>常用圆角</td><td>24rpx / 28rpx / 32rpx / 40rpx</td></tr>
+                <tr><td>常用按钮高度</td><td>50rpx ~ 84rpx，胶囊优先</td></tr>
+                <tr><td>常用图标按钮尺寸</td><td>64rpx 容器，30rpx ~ 34rpx 图标</td></tr>
+                <tr><td>页面头部行高</td><td>通用子页头部 88rpx</td></tr>
+                <tr><td>首页二级导航高度</td><td>80rpx</td></tr>
+                <tr><td>卡片阴影</td><td>轻阴影，不用厚重投影；优先柔和扩散阴影</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>3.5 背景与样式来源规范</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>项目</th><th>规范</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>全局重置来源</td><td>全局基础背景、文字和按钮 reset 由 App.vue 统一提供</td></tr>
+                <tr><td>全局主题来源</td><td>全局浅 / 深主题颜色由 useAppTheme.js 统一管理</td></tr>
+                <tr><td>首页浅色背景归属</td><td>首页浅色背景层统一归 pages/home/home.vue 管理，不放子组件内部</td></tr>
+                <tr><td>商城表面层来源</td><td>商城子页背景、头部背景、头部图标来源于 shopSurface.js</td></tr>
+                <tr><td>个人中心表面层来源</td><td>个人中心子页背景、卡片背景、返回图标来源于 userSubPageSurface.js</td></tr>
+                <tr><td>频道局部背景</td><td>私聊页、玩伴页、直播卡面允许局部渐变，但不能脱离项目总风格</td></tr>
+                <tr><td>uni.scss 使用原则</td><td>uni.scss 仍是 uni-app 默认变量文件，不作为项目主视觉 token 来源；真实视觉 token 以 JS surface / theme 文件为准</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="s4">
+          <h2>4. 页面布局与主题规范</h2>
+          <h3>4.1 安全区与全屏布局</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>规范</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>安全区统一初始化</td><td>App 启动时统一初始化安全区，不允许页面各自重复计算一套</td></tr>
+                <tr><td>顶部安全区复用</td><td>顶部固定头部优先使用 SafeTopArea.vue</td></tr>
+                <tr><td>底部安全区复用</td><td>固定底部操作栏优先使用 SafeBottomArea.vue</td></tr>
+                <tr><td>普通全屏子页</td><td>优先使用 FullScreenPageLayout.vue 承担头部 / 内容 / 底部预留</td></tr>
+                <tr><td>固定顶部堆叠 + 下拉刷新页</td><td>优先使用 RefreshTopStackLayout.vue</td></tr>
+                <tr><td>下拉刷新 / 上拉加载页</td><td>优先使用 PullPagingShell.vue，不要各页重复造刷新容器</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>4.2 主题切换</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>规范</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>全局主题统一由 composable 管理</td><td>使用 useAppTheme() 统一控制浅色 / 深色主题</td></tr>
+                <tr><td>Tab 场景切换驱动主题</td><td>首页进入直播切深色，其它内容默认浅色</td></tr>
+                <tr><td>页面不要自行分裂主题规则</td><td>新页面若需接入主题，优先接入现有主题体系，不单独定义一套主题状态</td></tr>
+                <tr><td>首页浅色背景归属首页容器</td><td>首页浅色背景层定义在 pages/home/home.vue，不要下放到子组件导致背景跟随滚动</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>4.3 页面结构原则</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>规范</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>根 Tab 页面只做容器</td><td>pages/index/index.vue 负责 tab 切换与主题联动</td></tr>
+                <tr><td>页面负责状态与路由</td><td>页面 / 容器层负责解析参数、主题、滚动、刷新、分页、导航</td></tr>
+                <tr><td>业务展示组件只负责渲染与事件抛出</td><td>列表卡片、头部条、工具条等组件不直接绑定真实业务 API</td></tr>
+                <tr><td>隐藏场景要停止资源占用</td><td>Home 场景组件需接收 active，隐藏时停止轮播、定时器、异步 mock</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>4.4 直播频道专项规范</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>维度</th><th>规范</th></tr></thead>
+              <tbody>
+                <tr><td>频道定位</td><td>首页唯一主深色内容场景，优先突出内容流、热度和房间氛围</td></tr>
+                <tr><td>视觉风格</td><td>深色渐变封面、亮色标签、榜单入口，避免浅色玻璃卡片语义</td></tr>
+                <tr><td>首屏结构</td><td>Banner → 分类栏 → 榜单入口 → 双列直播流</td></tr>
+                <tr><td>列表渲染</td><td>直播流使用虚拟列表思路，保证高密度内容渲染时稳定</td></tr>
+                <tr><td>频道切换</td><td>直播组件必须受 active 控制；隐藏后停止轮播、滚动参与和异步任务</td></tr>
+                <tr><td>房间体验</td><td>直播间必须保持全屏沉浸，顶部信息、榜单、福袋、活动、在线用户、聊天、礼物都以浮层方式组织</td></tr>
+                <tr><td>交互规范</td><td>关注、榜单、福袋、活动、聊天输入、礼物发送、分享等全部保留占位回调</td></tr>
+                <tr><td>组件边界</td><td>live-room 页面负责参数与业务回调；RoomIndex 与房间子组件负责表现层</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>4.5 消息频道专项规范</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>维度</th><th>规范</th></tr></thead>
+              <tbody>
+                <tr><td>频道定位</td><td>关系沉淀与持续互动，不做纯工具页，保持轻社交感与高可读性</td></tr>
+                <tr><td>视觉风格</td><td>浅色背景、轻卡片、圆角联系人卡片、清晰会话列表</td></tr>
+                <tr><td>首页结构</td><td>顶部标题 / 消息徽标 → 搜索入口 → 常用联系人横滑区 → 聊天列表 → mock 说明</td></tr>
+                <tr><td>刷新加载</td><td>消息页复用 PullPagingShell，但自定义下拉提示与底部加载状态</td></tr>
+                <tr><td>列表交互</td><td>支持左滑删除、置顶样式、未读态、静音态、在线态；删除必须先有显式操作再执行</td></tr>
+                <tr><td>联系人信息</td><td>联系人卡需要同时表达头像、在线、动态、未读等关系状态</td></tr>
+                <tr><td>私聊体验</td><td>浅色柔和渐变背景，聊天气泡、顶部资料、底部工具栏清晰稳定</td></tr>
+                <tr><td>组件边界</td><td>messageMock.js 统一提供联系人、会话、聊天、路由 builder；页面只消费 mock 与回调</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="s5">
+          <h2>5. 开发规范与调用规范</h2>
+          <h3>5.1 代码风格</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>项目</th><th>规范</th></tr></thead>
+              <tbody>
+                <tr><td>Vue 语法</td><td>全部使用 Vue 3 + &lt;script setup&gt;</td></tr>
+                <tr><td>单位</td><td>页面与组件视觉尺寸优先使用 rpx</td></tr>
+                <tr><td>事件命名</td><td>页面交互处理函数优先使用 handleXxx；占位业务回调优先使用 onXxx</td></tr>
+                <tr><td>注释风格</td><td>使用 TODO：替换... 明确标记后续 API / AI / 业务接入点</td></tr>
+                <tr><td>占位反馈</td><td>优先使用 console.log / uni.showToast({ icon: 'none' })</td></tr>
+                <tr><td>组件通信</td><td>优先 props + emits，避免跨层直接读写内部状态</td></tr>
+                <tr><td>共享逻辑</td><td>优先沉淀到 composables、*Mock.js、公共表面层文件</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>5.2 引用路径与依赖路径规范</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>项目</th><th>规范</th></tr></thead>
+              <tbody>
+                <tr><td>导入路径</td><td>统一优先使用 @/ 别名引用，不使用长层级相对路径</td></tr>
+                <tr><td>页面依赖方向</td><td>pages 可依赖 components、composables、*Mock.js、surface/helper 文件</td></tr>
+                <tr><td>业务组件依赖方向</td><td>业务组件优先依赖同业务域组件、components/common、composables、同域 *Mock.js</td></tr>
+                <tr><td>公共组件依赖方向</td><td>components/common 只做通用能力，不直接依赖具体页面业务</td></tr>
+                <tr><td>Mock / Surface 文件依赖方向</td><td>*Mock.js、*Surface.js、*Icons.js 不依赖页面 .vue 文件，不耦合页面生命周期</td></tr>
+                <tr><td>禁止方向</td><td>组件禁止反向依赖 pages；页面不能被当作公共模块导入到组件层</td></tr>
+                <tr><td>命名规范</td><td>页面目录 / 文件优先 kebab-case；helper 命名遵循 buildXxx / getXxxMock / useXxx</td></tr>
+                <tr><td>启动入口</td><td>main.js 只负责应用创建，不承载业务逻辑</td></tr>
+                <tr><td>路由注册</td><td>pages.json 是页面注册唯一入口，新增页面必须同步登记</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>5.3 数据与调用规范</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>项目</th><th>规范</th></tr></thead>
+              <tbody>
+                <tr><td>Mock 数据集中管理</td><td>每个业务域优先放在对应 *Mock.js，不把大块 mock 常量散落在页面里</td></tr>
+                <tr><td>路由参数构建</td><td>页面 URL 优先通过 builder/helper 生成，避免字符串硬拼</td></tr>
+                <tr><td>页面注册</td><td>所有新页面必须同步写入 pages.json</td></tr>
+                <tr><td>API 替换接口位</td><td>统一保留 mock-first / callback-first，不直接把真实接口写死在展示组件中</td></tr>
+                <tr><td>资源释放</td><td>轮播、刷新、分页、定时器都要支持在隐藏 / 离开时停止</td></tr>
+                <tr><td>频道级 builder</td><td>消息、个人中心、玩伴、直播榜单等频道优先提供 builder/mock helper，再由页面消费</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>5.4 业务实现约束</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>项目</th><th>必须做法</th><th>不推荐做法</th></tr></thead>
+              <tbody>
+                <tr><td>交互接入</td><td>先保留 mock 数据与占位回调，再替换真实 API</td><td>直接在多个组件里分散接真实接口</td></tr>
+                <tr><td>主题接入</td><td>复用现有主题与表面层常量</td><td>页面自己写一套新的背景 / 按钮体系</td></tr>
+                <tr><td>路由跳转</td><td>统一由页面或 mock helper 构建 URL</td><td>在深层展示组件硬编码复杂 query</td></tr>
+                <tr><td>图标使用</td><td>优先 SVG / 统一 icon helper</td><td>中文占位图标、不同模块风格割裂</td></tr>
+                <tr><td>布局容器</td><td>复用公共布局组件</td><td>每个页面重新计算安全区与头底预留</td></tr>
+                <tr><td>组件职责</td><td>父层负责数据 / 状态 / 路由，子层负责渲染 / 事件</td><td>子组件里混合页面状态、路由、接口、副作用</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="s6">
+          <h2>6. 公共能力与公共组件对照表</h2>
+          <h3>6.0 目录结构与职责规范</h3>
+
+          <h3>根目录规范</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>目录 / 文件</th><th>职责</th><th>规范</th></tr></thead>
+              <tbody>
+                <tr><td>pages/</td><td>页面路由目录</td><td>按业务域拆分页面；所有页面都要在 pages.json 注册</td></tr>
+                <tr><td>components/</td><td>组件目录</td><td>按业务域与公共层拆分，避免跨业务混放</td></tr>
+                <tr><td>composables/</td><td>共享逻辑目录</td><td>放主题、安全区、SVG 等跨页面复用逻辑</td></tr>
+                <tr><td>docs/</td><td>规范与说明文档目录</td><td>长期规范文档固定维护在这里</td></tr>
+                <tr><td>static/</td><td>静态资源目录</td><td>图片、静态文件按需放置</td></tr>
+                <tr><td>main.js</td><td>应用启动入口</td><td>只放启动相关逻辑</td></tr>
+                <tr><td>App.vue</td><td>应用全局入口</td><td>只放全局初始化和基础 reset</td></tr>
+                <tr><td>pages.json</td><td>路由注册</td><td>新增页面必须同步更新</td></tr>
+                <tr><td>uni.scss</td><td>uni 默认变量文件</td><td>不作为项目主视觉规范来源</td></tr>
+                <tr><td>temp/</td><td>临时目录</td><td>不作为正式业务代码目录</td></tr>
+                <tr><td>unpackage/</td><td>构建产物目录</td><td>生成目录，不手动维护业务代码</td></tr>
+                <tr><td>.hbuilderx/</td><td>IDE 配置</td><td>编辑器相关，不放业务实现</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>页面目录分层</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>目录</th><th>当前职责</th></tr></thead>
+              <tbody>
+                <tr><td>pages/index/</td><td>根 Tab 容器与全局主题联动入口</td></tr>
+                <tr><td>pages/home/</td><td>首页频道容器</td></tr>
+                <tr><td>pages/friend/</td><td>玩伴主频道首页</td></tr>
+                <tr><td>pages/playmate/</td><td>玩伴子流程页面，如发布页、回应列表页</td></tr>
+                <tr><td>pages/message/</td><td>消息频道页面，如消息首页、联系人、搜索、私聊</td></tr>
+                <tr><td>pages/live/</td><td>直播榜单等直播辅助页面</td></tr>
+                <tr><td>pages/live-room/</td><td>直播间主页面</td></tr>
+                <tr><td>pages/shop/</td><td>商城子页面，如分类、详情、购物车、订单等</td></tr>
+                <tr><td>pages/mine/</td><td>我的主页面</td></tr>
+                <tr><td>pages/user/</td><td>个人中心子页面集合</td></tr>
+                <tr><td>pages/user-profile/</td><td>他人资料页</td></tr>
+                <tr><td>pages/login/</td><td>登录与手机号登录流程</td></tr>
+                <tr><td>pages/welcome/</td><td>欢迎与引导页</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>组件目录分层</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>目录</th><th>当前职责</th></tr></thead>
+              <tbody>
+                <tr><td>components/common/</td><td>安全区、全屏布局、刷新容器等跨业务公共能力</td></tr>
+                <tr><td>components/home/</td><td>首页频道壳层与首页子模块</td></tr>
+                <tr><td>components/home/live/</td><td>直播频道列表、榜单、卡片、直播频道元素</td></tr>
+                <tr><td>components/shop/</td><td>商城业务组件，按 cart / category / common / detail 分层</td></tr>
+                <tr><td>components/room/</td><td>直播间组件，按 chat / gift / online 分层</td></tr>
+                <tr><td>components/message/</td><td>消息域 mock 与后续消息公共组件承载层</td></tr>
+                <tr><td>components/friend/</td><td>玩伴 / 小窝业务组件、icon 与 mock</td></tr>
+                <tr><td>components/user-center/</td><td>个人中心，按 common / main / detail 分层</td></tr>
+                <tr><td>components/user/</td><td>用户信息类可复用组件</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>路由配置默认规则</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>项目</th><th>当前规则</th></tr></thead>
+              <tbody>
+                <tr><td>导航栏方式</td><td>页面默认使用 navigationStyle: custom</td></tr>
+                <tr><td>页面背景色</td><td>浅色页默认 #f8fafc，直播 / 沉浸页按深色背景单独设置</td></tr>
+                <tr><td>禁止页面滚动</td><td>欢迎页、登录页、直播间、部分沉浸页可显式 disableScroll: true</td></tr>
+                <tr><td>App 端 bounce</td><td>直播间等沉浸场景允许单独关闭 bounce</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>6.1 Composables / 工具能力</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>能力</th><th>文件</th><th>用途</th></tr></thead>
+              <tbody>
+                <tr><td>安全区与尺寸换算</td><td>composables/useSafeAreaMetrics.js</td><td>提供安全区、窗口尺寸、rpxToPx / pxToRpx、头部 / 底部预留计算</td></tr>
+                <tr><td>全局主题</td><td>composables/useAppTheme.js</td><td>提供浅色 / 深色主题配置与切换</td></tr>
+                <tr><td>SVG Data URI</td><td>composables/useSvgIcon.js</td><td>将 SVG 字符串转成可直接给 image 使用的资源</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>6.2 通用布局组件</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>组件</th><th>适用场景</th><th>使用说明</th></tr></thead>
+              <tbody>
+                <tr><td>SafeTopArea</td><td>固定顶部安全区头部</td><td>负责顶部 inset、边框、背景、阴影</td></tr>
+                <tr><td>SafeBottomArea</td><td>固定底部操作栏</td><td>负责底部 inset、内边距、最小高度</td></tr>
+                <tr><td>FullScreenPageLayout</td><td>普通非 Tab 全屏子页</td><td>统一头部、内容、底部保留区</td></tr>
+                <tr><td>RefreshTopStackLayout</td><td>顶部多层固定 + 下拉刷新页</td><td>适合商城检索 / 筛选类页面</td></tr>
+                <tr><td>PullPagingShell</td><td>下拉刷新 + 触底加载 + 自定义底部状态</td><td>页面只关心状态与事件，不重写刷新壳</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>6.3 页面表面层与关键业务组件</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>组件 / 文件</th><th>适用场景</th><th>使用说明</th></tr></thead>
+              <tbody>
+                <tr><td>HomeSubNavShell</td><td>首页二级频道导航</td><td>支持浅深主题、刷新提示、额外导航区</td></tr>
+                <tr><td>LiveBanner / LiveHotRankCard / LiveCardItem</td><td>直播频道 Banner、榜单入口、双列流卡片</td><td>只负责展示与点击抛出，不接频道业务</td></tr>
+                <tr><td>RoomIndex</td><td>直播间整页 UI 组装</td><td>负责房间表现层，业务事件全部向页面层抛出</td></tr>
+                <tr><td>RoomChat / OnlinePanel / GiftPanel</td><td>直播间聊天、在线用户、礼物分层模块</td><td>房间内功能组件，不直接持有页面业务状态</td></tr>
+                <tr><td>ShopSubPageHeader / ShopHeaderIconButton / shopSurface</td><td>商城子页面头部与表面层</td><td>商城子页统一复用，不单独造一套头部图标与背景</td></tr>
+                <tr><td>ShopProductList / ShopProductItem</td><td>商城商品卡片与商品列表复用层</td><td>首页商城、分类结果等商品流优先复用</td></tr>
+                <tr><td>shopCategoryMock / shopDetailMock / shopCartMock</td><td>商城分类、详情、购物车 mock 能力层</td><td>商城页优先从对应 mock 文件取数据与 URL</td></tr>
+                <tr><td>UserSubPageLayout / UserSectionCard / userSubPageSurface</td><td>我的 / 资料类子页面骨架与表面层</td><td>统一浅色子页头部、内容区、底部区与卡片样式</td></tr>
+                <tr><td>userCenterMock</td><td>个人中心路由 builder 与核心 mock 数据源</td><td>个人中心与关联用户页优先复用它的 builder</td></tr>
+                <tr><td>messageMock</td><td>消息频道联系人、会话、私聊、搜索路由与 mock 数据源</td><td>消息页与相关跳转统一复用</td></tr>
+                <tr><td>PlaymateLaunchSheet / playmateMock / playmateIcons</td><td>玩伴弹层、mock 数据与 SVG 图标来源</td><td>玩伴页与子流程优先统一复用</td></tr>
+                <tr><td>UserInfoCard</td><td>用户资料摘要卡</td><td>资料类页面与关系页面优先复用，不重复造头像 / 昵称 / 状态头卡</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="s7">
+          <h2>7. 业务组件封装要求</h2>
+          <h3>7.1 分层职责</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>层级</th><th>职责</th><th>约束</th></tr></thead>
+              <tbody>
+                <tr><td>Page 页面层</td><td>路由参数、主题、刷新、分页、弹层、导航、业务态组合</td><td>不重复写公共布局，不把大块静态 mock 散落在页面</td></tr>
+                <tr><td>Scene / Container 容器层</td><td>某个业务频道的状态协调，如 Home / Shop / Live / Playmate 容器</td><td>需要支持 active、资源回收、局部刷新</td></tr>
+                <tr><td>Presentational 展示层</td><td>卡片、列表项、头部、工具栏、统计条、弹窗内容</td><td>只接收 props / emits，不直接耦合真实 API</td></tr>
+                <tr><td>Mock / Builder 层</td><td>mock 数据、路由 builder、默认配置、筛选项生成</td><td>作为真实 API 前的稳定契约层</td></tr>
+                <tr><td>Surface / Icon 层</td><td>背景、颜色、图标、通用表面语言</td><td>统一输出视觉资源，避免重复定义</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>7.2 封装要求</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>方向</th><th>规范</th></tr></thead>
+              <tbody>
+                <tr><td>页面封装</td><td>页面负责组合，公共组件负责复用，不把一次性样式塞进公共层</td></tr>
+                <tr><td>模块封装</td><td>同一业务域的新能力优先放到现有业务域目录，例如玩伴优先放 components/friend 与 pages/playmate</td></tr>
+                <tr><td>列表 / 卡片封装</td><td>结构复用超过 2 处时抽组件；只在一个页面出现且无稳定复用价值时保留本地</td></tr>
+                <tr><td>路由封装</td><td>带 query 的跳转优先抽 builder，避免不同页面拼接规则不一致</td></tr>
+                <tr><td>风格封装</td><td>背景、阴影、按钮、图标等可复用视觉语言优先抽 surface/helper 文件</td></tr>
+                <tr><td>变更方式</td><td>新增公共组件前先查现有组件是否已覆盖，能扩展就不新建重复组件</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>7.3 直播与消息频道边界要求</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>频道</th><th>页面层职责</th><th>组件层职责</th><th>禁止事项</th></tr></thead>
+              <tbody>
+                <tr><td>直播频道</td><td>分类切换、分页、刷新、榜单跳转、房间参数解析、房间业务回调</td><td>Banner、榜单卡、直播卡、房间 UI、礼物面板、在线面板等负责渲染与 emit</td><td>不要在卡片组件里写真实房间接口、送礼接口、IM 接口</td></tr>
+                <tr><td>消息频道</td><td>联系人 / 会话分页、搜索跳转、联系人页跳转、私聊页参数与输入提交</td><td>会话卡、联系人卡、聊天消息展示与工具栏展示</td><td>不要在列表项组件里直接删会话、发消息、改关系状态</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>7.4 目录与依赖约束</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>项目</th><th>规范</th></tr></thead>
+              <tbody>
+                <tr><td>页面目录</td><td>页面必须按业务域进入对应 pages/&lt;domain&gt; 目录，不混放到根层</td></tr>
+                <tr><td>组件目录</td><td>组件必须先判断属于 common 还是具体业务域，再决定目录</td></tr>
+                <tr><td>新公共组件</td><td>只有在多个页面或多个业务域复用时，才进入 components/common</td></tr>
+                <tr><td>生成目录</td><td>unpackage、.hbuilderx、temp 不作为业务代码落点</td></tr>
+                <tr><td>文档目录</td><td>规范、说明、长期维护文档统一进入 docs</td></tr>
+                <tr><td>依赖方向</td><td>优先单向依赖：pages → domain components/mock → common/composables</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="s8">
+          <h2>8. 业务落地时的实现清单</h2>
+          <ol class="list">
+            <li>先定义页面入口与 pages.json</li>
+            <li>先补 *Mock.js 数据结构与 URL builder</li>
+            <li>页面只接入 mock 数据与占位回调</li>
+            <li>公共视觉优先复用现有 surface / layout / icon 体系</li>
+            <li>如果出现稳定复用，再抽成公共组件</li>
+            <li>抽成公共组件后，必须补本文档中的公共组件对照表</li>
+            <li>如果做了主题 / 配色 / 卡片 / 图标体系优化，必须同步更新本文档</li>
+          </ol>
+        </section>
+
+        <section class="section" id="s9">
+          <h2>9. 后续维护要求</h2>
+          <h3>9.1 必须维护本文档的场景</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>场景</th><th>必须更新内容</th></tr></thead>
+              <tbody>
+                <tr><td>新增公共组件</td><td>组件名称、路径、用途、适用场景、使用说明</td></tr>
+                <tr><td>重构公共布局</td><td>布局规则、替代关系、旧组件废弃说明</td></tr>
+                <tr><td>调整主题或色彩</td><td>色彩表、模块风格表、视觉总则</td></tr>
+                <tr><td>新增业务域公共弹层 / 卡片 / 头部</td><td>公共组件对照表、封装要求</td></tr>
+                <tr><td>统一交互风格升级</td><td>触感反馈、动效约束、禁用项说明</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>9.2 维护要求</h3>
+          <ol class="list">
+            <li>Markdown 主文档路径固定为 docs/qianyu-design-dev-standards.md</li>
+            <li>浏览器查看版路径固定为 docs/qianyu-design-dev-standards.html</li>
+            <li>后续新增公共组件和风格优化，必须在同一任务内同步更新文档</li>
+            <li>如果仅做局部业务改动、没有形成新规范，可以不更新</li>
+            <li>如果改动影响多个业务域的共同规范，优先先更新文档，再继续扩展页面</li>
+          </ol>
+        </section>
+
+        <section class="section" id="s10">
+          <h2>10. 当前项目的执行基线</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>类别</th><th>当前基线</th></tr></thead>
+              <tbody>
+                <tr><td>开发语法</td><td>Vue 3 + script setup</td></tr>
+                <tr><td>视觉单位</td><td>rpx 为主</td></tr>
+                <tr><td>数据方式</td><td>Mock-first</td></tr>
+                <tr><td>交互方式</td><td>Callback-first</td></tr>
+                <tr><td>真实接口替换点</td><td>TODO：替换...</td></tr>
+                <tr><td>全局主题</td><td>useAppTheme()</td></tr>
+                <tr><td>安全区与页面框架</td><td>useSafeAreaMetrics() + 公共布局组件</td></tr>
+                <tr><td>图标策略</td><td>SVG 优先</td></tr>
+                <tr><td>内容主色调</td><td>浅色粉白 / 蓝白渐变体系 + 局部品牌粉</td></tr>
+                <tr><td>深色场景</td><td>直播专用</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="s11">
+          <h2>11. 主要参考文件</h2>
+          <ol class="list">
+            <li>App.vue</li>
+            <li>main.js</li>
+            <li>pages.json</li>
+            <li>pages/index/index.vue</li>
+            <li>pages/home/home.vue</li>
+            <li>components/common/SafeTopArea.vue</li>
+            <li>components/common/SafeBottomArea.vue</li>
+            <li>components/common/FullScreenPageLayout.vue</li>
+            <li>components/common/RefreshTopStackLayout.vue</li>
+            <li>components/common/PullPagingShell.vue</li>
+            <li>components/shop/common/shopSurface.js</li>
+            <li>components/shop/common/ShopSubPageHeader.vue</li>
+            <li>components/shop/common/ShopHeaderIconButton.vue</li>
+            <li>components/user-center/common/userSubPageSurface.js</li>
+            <li>components/user-center/common/UserSubPageLayout.vue</li>
+            <li>components/user-center/common/UserSectionCard.vue</li>
+            <li>components/user-center/userCenterMock.js</li>
+            <li>components/message/messageMock.js</li>
+            <li>components/home/live/liveRankMock.js</li>
+            <li>components/friend/playmateMock.js</li>
+            <li>uni.scss</li>
+          </ol>
+        </section>
+      </main>
+    </div>
+
+    <div class="footer">
+      千隅项目规范浏览版 · 建议以 Markdown 版作为主规范源，HTML 版用于浏览器直接查看与分享预览。
+    </div>
+  </div>
+</body>
+</html>
