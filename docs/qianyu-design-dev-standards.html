@@ -617,6 +617,30 @@
               </tbody>
             </table>
           </div>
+
+          <h3>5.5 AI自动化UI测试</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>项目</th><th>方式</th><th>建议</th></tr></thead>
+              <tbody>
+                <tr><td>首选场景</td><td>安全区、固定头部、滚动容器、浮层遮挡、H5 布局错位、局部滚动异常</td><td>先做自动化测量，再结合肉眼看效果，不只凭截图判断</td></tr>
+                <tr><td>运行入口</td><td>优先使用本地 H5 预览地址，如 http://localhost:5173/#/pages/...</td><td>直接访问具体路由，避免从首页手点影响排查效率</td></tr>
+                <tr><td>工具选择</td><td>优先使用 Playwright；浏览器优先复用系统已有 Edge / Chrome</td><td>临时验证脚本放 session 临时目录，不把一次性测试脚本写进仓库</td></tr>
+                <tr><td>核心测量项</td><td>读取 getBoundingClientRect()、scrollTop、scrollHeight、clientHeight、window.scrollY、document.body.getBoundingClientRect().top</td><td>不只判断有没有挡住，还要确认到底是谁在滚动</td></tr>
+                <tr><td>关键验证对象</td><td>固定头部、首屏首卡、顶部浮条、scroll-view、底部安全区、长列表页</td><td>至少抽样异常页 + 共享子页 + 长列表页各 1 个</td></tr>
+                <tr><td>回归原则</td><td>如果改的是共享布局壳，必须回归 FullScreenPageLayout、RefreshTopStackLayout、UserSubPageLayout 等复用页</td><td>禁止只修单页就结束</td></tr>
+                <tr><td>输出要求</td><td>结论里要带页面路由和关键位置数据</td><td>例如首卡 top、头部 bottom、滚动后 scrollTop 是否变化</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ol class="list">
+            <li>优先先查本地 H5 是否已可访问，再开始自动化验证。</li>
+            <li>视觉类问题优先用 H5 做 DOM 级定位，因为浏览器最适合读取真实位置、滚动和尺寸。</li>
+            <li>如果 Playwright 缺少内置浏览器，优先复用系统浏览器可执行文件，不为单次排查污染仓库依赖。</li>
+            <li>共享布局问题要优先排查公共壳层实现，而不是先在业务页补局部 padding-top。</li>
+            <li>自动化测试脚本属于调试资产，优先放 session 临时目录；只有形成长期测试体系时才进入仓库。</li>
+            <li>一旦这类排查沉淀出稳定规则，必须同步更新本文档与 HTML 浏览版。</li>
+          </ol>
         </section>
 
         <section class="section" id="s6">
