@@ -25,8 +25,18 @@
 			<slot name="tertiary" />
 		</view>
 
+		<scroll-view
+			v-if="isScrollContent"
+			class="refresh-top-stack-content"
+			v-bind="contentProps"
+			:style="resolvedContentStyle"
+		>
+			<slot />
+		</scroll-view>
+
 		<component
 			:is="contentTag"
+			v-else
 			class="refresh-top-stack-content"
 			v-bind="contentProps"
 			:style="resolvedContentStyle"
@@ -104,6 +114,7 @@ const props = defineProps({
 })
 
 const { safeTopPx, windowHeightPx, rpxToPx } = useSafeAreaMetrics()
+const isScrollContent = computed(() => props.contentTag === 'scroll-view')
 
 const headerRowHeightPx = computed(() => rpxToPx(props.headerRowHeightRpx))
 const secondaryHeightPx = computed(() => rpxToPx(props.secondaryHeightRpx))

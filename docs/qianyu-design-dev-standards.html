@@ -485,6 +485,7 @@
                 <tr><td>底部安全区复用</td><td>固定底部操作栏优先使用 SafeBottomArea.vue</td></tr>
                 <tr><td>普通全屏子页</td><td>优先使用 FullScreenPageLayout.vue 承担头部 / 内容 / 底部预留</td></tr>
                 <tr><td>固定顶部堆叠 + 下拉刷新页</td><td>优先使用 RefreshTopStackLayout.vue</td></tr>
+                <tr><td>H5 滚动容器约束</td><td>共享布局里的滚动容器必须显式渲染 scroll-view，不要用动态 :is='scroll-view'，否则 H5 下容易出现顶部安全区错位、内容顶进固定头部、内部滚动失效</td></tr>
                 <tr><td>下拉刷新 / 上拉加载页</td><td>优先使用 PullPagingShell.vue，不要各页重复造刷新容器</td></tr>
               </tbody>
             </table>
@@ -717,6 +718,7 @@
                 <tr><td>SafeBottomArea</td><td>固定底部操作栏</td><td>负责底部 inset、内边距、最小高度</td></tr>
                 <tr><td>FullScreenPageLayout</td><td>普通非 Tab 全屏子页</td><td>统一头部、内容、底部保留区</td></tr>
                 <tr><td>RefreshTopStackLayout</td><td>顶部多层固定 + 下拉刷新页</td><td>适合商城检索 / 筛选类页面</td></tr>
+                <tr><td>H5 scroll-view 约束</td><td>H5 滚动页</td><td>必须显式使用 scroll-view，保证安全区预留与内部滚动稳定</td></tr>
                 <tr><td>PullPagingShell</td><td>下拉刷新 + 触底加载 + 自定义底部状态</td><td>页面只关心状态与事件，不重写刷新壳</td></tr>
               </tbody>
             </table>

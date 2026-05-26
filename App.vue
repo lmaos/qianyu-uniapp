@@ -50,9 +50,13 @@
 	html,
 	body,
 	#app,
+	uni-app,
+	uni-page,
+	uni-page-wrapper,
 	uni-page-body {
 		background: #000000;
 		color: #ffffff;
+		height: 100%;
 		min-height: 100%;
 	}
 

@@ -69,7 +69,7 @@ const cartContentProps = {
 const cartContentStyle = {
 	paddingRight: '24rpx',
 	paddingLeft: '24rpx',
-	height: '100vh'
+	height: '100%'
 }
 
 const selectedCartList = computed(() => cartList.value.filter((item) => item.checked))

@@ -13,8 +13,18 @@
 			<slot name="header" />
 		</SafeTopArea>
 
+		<scroll-view
+			v-if="isScrollContent"
+			class="full-screen-page-layout-content"
+			v-bind="contentProps"
+			:style="resolvedContentStyle"
+		>
+			<slot />
+		</scroll-view>
+
 		<component
 			:is="contentTag"
+			v-else
 			class="full-screen-page-layout-content"
 			v-bind="contentProps"
 			:style="resolvedContentStyle"
@@ -152,11 +162,14 @@ const props = defineProps({
 const slots = useSlots()
 const { safeTopPx, footerReservePx, rpxToPx } = useSafeAreaMetrics()
 const hasFooter = computed(() => Boolean(slots.footer))
+const isScrollContent = computed(() => props.contentTag === 'scroll-view')
 
 const resolvedPageStyle = computed(() => [
 	{
+		height: '100vh',
 		minHeight: '100vh',
-		background: props.pageBackground
+		background: props.pageBackground,
+		overflow: isScrollContent.value ? 'hidden' : 'visible'
 	},
 	props.pageStyle
 ])
@@ -181,6 +194,11 @@ const contentBottomPaddingPx = computed(() => {
 const resolvedContentStyle = computed(() => [
 	props.contentStyle,
 	{
+		display: 'block',
+		width: '100%',
+		minWidth: 0,
+		height: isScrollContent.value ? '100%' : undefined,
+		minHeight: isScrollContent.value ? '100%' : undefined,
 		paddingTop: `${contentTopPaddingPx.value}px`,
 		paddingBottom: `${contentBottomPaddingPx.value}px`,
 		boxSizing: 'border-box'
@@ -194,6 +212,8 @@ const resolvedContentStyle = computed(() => [
 }
 
 .full-screen-page-layout-content {
+	display: block;
+	width: 100%;
 	box-sizing: border-box;
 }
 </style>

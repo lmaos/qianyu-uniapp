@@ -292,7 +292,12 @@ const props = defineProps({
 })
 
 const pageMock = getPlaymatePageMock()
-const { safeTopPx, safeBottomPx } = useSafeAreaMetrics()
+const { safeTopPx, safeBottomPx, rpxToPx } = useSafeAreaMetrics()
+const playmateLayout = {
+	floatBarTopGapRpx: 20,
+	contentTopReserveRpx: 156,
+	contentBottomGapRpx: 48
+}
 const activeLaunchKey = ref(pageMock.guideList[0]?.targetLaunchKey || pageMock.launchCardList[0]?.key || '')
 const activeGuideKey = ref(pageMock.guideList[0]?.key || '')
 const activeNeedKey = ref(pageMock.guideList[0]?.needKey || pageMock.coreNeedList[0]?.key || '')
@@ -307,11 +312,11 @@ let floatBarResetTimer = null
 let pressResetTimer = null
 
 const contentStyle = computed(() => ({
-	paddingTop: `${safeTopPx.value + 78}px`,
-	paddingBottom: `${safeBottomPx.value + 24}px`
+	paddingTop: `${safeTopPx.value + rpxToPx(playmateLayout.contentTopReserveRpx)}px`,
+	paddingBottom: `${safeBottomPx.value + rpxToPx(playmateLayout.contentBottomGapRpx)}px`
 }))
 const floatBarStyle = computed(() => ({
-	top: `${safeTopPx.value + 10}px`
+	top: `${safeTopPx.value + rpxToPx(playmateLayout.floatBarTopGapRpx)}px`
 }))
 const activeGuideItem = computed(() => pageMock.guideList.find((item) => item.key === activeGuideKey.value) || null)
 const activeLaunchItem = computed(() => pageMock.launchCardList.find((item) => item.key === activeLaunchKey.value) || null)
@@ -536,7 +541,10 @@ function onResponseBoxClick(item) {
 <style scoped>
 .playmate-page {
 	position: relative;
+	display: flex;
+	flex-direction: column;
 	height: 100%;
+	min-height: 0;
 	background: linear-gradient(180deg, #fffafc 0%, #f8fbff 36%, #f4f7fc 100%);
 	overflow: hidden;
 }
@@ -565,6 +573,9 @@ function onResponseBoxClick(item) {
 }
 
 .playmate-scroll {
+	display: block;
+	flex: 1;
+	min-height: 0;
 	position: relative;
 	z-index: 1;
 	height: 100%;

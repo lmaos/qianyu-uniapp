@@ -105,6 +105,7 @@
 | 底部安全区复用 | 固定底部操作栏优先使用 `SafeBottomArea.vue` | `components/common/SafeBottomArea.vue` |
 | 普通全屏子页 | 优先使用 `FullScreenPageLayout.vue` 承担头部/内容/底部预留 | `components/common/FullScreenPageLayout.vue` |
 | 带固定顶部堆叠 + 下拉刷新页 | 优先使用 `RefreshTopStackLayout.vue` | `components/common/RefreshTopStackLayout.vue` |
+| H5 滚动容器约束 | 共享布局里的滚动容器必须显式渲染 `scroll-view`，不要用动态 `:is="'scroll-view'"`，否则 H5 下容易出现顶部安全区错位、内容顶进固定头部、内部滚动失效 | `components/common/FullScreenPageLayout.vue`, `components/common/RefreshTopStackLayout.vue` |
 | 下拉刷新/上拉加载页 | 优先使用 `PullPagingShell.vue`，不要各页重复造刷新容器 | `components/common/PullPagingShell.vue` |
 
 ### 4.2 主题切换
@@ -283,6 +284,7 @@
 | SafeBottomArea | `components/common/SafeBottomArea.vue` | 固定底部操作栏 | 负责底部 inset、内边距、最小高度 |
 | FullScreenPageLayout | `components/common/FullScreenPageLayout.vue` | 普通非 Tab 全屏子页 | 统一头部、内容、底部保留区 |
 | RefreshTopStackLayout | `components/common/RefreshTopStackLayout.vue` | 顶部多层固定 + 下拉刷新页 | 适合商城检索/筛选类页面 |
+| H5 scroll-view 约束 | `components/common/FullScreenPageLayout.vue`, `components/common/RefreshTopStackLayout.vue` | H5 滚动页 | 必须显式使用 `scroll-view`，保证安全区预留与内部滚动稳定 |
 | PullPagingShell | `components/common/PullPagingShell.vue` | 下拉刷新 + 触底加载 + 自定义底部状态 | 页面只关心状态与事件，不重写刷新壳 |
 
 ### 6.3 页面表面层组件

@@ -114,7 +114,8 @@ const resolvedContentStyle = computed(() => [
 		paddingBottom: `${props.contentBottomPaddingRpx}rpx`,
 		paddingLeft: `${props.contentSidePaddingRpx}rpx`,
 		boxSizing: 'border-box',
-		height: '100vh'
+		height: '100%',
+		minHeight: '100%'
 	},
 	props.contentStyle
 ])
