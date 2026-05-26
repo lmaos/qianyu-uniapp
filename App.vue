@@ -1,8 +1,6 @@
 <script setup>
 	import { onLaunch } from '@dcloudio/uni-app'
 	import { initSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
-	import { useIm } from '@/composables/useIm.js'
-	import imConfig from '@/core/im/im.config.js'
 	onLaunch(() => {
 		initSafeAreaMetrics()
 		console.log('App Launch')
@@ -10,7 +8,7 @@
 		initImService()
 	})
 
-	async function initImService() {
+    async function initImService() {
 		try {
 			const { start } = useIm()
 			await start(10001, imConfig)
@@ -18,7 +16,6 @@
 			console.error('[App] IM 服务初始化失败:', e)
 		}
 	}
-	
 	function initAndroidSystemNavigationBar() {
 		// #ifdef APP-PLUS
 		const systemInfo = uni.getSystemInfoSync()
@@ -32,7 +29,7 @@
 			const windowAndroid = mainActivity.getWindow()
 			const WindowManager = plus.android.importClass('android.view.WindowManager')
 			const View = plus.android.importClass('android.view.View')
-	
+
 			// 让页面绘制到系统导航栏区域，再把导航栏本身设为透明。
 			windowAndroid.clearFlags(
 				WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS |
@@ -46,12 +43,12 @@
 			windowAndroid.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
 			windowAndroid.setNavigationBarColor(Color.TRANSPARENT)
 		}
-	
+
 		if (typeof plus === 'undefined') {
 			document.addEventListener('plusready', applyTransparentNavigationBar, { once: true })
 			return
 		}
-	
+
 		applyTransparentNavigationBar()
 		// #endif
 	}
