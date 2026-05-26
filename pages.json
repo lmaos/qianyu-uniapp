@@ -113,6 +113,13 @@
 			}
 		},
 		{
+			"path": "pages/web/web-view",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
 			"path": "pages/user-profile/user-profile",
 			"style": {
 				"navigationStyle": "custom",

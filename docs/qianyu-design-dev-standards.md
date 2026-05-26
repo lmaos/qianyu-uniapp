@@ -188,6 +188,9 @@
 | --- | --- | --- |
 | Mock 数据集中管理 | 每个业务域优先放在对应 `*Mock.js`，不要把大块 mock 常量散落在页面里 | `components/user-center/userCenterMock.js`, `components/friend/playmateMock.js`, `components/shop/category/shopCategoryMock.js` |
 | 路由参数构建 | 页面 URL 优先通过 builder/helper 生成，避免字符串硬拼 | `buildPageUrl()` in `components/user-center/userCenterMock.js` |
+| 活动协议定义来源 | `actionUrl` 协议唯一收敛到 `components/common/activity/activityActionProtocol.js`，统一维护 `https://`、`http://`、`pages://` 规则与示例 | `components/common/activity/activityActionProtocol.js` |
+| 活动协议分发 | 活动弹窗与活动入口的跳转统一通过 `dispatchActivityAction()` 分发，不在多个页面重复写协议解析 | `components/common/activity/activityActionRouter.js` |
+| 外链承接页 | 外部活动链接统一进入 `pages/web/web-view.vue`，不要在业务页各自分散实现 web-view 页 | `pages/web/web-view.vue` |
 | 页面注册 | 所有新页面必须同步写入 `pages.json` | `pages.json` |
 | API 替换接口位 | 当前统一保留 mock-first / callback-first，不直接把真实接口写死在展示组件中 | 多处 `TODO：替换...` |
 | 资源释放 | 轮播、刷新、分页、定时器都要支持在隐藏/离开时停止 | `pages/home/home.vue`, `components/home/live/LiveTab.vue` |
@@ -261,6 +264,7 @@
 | `pages/mine/` | 我的主页面 |
 | `pages/user/` | 个人中心子页面集合 |
 | `pages/user-profile/` | 他人资料页 |
+| `pages/web/` | 内嵌网页承接页，如活动协议外链打开页 |
 | `pages/login/` | 登录与手机号登录流程 |
 | `pages/welcome/` | 欢迎与引导页 |
 
@@ -294,6 +298,8 @@
 | 安全区与尺寸换算 | `composables/useSafeAreaMetrics.js` | 提供安全区、窗口尺寸、`rpxToPx/pxToRpx`、头部/底部预留计算 | 不要在页面里复制安全区算法 |
 | 全局主题 | `composables/useAppTheme.js` | 提供浅色/深色主题配置与切换 | 页面不要自行维护第二套主题状态 |
 | SVG Data URI | `composables/useSvgIcon.js` | 将 SVG 字符串转成可直接给 `image` 使用的资源 | 新 SVG 图标优先走统一生成方式 |
+| 活动协议定义 | `components/common/activity/activityActionProtocol.js` | 统一维护活动弹窗 `actionUrl` 协议字段、类型与示例 | 新增活动跳转时优先补协议定义，不要先在页面硬编码 |
+| 活动协议分发 | `components/common/activity/activityActionRouter.js` | 统一解析 `pages://` 与 `http(s)://` 并分发到页面、Tab、直播间、web-view | 页面层消费分发器，展示组件只 emit `action` |
 
 ### 6.2 通用布局组件
 
@@ -305,6 +311,9 @@
 | RefreshTopStackLayout | `components/common/RefreshTopStackLayout.vue` | 顶部多层固定 + 下拉刷新页 | 适合商城检索/筛选类页面 |
 | H5 scroll-view 约束 | `components/common/FullScreenPageLayout.vue`, `components/common/RefreshTopStackLayout.vue` | H5 滚动页 | 必须显式使用 `scroll-view`，保证安全区预留与内部滚动稳定 |
 | PullPagingShell | `components/common/PullPagingShell.vue` | 下拉刷新 + 触底加载 + 自定义底部状态 | 页面只关心状态与事件，不重写刷新壳 |
+| ActivityPopupShell | `components/common/activity/ActivityPopupShell.vue` | 活动弹窗公共壳层 | 统一遮罩、右上角 `X`、弹层层级与关闭行为 |
+| ActivityImagePopup | `components/common/activity/ActivityImagePopup.vue` | 全图活动弹窗 | 用于活动大图/氛围图 + 单按钮动作 |
+| ActivityActionPopup | `components/common/activity/ActivityActionPopup.vue` | 文本标题 + 按钮活动弹窗 | 用于说明型活动弹窗与协议跳转确认 |
 
 ### 6.3 页面表面层组件
 
@@ -316,6 +325,7 @@
 | LiveCardItem | `components/home/live/elements/LiveCardItem.vue` | 直播双列流卡片 | 负责直播卡片展示与点击抛出 |
 | RoomIndex | `components/room/RoomIndex.vue` | 直播间整页 UI 组装 | 负责房间表现层，业务事件全部向页面层抛出 |
 | RoomChat / OnlinePanel / GiftPanel | `components/room/chat/*.vue`, `components/room/online/*.vue`, `components/room/gift/*.vue` | 直播间聊天、在线用户、礼物分层模块 | 属于房间内功能组件，不直接持有页面业务状态 |
+| web-view 活动承接页 | `pages/web/web-view.vue` | `http(s)://` 活动外链 | 活动页统一从协议分发器进入，不单独散落多个 web-view 页面 |
 | ShopSubPageHeader | `components/shop/common/ShopSubPageHeader.vue` | 商城子页面顶部标题栏 | 左返回 + 中标题 + 右侧操作占位 |
 | ShopHeaderIconButton | `components/shop/common/ShopHeaderIconButton.vue` | 商城头部/工具 SVG 按钮 | 尺寸与激活态统一，优先复用 |
 | shopSurface | `components/shop/common/shopSurface.js` | 商城背景、头部背景、SVG 图标集合 | 商城子页不要再单独造一套头部图标 |

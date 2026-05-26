@@ -1,7 +1,11 @@
 <template>
 	<view class="page-shell" :style="pageShellStyle">
 		<view class="page-content">
-			<HomePage v-show="activeTab === 'home'" :active="activeTab === 'home'" />
+			<HomePage
+				v-show="activeTab === 'home'"
+				:active="activeTab === 'home'"
+				:initial-scene="activeHomeScene"
+			/>
 			<FriendPage v-show="activeTab === 'friend'" :active="activeTab === 'friend'" />
 			<MessagePage v-show="activeTab === 'message'" />
 			<MinePage v-show="activeTab === 'mine'" :active="activeTab === 'mine'" />
@@ -24,6 +28,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { useAppTheme } from '@/composables/useAppTheme.js'
 import HomePage from '../home/home.vue'
 import FriendPage from '../friend/friend.vue'
@@ -42,7 +47,9 @@ const rootMock = {
 	// TODO：替换底部TAB接口数据
 }
 
+const ROOT_TAB_KEY_LIST = tabList.map((item) => item.key)
 const activeTab = ref(rootMock.defaultTab)
+const activeHomeScene = ref('')
 const { themeConfig, setLightTheme } = useAppTheme()
 
 const pageShellStyle = computed(() => {
@@ -77,6 +84,10 @@ function handleTabClick(tabItem) {
 	onTabChange(tabItem)
 }
 
+onLoad((options) => {
+	applyRouteTarget(options)
+})
+
 function onTabChange(tabItem) {
 	// TODO：替换真实TAB切换回调
 	console.log('root-tab-change', tabItem.key)
@@ -85,6 +96,21 @@ function onTabChange(tabItem) {
 function onTabRepeat(tabItem) {
 	// TODO：替换真实TAB重复点击回调
 	console.log('root-tab-repeat', tabItem.key)
+}
+
+function applyRouteTarget(options = {}) {
+	const nextTab = normalizeTabKey(options?.tab)
+	activeTab.value = nextTab
+	activeHomeScene.value = nextTab === 'home' ? normalizeHomeScene(options?.scene) : ''
+}
+
+function normalizeTabKey(tabKey) {
+	return ROOT_TAB_KEY_LIST.includes(tabKey) ? tabKey : rootMock.defaultTab
+}
+
+function normalizeHomeScene(sceneKey) {
+	const homeSceneKeyList = ['mall', 'live', 'recommend']
+	return homeSceneKeyList.includes(sceneKey) ? sceneKey : ''
 }
 
 watch(

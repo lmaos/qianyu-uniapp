@@ -595,6 +595,9 @@
               <tbody>
                 <tr><td>Mock 数据集中管理</td><td>每个业务域优先放在对应 *Mock.js，不把大块 mock 常量散落在页面里</td></tr>
                 <tr><td>路由参数构建</td><td>页面 URL 优先通过 builder/helper 生成，避免字符串硬拼</td></tr>
+                <tr><td>活动协议定义来源</td><td>actionUrl 协议唯一收敛到 components/common/activity/activityActionProtocol.js，统一维护 https://、http://、pages:// 规则与示例</td></tr>
+                <tr><td>活动协议分发</td><td>活动弹窗与活动入口跳转统一通过 dispatchActivityAction() 分发，不在多个页面重复写协议解析</td></tr>
+                <tr><td>外链承接页</td><td>外部活动链接统一进入 pages/web/web-view.vue，不在业务页各自分散实现 web-view 页</td></tr>
                 <tr><td>页面注册</td><td>所有新页面必须同步写入 pages.json</td></tr>
                 <tr><td>API 替换接口位</td><td>统一保留 mock-first / callback-first，不直接把真实接口写死在展示组件中</td></tr>
                 <tr><td>资源释放</td><td>轮播、刷新、分页、定时器都要支持在隐藏 / 离开时停止</td></tr>
@@ -684,6 +687,7 @@
                 <tr><td>pages/mine/</td><td>我的主页面</td></tr>
                 <tr><td>pages/user/</td><td>个人中心子页面集合</td></tr>
                 <tr><td>pages/user-profile/</td><td>他人资料页</td></tr>
+                <tr><td>pages/web/</td><td>内嵌网页承接页，如活动协议外链打开页</td></tr>
                 <tr><td>pages/login/</td><td>登录与手机号登录流程</td></tr>
                 <tr><td>pages/welcome/</td><td>欢迎与引导页</td></tr>
               </tbody>
@@ -729,6 +733,8 @@
                 <tr><td>安全区与尺寸换算</td><td>composables/useSafeAreaMetrics.js</td><td>提供安全区、窗口尺寸、rpxToPx / pxToRpx、头部 / 底部预留计算</td></tr>
                 <tr><td>全局主题</td><td>composables/useAppTheme.js</td><td>提供浅色 / 深色主题配置与切换</td></tr>
                 <tr><td>SVG Data URI</td><td>composables/useSvgIcon.js</td><td>将 SVG 字符串转成可直接给 image 使用的资源</td></tr>
+                <tr><td>活动协议定义</td><td>components/common/activity/activityActionProtocol.js</td><td>统一维护活动弹窗 actionUrl 协议字段、类型与示例</td></tr>
+                <tr><td>活动协议分发</td><td>components/common/activity/activityActionRouter.js</td><td>统一解析 pages:// 与 http(s):// 并分发到页面、Tab、直播间、web-view</td></tr>
               </tbody>
             </table>
           </div>
@@ -744,6 +750,9 @@
                 <tr><td>RefreshTopStackLayout</td><td>顶部多层固定 + 下拉刷新页</td><td>适合商城检索 / 筛选类页面</td></tr>
                 <tr><td>H5 scroll-view 约束</td><td>H5 滚动页</td><td>必须显式使用 scroll-view，保证安全区预留与内部滚动稳定</td></tr>
                 <tr><td>PullPagingShell</td><td>下拉刷新 + 触底加载 + 自定义底部状态</td><td>页面只关心状态与事件，不重写刷新壳</td></tr>
+                <tr><td>ActivityPopupShell</td><td>活动弹窗公共壳层</td><td>统一遮罩、右上角 X、弹层层级与关闭行为</td></tr>
+                <tr><td>ActivityImagePopup</td><td>全图活动弹窗</td><td>用于活动大图 / 氛围图 + 单按钮动作</td></tr>
+                <tr><td>ActivityActionPopup</td><td>文本标题 + 按钮活动弹窗</td><td>用于说明型活动弹窗与协议跳转确认</td></tr>
               </tbody>
             </table>
           </div>
@@ -757,6 +766,7 @@
                 <tr><td>LiveBanner / LiveHotRankCard / LiveCardItem</td><td>直播频道 Banner、榜单入口、双列流卡片</td><td>只负责展示与点击抛出，不接频道业务</td></tr>
                 <tr><td>RoomIndex</td><td>直播间整页 UI 组装</td><td>负责房间表现层，业务事件全部向页面层抛出</td></tr>
                 <tr><td>RoomChat / OnlinePanel / GiftPanel</td><td>直播间聊天、在线用户、礼物分层模块</td><td>房间内功能组件，不直接持有页面业务状态</td></tr>
+                <tr><td>web-view 活动承接页</td><td>http(s):// 活动外链</td><td>活动页统一从协议分发器进入，不单独散落多个 web-view 页面</td></tr>
                 <tr><td>ShopSubPageHeader / ShopHeaderIconButton / shopSurface</td><td>商城子页面头部与表面层</td><td>商城子页统一复用，不单独造一套头部图标与背景</td></tr>
                 <tr><td>ShopProductList / ShopProductItem</td><td>商城商品卡片与商品列表复用层</td><td>首页商城、分类结果等商品流优先复用</td></tr>
                 <tr><td>shopCategoryMock / shopDetailMock / shopCartMock</td><td>商城分类、详情、购物车 mock 能力层</td><td>商城页优先从对应 mock 文件取数据与 URL</td></tr>

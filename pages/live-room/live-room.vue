@@ -40,12 +40,54 @@
 			@user-card-follow="handleUserCardFollow"
 			@user-detail-open="handleUserDetailOpen"
 		/>
+
+		<ActivityImagePopup
+			v-if="activePopup.popupType === ACTIVITY_POPUP_TYPES.IMAGE"
+			:visible="activityPopupVisible"
+			:title="activePopup.title"
+			:desc="activePopup.desc"
+			:image-url="activePopup.imageUrl"
+			:confirm-text="activePopup.confirmText"
+			:cancel-text="activePopup.cancelText"
+			:show-close="activePopup.showClose"
+			:close-on-mask="activePopup.closeOnMask"
+			:action-url="activePopup.actionUrl"
+			:action-payload="activePopup.actionPayload"
+			@close="handleActivityPopupClose"
+			@confirm="handleActivityPopupConfirm"
+			@action="handleActivityPopupAction"
+		/>
+
+		<ActivityActionPopup
+			v-else-if="activityPopupVisible"
+			:visible="activityPopupVisible"
+			:title="activePopup.title"
+			:desc="activePopup.desc"
+			:confirm-text="activePopup.confirmText"
+			:cancel-text="activePopup.cancelText"
+			:show-close="activePopup.showClose"
+			:close-on-mask="activePopup.closeOnMask"
+			:action-url="activePopup.actionUrl"
+			:action-payload="activePopup.actionPayload"
+			@close="handleActivityPopupClose"
+			@confirm="handleActivityPopupConfirm"
+			@action="handleActivityPopupAction"
+		/>
 	</view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import ActivityActionPopup from '@/components/common/activity/ActivityActionPopup.vue'
+import ActivityImagePopup from '@/components/common/activity/ActivityImagePopup.vue'
+import { dispatchActivityAction } from '@/components/common/activity/activityActionRouter.js'
+import {
+	ACTIVITY_POPUP_TYPES,
+	ACTIVITY_ACTION_PROTOCOL_REFERENCE,
+	buildActivityActionUrl,
+	normalizeActivityPopupConfig
+} from '@/components/common/activity/activityActionProtocol.js'
 import RoomIndex from '@/components/room/RoomIndex.vue'
 
 const systemInfo = uni.getSystemInfoSync()
@@ -96,6 +138,14 @@ const senderId = ref('user-self-10001')
 const sceneId = 'live_room'
 const inputValue = ref('')
 const inputFocused = ref(false)
+const activityPopupVisible = ref(false)
+const activityPopupConfig = ref(normalizeActivityPopupConfig())
+const activePopup = computed(() => {
+	return normalizeActivityPopupConfig({
+		...activityPopupConfig.value,
+		visible: activityPopupVisible.value
+	})
+})
 
 onLoad((options) => {
 	const roomId = options.roomId || roomInfo.value.roomId
@@ -134,25 +184,53 @@ function handleFollow(payload) {
 
 function handleRank(payload) {
 	onRankClick(payload)
-	uni.showToast({
-		title: '人气榜回调占位',
-		icon: 'none'
+	openActivityPopup({
+		popupType: ACTIVITY_POPUP_TYPES.ACTION,
+		title: `${payload?.label || '人气榜'}正在升温`,
+		desc: '当前协议统一收敛在 activityActionProtocol.js。这里先演示 pages://open 普通页面跳转，后续可直接替换为真实活动或榜单接口。',
+		confirmText: '查看榜单',
+		cancelText: '稍后再看',
+		actionUrl: buildActivityActionUrl('open', {
+			page: '/pages/live/rank'
+		}),
+		actionPayload: {
+			title: payload?.label || '人气榜'
+		}
 	})
 }
 
 function handleLuckyBag(payload) {
 	onLuckyBagClick(payload)
-	uni.showToast({
-		title: '福袋回调占位',
-		icon: 'none'
+	openActivityPopup({
+		popupType: ACTIVITY_POPUP_TYPES.ACTION,
+		title: `${payload?.label || '福袋'}入口已接协议跳转`,
+		desc: '这里演示 pages://tab 协议：点击后会直接回到首页，并切到直播频道，适合承接直播首页、频道内子组件、活动分区等内部目标。',
+		confirmText: '回到直播频道',
+		cancelText: '留在房间',
+		actionUrl: buildActivityActionUrl('tab', {
+			tab: 'home',
+			scene: 'live'
+		}),
+		actionPayload: {
+			title: '直播频道'
+		}
 	})
 }
 
 function handleActivityBanner(payload) {
 	onActivityBannerClick(payload)
-	uni.showToast({
-		title: '活动回调占位',
-		icon: 'none'
+	openActivityPopup({
+		popupType: ACTIVITY_POPUP_TYPES.IMAGE,
+		title: `${payload?.subtitle || '活动进行中'}`,
+		desc: `当前支持 ${ACTIVITY_ACTION_PROTOCOL_REFERENCE.supportedPrefixes.join(' / ')}，这里演示 http(s) 外链进内嵌页面。`,
+		imageUrl:
+			'linear-gradient(135deg, rgba(254, 44, 85, 0.98) 0%, rgba(251, 146, 60, 0.94) 48%, rgba(59, 130, 246, 0.9) 100%)',
+		confirmText: '查看活动说明',
+		cancelText: '继续看直播',
+		actionUrl: 'https://example.com/',
+		actionPayload: {
+			title: '活动说明'
+		}
 	})
 }
 
@@ -228,9 +306,20 @@ function handleHeartGift(payload) {
 
 function handleShare() {
 	onShareRoom(roomInfo.value)
-	uni.showToast({
-		title: '分享回调占位',
-		icon: 'none'
+	openActivityPopup({
+		popupType: ACTIVITY_POPUP_TYPES.ACTION,
+		title: '推荐你去另一个直播间看看',
+		desc: '这里演示 pages://live-room 协议：可以直达指定房间，也方便后续从活动弹层、浮条、卡片直接跳转到特定直播间。',
+		confirmText: '打开新房间',
+		cancelText: '先不切换',
+		actionUrl: buildActivityActionUrl('live-room', {
+			roomId: 'hot-room-2002',
+			anchorId: 'anchor-2002',
+			roomName: '夜语音乐现场'
+		}),
+		actionPayload: {
+			title: '直播间跳转'
+		}
 	})
 }
 
@@ -288,6 +377,29 @@ function handleOnlinePanelHide(payload) {
 
 function handleOnlineUserClick(payload) {
 	onOnlineUserClick(payload)
+}
+
+function handleActivityPopupClose(payload) {
+	onActivityPopupClose(payload)
+	activityPopupVisible.value = false
+}
+
+function handleActivityPopupConfirm(payload) {
+	onActivityPopupConfirm(payload)
+}
+
+function handleActivityPopupAction(payload) {
+	onActivityPopupAction(payload)
+	const result = dispatchActivityAction(payload?.actionUrl, payload?.actionPayload)
+	if (result.handled) {
+		activityPopupVisible.value = false
+		return
+	}
+
+	uni.showToast({
+		title: '协议暂未支持',
+		icon: 'none'
+	})
 }
 
 function onBack(payload) {
@@ -418,6 +530,29 @@ function onOnlinePanelHide(payload) {
 function onOnlineUserClick(payload) {
 	// TODO：替换在线面板用户点击回调
 	console.log('live-room-online-user-click', payload.userId, payload.nickname)
+}
+
+function onActivityPopupClose(payload) {
+	// TODO：替换活动弹窗关闭回调
+	console.log('live-room-activity-popup-close', payload?.reason || 'close')
+}
+
+function onActivityPopupConfirm(payload) {
+	// TODO：替换活动弹窗确认回调
+	console.log('live-room-activity-popup-confirm', payload?.trigger || 'confirm-button')
+}
+
+function onActivityPopupAction(payload) {
+	// TODO：替换活动弹窗 actionUrl 分发前回调
+	console.log('live-room-activity-popup-action', payload?.actionUrl)
+}
+
+function openActivityPopup(config) {
+	activityPopupConfig.value = normalizeActivityPopupConfig({
+		...config,
+		visible: true
+	})
+	activityPopupVisible.value = true
 }
 </script>
 

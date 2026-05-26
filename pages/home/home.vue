@@ -74,6 +74,10 @@ const props = defineProps({
 	active: {
 		type: Boolean,
 		default: true
+	},
+	initialScene: {
+		type: String,
+		default: ''
 	}
 })
 
@@ -335,6 +339,29 @@ const bottomPullSlotStyle = computed(() => {
 })
 
 watch(
+	() => props.initialScene,
+	(value) => {
+		const nextSceneKey = normalizeSceneKey(value)
+		if (!nextSceneKey || activeSubNav.value === nextSceneKey) {
+			return
+		}
+
+		resetBottomPullState(true)
+		resetRefreshHint()
+		activeSubNav.value = nextSceneKey
+		scrollActiveContentToTop()
+		onSubNavChange({
+			key: nextSceneKey,
+			label: homeSceneConfigMap[nextSceneKey]?.label || nextSceneKey,
+			source: 'action-url'
+		})
+	},
+	{
+		immediate: true
+	}
+)
+
+watch(
 	() => activeSubNav.value,
 	(value) => {
 		sceneMountedMap[value] = true
@@ -393,6 +420,10 @@ function shouldMountScene(sceneKey) {
  */
 function isSceneActive(sceneKey) {
 	return props.active && activeSubNav.value === sceneKey
+}
+
+function normalizeSceneKey(sceneKey) {
+	return homeSceneConfigMap[sceneKey] ? sceneKey : ''
 }
 
 /**
