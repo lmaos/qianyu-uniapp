@@ -1,11 +1,23 @@
 <script setup>
 	import { onLaunch } from '@dcloudio/uni-app'
 	import { initSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
+	import { useIm } from '@/composables/useIm.js'
+	import imConfig from '@/core/im/im.config.js'
 	onLaunch(() => {
 		initSafeAreaMetrics()
 		console.log('App Launch')
 		initAndroidSystemNavigationBar()
+		initImService()
 	})
+
+	async function initImService() {
+		try {
+			const { start } = useIm()
+			await start(10001, imConfig)
+		} catch (e) {
+			console.error('[App] IM 服务初始化失败:', e)
+		}
+	}
 	
 	function initAndroidSystemNavigationBar() {
 		// #ifdef APP-PLUS

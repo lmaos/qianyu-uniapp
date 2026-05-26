@@ -8,7 +8,7 @@
 				<input
 					class="message-search-input"
 					:value="keyword"
-					:placeholder="pageMock.searchPlaceholder"
+					:placeholder="searchPlaceholder"
 					placeholder-style="color: #98a2b3;"
 					confirm-type="search"
 					@input="handleKeywordInput"
@@ -26,7 +26,7 @@
 
 					<view class="message-search-chip-list">
 						<view
-							v-for="item in pageMock.recentKeywordList"
+							v-for="item in recentKeywordList"
 							:key="item"
 							class="message-search-chip"
 							@tap="handleRecentKeywordClick(item)"
@@ -94,23 +94,57 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
+import { useIm } from '@/composables/useIm.js'
+import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
 import {
-	buildMessageChatUrl,
 	buildMessageSearchPageMock,
 	buildMessageUserProfileUrl
 } from '@/components/message/messageMock.js'
 
 const { safeTopPx } = useSafeAreaMetrics()
+const im = useIm()
+
 const pageMock = buildMessageSearchPageMock()
 const keyword = ref('')
+const searchPlaceholder = pageMock.searchPlaceholder
+const recentKeywordList = pageMock.recentKeywordList
+const contactList = ref(pageMock.contactList)
+const conversationList = ref([])
+
+// 加载真实会话数据用于搜索
+async function loadConversationData() {
+	try {
+		if (im.isReady.value) {
+			const result = await im.getConversationList()
+			const list = result.list || []
+			conversationList.value = list.map((conv) => ({
+				id: conv.conversationId || '',
+				conversationId: conv.conversationId || '',
+				targetId: conv.targetId || '',
+				name: conv.name || conv.targetId || '',
+				avatarText: conv.avatarText || (conv.name || '').charAt(0) || '?',
+				avatarBackground: conv.avatarBackground || 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
+				preview: conv.lastMessagePreview || '',
+				unreadCount: conv.unreadCount || 0,
+				chatType: conv.conversationId?.startsWith('group_') ? 2 : 1,
+			}))
+		} else {
+			// IM 未就绪，使用 mock 数据
+			conversationList.value = pageMock.conversationList
+		}
+	} catch (e) {
+		console.error('[search.vue] 加载会话数据失败:', e)
+		conversationList.value = pageMock.conversationList
+	}
+}
 
 const filteredContactList = computed(() => {
 	const normalizedKeyword = keyword.value.trim().toLowerCase()
 	if (!normalizedKeyword) {
-		return pageMock.contactList
+		return contactList.value
 	}
 
-	return pageMock.contactList.filter((item) => {
+	return contactList.value.filter((item) => {
 		return [item.name, item.displayId, item.signature].some((field) => `${field || ''}`.toLowerCase().includes(normalizedKeyword))
 	})
 })
@@ -118,20 +152,29 @@ const filteredContactList = computed(() => {
 const filteredConversationList = computed(() => {
 	const normalizedKeyword = keyword.value.trim().toLowerCase()
 	if (!normalizedKeyword) {
-		return pageMock.conversationList
+		return conversationList.value
 	}
 
-	return pageMock.conversationList.filter((item) => {
+	return conversationList.value.filter((item) => {
 		return [item.name, item.preview].some((field) => `${field || ''}`.toLowerCase().includes(normalizedKeyword))
 	})
 })
 
+function buildChatUrl(item) {
+	return buildPageUrl('/pages/message/chat', {
+		conversationId: item.conversationId || item.id || '',
+		chatType: item.chatType || 1,
+		targetId: item.targetId || item.userId || item.id || '',
+		name: item.name || '',
+	})
+}
+
 onLoad((options) => {
 	keyword.value = decodeURIComponent(`${options.keyword || ''}`.trim())
+	loadConversationData()
 })
 
 function handleBack() {
-	onBack()
 	uni.navigateBack({
 		delta: 1
 	})
@@ -142,51 +185,23 @@ function handleKeywordInput(event) {
 }
 
 function handleSearchConfirm() {
-	onSearchConfirm(keyword.value)
+	console.log('message-search-confirm', keyword.value)
 }
 
 function handleRecentKeywordClick(item) {
 	keyword.value = item
-	onRecentKeywordClick(item)
 }
 
 function handleContactClick(item) {
-	onContactClick(item)
 	uni.navigateTo({
-		url: buildMessageUserProfileUrl(item)
+		url: buildChatUrl(item)
 	})
 }
 
 function handleConversationClick(item) {
-	onConversationClick(item)
 	uni.navigateTo({
-		url: buildMessageChatUrl(item)
+		url: buildChatUrl(item)
 	})
-}
-
-function onBack() {
-	// TODO：替换消息搜索返回逻辑
-	console.log('message-search-back')
-}
-
-function onSearchConfirm(value) {
-	// TODO：替换消息搜索确认逻辑
-	console.log('message-search-confirm', value)
-}
-
-function onRecentKeywordClick(value) {
-	// TODO：替换最近搜索点击逻辑
-	console.log('message-search-recent-click', value)
-}
-
-function onContactClick(item) {
-	// TODO：替换搜索结果联系人点击逻辑
-	console.log('message-search-contact-click', item.id)
-}
-
-function onConversationClick(item) {
-	// TODO：替换搜索结果聊天点击逻辑
-	console.log('message-search-conversation-click', item.id)
 }
 </script>
 

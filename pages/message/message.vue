@@ -32,8 +32,8 @@
 						</view>
 
 						<view class="message-notice-chip" @tap.stop="handleMessageBadgeClick">
-							<text class="message-notice-chip-label">{{ pageMock.messageBadge.label }}</text>
-							<view class="message-notice-chip-count">{{ pageMock.messageBadge.value }}</view>
+							<text class="message-notice-chip-label">消息</text>
+							<view v-if="totalUnread > 0" class="message-notice-chip-count">{{ totalUnread }}</view>
 						</view>
 					</view>
 
@@ -145,11 +145,6 @@
 					<view v-if="!conversationList.length" class="message-empty-card">
 						<text class="message-empty-text">暂无聊天内容</text>
 					</view>
-
-					<view class="message-mock-card">
-						<text class="message-mock-title">Mock 说明</text>
-						<text class="message-mock-text">{{ pageMock.mockNotice }}</text>
-					</view>
 				</view>
 			</view>
 		</PullPagingShell>
@@ -157,17 +152,21 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, toRef } from 'vue'
+import { onShow, onHide } from '@dcloudio/uni-app'
 import PullPagingShell from '@/components/common/PullPagingShell.vue'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
+import { useIm } from '@/composables/useIm.js'
+import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
 import {
-	buildMessageChatUrl,
 	buildMessageContactListUrl,
 	buildMessagePageMock,
 	buildMessageSearchUrl,
 	buildMessageUserProfileUrl
 } from '@/components/message/messageMock.js'
 
+const im = useIm()
+const totalUnread = toRef(im, 'totalUnread')
 const pageMock = buildMessagePageMock()
 const { safeTopPx, rpxToPx } = useSafeAreaMetrics()
 const muteIconSvg =
@@ -190,10 +189,12 @@ const messagePageConfig = {
 	deleteActionWidthRpx: 148
 }
 
-const conversationMockPool = ref([...pageMock.conversationSourceList])
+// ===== 会话数据 =====
+
+const conversationSourceList = ref([]) // 完整的 IM 会话数据
 const conversationPage = ref(1)
-const conversationList = ref(conversationMockPool.value.slice(0, messagePageConfig.pageSize))
-const conversationNoMore = ref(conversationList.value.length >= conversationMockPool.value.length)
+const conversationList = ref([])      // 当前页的视图模型列表
+const conversationNoMore = ref(false)
 
 const refreshing = ref(false)
 const loadingMore = ref(false)
@@ -222,6 +223,119 @@ let swipeStartX = 0
 let swipeStartY = 0
 let swipeBaseOffsetX = 0
 let swipeLockedAxis = ''
+
+let _convUpdatedOff = null // onConversationUpdated 取消监听函数
+
+// ===== 会话数据转换 =====
+
+/**
+ * 将 IM 会话对象转换为模板所需的视图模型
+ * IM 会话字段: conversationId, targetId, name, avatarText, avatarBackground,
+ *             lastMessagePreview, lastMessageTime, unreadCount, isPinned, isMuted, onlineState
+ */
+function normalizeConversation(conv) {
+	return {
+		id: conv.conversationId,
+		conversationId: conv.conversationId,
+		targetId: conv.targetId,
+		name: conv.name || conv.targetId || '',
+		avatarText: conv.avatarText || (conv.name || '').charAt(0) || '?',
+		avatarBackground: conv.avatarBackground || 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
+		onlineState: conv.onlineState || 'hidden',
+		timeText: formatTimeText(conv.lastMessageTime),
+		preview: conv.lastMessagePreview || '',
+		unreadCount: conv.unreadCount || 0,
+		pinned: conv.isPinned || false,
+		muted: conv.isMuted || false,
+		tagText: conv.isPinned ? '置顶' : (conv.unreadCount > 0 ? '未读' : ''),
+		chatType: conv.conversationId?.startsWith('group_') ? 2 : 1,
+	}
+}
+
+function formatTimeText(timestamp) {
+	if (!timestamp) return ''
+	const now = Date.now()
+	const date = new Date(timestamp)
+	const diffMs = now - timestamp
+	const diffMin = Math.floor(diffMs / 60000)
+
+	if (diffMin < 1) return '刚刚'
+	if (diffMin < 60) return `${diffMin}分钟前`
+
+	const today = new Date()
+	const isToday = date.toDateString() === today.toDateString()
+	if (isToday) {
+		return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+	}
+
+	const yesterday = new Date(now - 86400000)
+	if (date.toDateString() === yesterday.toDateString()) return '昨天'
+
+	const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+	const thisWeekStart = new Date(today)
+	thisWeekStart.setDate(today.getDate() - today.getDay())
+	if (date >= thisWeekStart) return weekDays[date.getDay()]
+
+	return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+// ===== IM 数据加载 =====
+
+async function loadConversationList() {
+	try {
+		const result = await im.getConversationList()
+		const list = result.list || []
+		conversationSourceList.value = list.map(normalizeConversation)
+		conversationPage.value = 1
+		conversationList.value = conversationSourceList.value.slice(0, messagePageConfig.pageSize)
+		conversationNoMore.value = conversationList.value.length >= conversationSourceList.value.length
+		console.log('[message.vue] 加载会话列表: count=', conversationSourceList.value.length)
+	} catch (e) {
+		console.error('[message.vue] 加载会话列表失败:', e)
+	}
+}
+
+function refreshFromSource() {
+	conversationList.value = conversationSourceList.value.slice(0, messagePageConfig.pageSize)
+	conversationPage.value = 1
+	conversationNoMore.value = conversationList.value.length >= conversationSourceList.value.length
+}
+
+// ===== 生命周期 =====
+
+onShow(async () => {
+	// 绑定页面 listener（收到消息时刷新会话列表）
+	const listener = {
+		register() { console.log('[message.vue] listener register') },
+		leave() { console.log('[message.vue] listener leave') },
+		onMessage(body) {
+			console.log('[message.vue] listener onMessage: convId=', body?.conversationId)
+			loadConversationList()
+		},
+	}
+	im.bindListener(listener)
+
+	// 监听会话变更事件
+	_convUpdatedOff = im.onConversationUpdated(() => {
+		console.log('[message.vue] CONVERSATION_UPDATED')
+		loadConversationList()
+	})
+
+	// 加载会话列表
+	await loadConversationList()
+})
+
+onHide(() => {
+	im.unbindListener({
+		leave() { console.log('[message.vue] listener unbind') },
+	})
+	if (_convUpdatedOff) {
+		_convUpdatedOff()
+		_convUpdatedOff = null
+	}
+})
+
+// ===== 计算属性 =====
 
 const deleteActionWidthPx = computed(() => rpxToPx(messagePageConfig.deleteActionWidthRpx))
 const refreshRevealDistancePx = computed(() => rpxToPx(messagePageConfig.refreshRevealHeightRpx))
@@ -268,6 +382,8 @@ const refreshCoverStyle = computed(() => {
 		opacity: keepVisible ? 1 : Math.min(1, Number(refreshPullDistancePx.value || 0) / revealDistance)
 	}
 })
+
+// ===== 触摸事件处理 =====
 
 function handleParentScroll(event) {
 	parentScrollTopPx.value = Number(event?.detail?.scrollTop || 0)
@@ -321,6 +437,8 @@ function handleParentTouchEnd() {
 	void triggerRefresh()
 }
 
+// ===== 刷新/加载更多 =====
+
 async function triggerRefresh() {
 	if (refreshing.value) {
 		return
@@ -336,20 +454,13 @@ async function triggerRefresh() {
 	refreshCoverTransitionMs.value = messagePageConfig.refreshSettleDurationMs
 	refreshPullDistancePx.value = Number(refreshRevealDistancePx.value || 0)
 
-	const payload = createMessageRefreshPayload()
 	let refreshSucceeded = false
 
 	try {
-		const result = await Promise.resolve(onMessageRefresh(payload))
+		await loadConversationList()
 		await ensureMinimumLoadingTime(requestStartAt, messagePageConfig.minRefreshLoadingMs)
 		if (requestId !== refreshRequestId) {
 			return
-		}
-
-		if (!payload.applied && result !== false) {
-			payload.applyReplace(conversationMockPool.value.slice(0, messagePageConfig.pageSize), {
-				hasMore: conversationMockPool.value.length > messagePageConfig.pageSize
-			})
 		}
 		refreshSucceeded = true
 	} catch (error) {
@@ -391,46 +502,26 @@ async function handleParentReachLower() {
 	loadingMore.value = true
 	showBottomPullState('loading')
 
-	const payload = createMessageLoadMorePayload()
-
 	try {
-		const result = await Promise.resolve(onMessageLoadMore(payload))
 		await ensureMinimumLoadingTime(requestStartAt, messagePageConfig.minLoadMoreLoadingMs)
 		if (requestId !== reachLowerRequestId) {
 			return { status: 'busy' }
 		}
 
-		if (!payload.applied && !payload.noMoreMarked && result !== false) {
-			const nextList = conversationMockPool.value.slice(
-				conversationList.value.length,
-				conversationList.value.length + messagePageConfig.pageSize
-			)
-			if (!nextList.length) {
-				payload.markNoMore()
-			} else {
-				payload.applyAppend(nextList, {
-					hasMore: conversationList.value.length + nextList.length < conversationMockPool.value.length
-				})
-			}
-		}
-
-		if (payload.noMoreMarked) {
+		const nextList = conversationSourceList.value.slice(
+			conversationList.value.length,
+			conversationList.value.length + messagePageConfig.pageSize
+		)
+		if (!nextList.length) {
+			conversationNoMore.value = true
 			showBottomPullState('no-more')
 			requestBottomPullRebound(messagePageConfig.bottomPullNoMoreHoldMs)
 			return { status: 'no-more' }
 		}
 
-		if (payload.applied) {
-			showBottomPullState('loaded')
-			requestBottomPullRebound(messagePageConfig.bottomPullLoadedHoldMs)
-			return { status: 'loaded' }
-		}
-
-		if (conversationNoMore.value) {
-			showBottomPullState('no-more')
-			requestBottomPullRebound(messagePageConfig.bottomPullNoMoreHoldMs)
-			return { status: 'no-more' }
-		}
+		conversationPage.value += 1
+		conversationList.value = [...conversationList.value, ...nextList]
+		conversationNoMore.value = conversationList.value.length >= conversationSourceList.value.length
 
 		showBottomPullState('loaded')
 		requestBottomPullRebound(messagePageConfig.bottomPullLoadedHoldMs)
@@ -449,45 +540,15 @@ async function handleParentReachLower() {
 	}
 }
 
-function createMessageRefreshPayload() {
-	const payload = {
-		applied: false,
-		pageSize: messagePageConfig.pageSize,
-		currentList: conversationList.value.map((item) => ({ ...item })),
-		sourceList: conversationMockPool.value.map((item) => ({ ...item })),
-		applyReplace(nextList = [], options = {}) {
-			payload.applied = true
-			conversationPage.value = 1
-			conversationList.value = [...nextList]
-			conversationNoMore.value =
-				typeof options.hasMore === 'boolean' ? !options.hasMore : nextList.length < messagePageConfig.pageSize
-		}
-	}
-	return payload
-}
+// ===== 导航处理 =====
 
-function createMessageLoadMorePayload() {
-	const payload = {
-		applied: false,
-		noMoreMarked: false,
-		pageSize: messagePageConfig.pageSize,
-		page: conversationPage.value + 1,
-		currentList: conversationList.value.map((item) => ({ ...item })),
-		applyAppend(nextList = [], options = {}) {
-			payload.applied = true
-			conversationPage.value += 1
-			conversationList.value = [...conversationList.value, ...nextList]
-			conversationNoMore.value =
-				typeof options.hasMore === 'boolean'
-					? !options.hasMore
-					: nextList.length < messagePageConfig.pageSize
-		},
-		markNoMore() {
-			payload.noMoreMarked = true
-			conversationNoMore.value = true
-		}
-	}
-	return payload
+function buildChatUrl(item) {
+	return buildPageUrl('/pages/message/chat', {
+		conversationId: item.conversationId || item.id || '',
+		chatType: item.chatType || 1,
+		targetId: item.targetId || '',
+		name: item.name || '',
+	})
 }
 
 function handleContentTap() {
@@ -497,32 +558,28 @@ function handleContentTap() {
 }
 
 function handleMessageBadgeClick() {
-	onMessageBadgeClick(pageMock.messageBadge)
+	console.log('message-badge-click', totalUnread.value)
 }
 
 function handleSearchClick() {
-	onSearchClick()
 	uni.navigateTo({
 		url: buildMessageSearchUrl()
 	})
 }
 
 function handleContactClick(item) {
-	onContactClick(item)
 	uni.navigateTo({
-		url: buildMessageChatUrl(item)
+		url: buildChatUrl(item)
 	})
 }
 
 function handleContactMomentClick(item) {
-	onContactMomentClick(item)
 	uni.navigateTo({
 		url: buildMessageUserProfileUrl(item)
 	})
 }
 
 function handleContactMoreClick() {
-	onContactMoreClick()
 	uni.navigateTo({
 		url: buildMessageContactListUrl()
 	})
@@ -534,11 +591,13 @@ function handleConversationCardClick(item) {
 		return
 	}
 
-	onConversationClick(item)
+	console.log('message-conversation-click', item.id)
 	uni.navigateTo({
-		url: buildMessageChatUrl(item)
+		url: buildChatUrl(item)
 	})
 }
+
+// ===== 滑动删除 =====
 
 function handleConversationTouchStart(item, event) {
 	if (deletingConversationId.value) {
@@ -596,17 +655,17 @@ function handleConversationTouchEnd(item) {
 	swipeTranslateX.value = 0
 }
 
-function getConversationTrackStyle(conversationId) {
+function getConversationTrackStyle(convId) {
 	const offsetPx =
-		swipingConversationId.value === conversationId
+		swipingConversationId.value === convId
 			? swipeTranslateX.value
-			: swipedConversationId.value === conversationId
+			: swipedConversationId.value === convId
 				? -deleteActionWidthPx.value
 				: 0
 
 	return {
 		transform: `translateX(${offsetPx}px)`,
-		transition: swipingConversationId.value === conversationId ? 'none' : 'transform 220ms ease'
+		transition: swipingConversationId.value === convId ? 'none' : 'transform 220ms ease'
 	}
 }
 
@@ -616,18 +675,9 @@ async function handleConversationDelete(item) {
 	}
 
 	deletingConversationId.value = item.id
-	const payload = {
-		item: { ...item },
-		currentList: conversationList.value.map((currentItem) => ({ ...currentItem }))
-	}
 
 	try {
-		const result = await Promise.resolve(onConversationDelete(payload))
-		if (result === false) {
-			closeSwipe()
-			return
-		}
-
+		await im.deleteConversation(item.conversationId, item.chatType)
 		removeConversation(item.id)
 		closeSwipe()
 	} catch (error) {
@@ -642,12 +692,12 @@ async function handleConversationDelete(item) {
 	}
 }
 
-function removeConversation(conversationId) {
-	conversationMockPool.value = conversationMockPool.value.filter((item) => item.id !== conversationId)
-	const desiredCount = Math.min(conversationPage.value * messagePageConfig.pageSize, conversationMockPool.value.length)
-	conversationList.value = conversationMockPool.value.slice(0, desiredCount)
+function removeConversation(convId) {
+	conversationSourceList.value = conversationSourceList.value.filter((item) => item.id !== convId)
+	const desiredCount = Math.min(conversationPage.value * messagePageConfig.pageSize, conversationSourceList.value.length)
+	conversationList.value = conversationSourceList.value.slice(0, desiredCount)
 	conversationPage.value = Math.max(1, Math.ceil(conversationList.value.length / messagePageConfig.pageSize) || 1)
-	conversationNoMore.value = conversationList.value.length >= conversationMockPool.value.length
+	conversationNoMore.value = conversationList.value.length >= conversationSourceList.value.length
 }
 
 function closeSwipe() {
@@ -655,6 +705,8 @@ function closeSwipe() {
 	swipingConversationId.value = ''
 	swipeTranslateX.value = 0
 }
+
+// ===== 底部加载状态 =====
 
 function showBottomPullState(state) {
 	clearBottomPullTimers()
@@ -735,51 +787,7 @@ function ensureMinimumLoadingTime(startAt, minimumDurationMs) {
 	})
 }
 
-function onMessageBadgeClick(messageBadge) {
-	// TODO：替换消息提醒入口逻辑
-	console.log('message-badge-click', messageBadge.label, messageBadge.value)
-}
-
-function onSearchClick() {
-	// TODO：替换消息页搜索入口逻辑
-	console.log('message-search-click')
-}
-
-function onContactClick(item) {
-	// TODO：替换联系人点击逻辑
-	console.log('message-contact-click', item.id)
-}
-
-function onContactMomentClick(item) {
-	// TODO：替换联系人动态角标点击逻辑
-	console.log('message-contact-moment-click', item.id)
-}
-
-function onContactMoreClick() {
-	// TODO：替换消息页联系人列表跳转逻辑
-	console.log('message-contact-more-click')
-}
-
-function onConversationClick(item) {
-	// TODO：替换会话点击逻辑
-	console.log('message-conversation-click', item.id)
-}
-
-function onConversationDelete(payload) {
-	// TODO：替换会话删除接口，返回 false 或抛错时不删除
-	console.log('message-conversation-delete', payload.item.id)
-	return true
-}
-
-function onMessageRefresh(payload) {
-	// TODO：替换消息页刷新接口，使用 payload.applyReplace(...)
-	console.log('message-refresh', payload.currentList.length)
-}
-
-function onMessageLoadMore(payload) {
-	// TODO：替换消息页分页接口，使用 payload.applyAppend(...) / payload.markNoMore()
-	console.log('message-load-more', payload.page)
-}
+// ===== 清理 =====
 
 onBeforeUnmount(() => {
 	clearRefreshHintResetTimer()
@@ -1252,14 +1260,10 @@ onBeforeUnmount(() => {
 	box-sizing: border-box;
 }
 
-.message-empty-card,
-.message-mock-card {
+.message-empty-card {
 	padding: 24rpx;
 	border-radius: 30rpx;
 	background: rgba(255, 255, 255, 0.86);
-}
-
-.message-empty-card {
 	margin-bottom: 18rpx;
 }
 
@@ -1268,22 +1272,6 @@ onBeforeUnmount(() => {
 	line-height: 34rpx;
 	color: #98a2b3;
 	text-align: center;
-}
-
-.message-mock-title {
-	display: block;
-	font-size: 24rpx;
-	font-weight: 700;
-	line-height: 32rpx;
-	color: #0f172a;
-}
-
-.message-mock-text {
-	display: block;
-	margin-top: 10rpx;
-	font-size: 22rpx;
-	line-height: 34rpx;
-	color: #667085;
 }
 
 @keyframes message-refresh-spin {

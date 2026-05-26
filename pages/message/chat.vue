@@ -4,10 +4,10 @@
 			<view class="chat-back-button" @tap="handleBack">‹</view>
 
 			<view class="chat-user-meta">
-				<view class="chat-user-avatar" :style="{ background: pageMock.avatarBackground }">{{ pageMock.avatarText }}</view>
+				<view class="chat-user-avatar" :style="{ background: chatInfo.avatarBackground }">{{ chatInfo.avatarText }}</view>
 				<view class="chat-user-copy">
-					<text class="chat-user-name">{{ pageMock.name }}</text>
-					<text class="chat-user-status">{{ pageMock.statusText }}</text>
+					<text class="chat-user-name">{{ chatInfo.name }}</text>
+					<text class="chat-user-status">{{ chatInfo.statusText }}</text>
 				</view>
 			</view>
 
@@ -16,10 +16,10 @@
 
 		<view class="chat-body">
 			<view class="chat-history-button" @tap="handleHistoryLoadClick">
-				{{ visibleStartIndex > 0 ? '查看更多消息' : '已经是最早消息' }}
+				{{ hasMoreHistory ? '查看更多消息' : '已经是最早消息' }}
 			</view>
 
-			<scroll-view class="chat-message-scroll" scroll-y show-scrollbar="false">
+			<scroll-view class="chat-message-scroll" scroll-y show-scrollbar="false" :scroll-top="scrollTop" :scroll-with-animation="true">
 				<view class="chat-message-list">
 					<view
 						v-for="item in visibleMessageList"
@@ -33,9 +33,9 @@
 							<view
 								v-if="item.type !== 'self'"
 								class="chat-bubble-avatar"
-								:style="{ background: pageMock.avatarBackground }"
+								:style="{ background: chatInfo.avatarBackground }"
 							>
-								{{ pageMock.avatarText }}
+								{{ chatInfo.avatarText }}
 							</view>
 
 							<view :class="['chat-bubble', item.type === 'self' ? 'chat-bubble-self' : 'chat-bubble-other']">
@@ -50,7 +50,7 @@
 		<view class="chat-toolbar">
 			<view class="chat-toolbar-actions">
 				<view
-					v-for="item in pageMock.actionList"
+					v-for="item in actionList"
 					:key="item.key"
 					class="chat-toolbar-action"
 					@tap="handleToolbarActionClick(item)"
@@ -76,38 +76,164 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { buildChatPageMock } from '@/components/message/messageMock.js'
+import { computed, nextTick, ref } from 'vue'
+import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
+import { useIm } from '@/composables/useIm.js'
+import { getMessageDirection } from '@/core/im/models/MessageEntity.js'
+
+const im = useIm()
 
 const systemInfo = uni.getSystemInfoSync()
 const safeTopPx = systemInfo.safeAreaInsets?.top || systemInfo.statusBarHeight || 0
 
-const pageMock = ref(buildChatPageMock())
+// ===== 页面状态 =====
+
+const chatInfo = ref({
+	conversationId: '',
+	chatType: 1,
+	targetId: '',
+	name: '聊天',
+	statusText: '',
+	avatarText: '?',
+	avatarBackground: 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
+})
+
+const actionList = ref([
+	{ key: 'album', label: '相册' },
+	{ key: 'voice', label: '语音' },
+	{ key: 'more', label: '更多' },
+])
+
 const inputValue = ref('')
 const messageList = ref([])
-const visibleStartIndex = ref(0)
+const scrollTop = ref(0)
+const hasMoreHistory = ref(true)
+const historyCursor = ref(null)
+
+const currentUserId = computed(() => im.getCurrentUserId())
 
 const visibleMessageList = computed(() => {
-	return messageList.value.slice(visibleStartIndex.value)
+	return messageList.value.map((msg) => ({
+		id: msg.msgId || msg.id || `msg-${Date.now()}-${Math.random()}`,
+		type: msg.type || getMessageDirection(msg, currentUserId.value),
+		text: msg.content || msg.text || '',
+	}))
 })
+
+// ===== 消息方向辅助 =====
+
+function scrollToBottom() {
+	nextTick(() => {
+		scrollTop.value = scrollTop.value + 1
+	})
+}
+
+// ===== 生命周期 =====
 
 onLoad((options) => {
-	const nextPageMock = buildChatPageMock(options.conversationId || '')
-	pageMock.value = nextPageMock
-	messageList.value = [...nextPageMock.messageList]
-	visibleStartIndex.value = Math.max(0, nextPageMock.messageList.length - 6)
+	chatInfo.value = {
+		conversationId: options.conversationId || '',
+		chatType: Number(options.chatType) || 1,
+		targetId: options.targetId || '',
+		name: decodeURIComponent(options.name || '聊天'),
+		statusText: '',
+		avatarText: (decodeURIComponent(options.name || '聊天')).charAt(0),
+		avatarBackground: 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
+	}
+
+	console.log('[chat.vue] onLoad: convId=', chatInfo.value.conversationId, ', targetId=', chatInfo.value.targetId)
+	loadMessages()
 })
 
+onShow(() => {
+	// 进入聊天页面 → 立即标记已读（本地 storage 同步清零）
+	if (chatInfo.value.conversationId) {
+		im.markConversationRead(chatInfo.value.conversationId, chatInfo.value.chatType).catch(() => {})
+	}
+
+	// 绑定 listener：收到属于当前会话的消息时追加到列表
+	const listener = {
+		register() { console.log('[chat.vue] listener register') },
+		leave() { console.log('[chat.vue] listener leave') },
+		onMessage(body) {
+			const convId = body.chatType === 1
+				? `private_${body.sender === currentUserId.value ? body.receiver : body.sender}`
+				: `group_${body.receiver}`
+
+			if (convId === chatInfo.value.conversationId) {
+				console.log('[chat.vue] 收到当前会话消息: sender=', body.sender)
+				messageList.value = [...messageList.value, body]
+				scrollToBottom()
+			}
+		},
+	}
+	im.bindListener(listener)
+})
+
+onHide(() => {
+	// 解绑 listener
+	im.unbindListener({
+		leave() { console.log('[chat.vue] listener unbind') },
+	})
+
+	// 标记已读
+	if (chatInfo.value.conversationId) {
+		im.markConversationRead(chatInfo.value.conversationId, chatInfo.value.chatType).catch(() => {})
+	}
+})
+
+// ===== 消息加载 =====
+
+async function loadMessages() {
+	try {
+		const result = await im.getMessages(
+			chatInfo.value.conversationId,
+			chatInfo.value.chatType,
+			15,
+			null
+		)
+		const list = (result.list || []).reverse()
+		messageList.value = list
+		hasMoreHistory.value = result.hasMore !== false
+		historyCursor.value = result.cursor || null
+		scrollToBottom()
+		console.log('[chat.vue] 加载消息: count=', list.length, ', hasMore=', hasMoreHistory.value)
+	} catch (e) {
+		console.error('[chat.vue] 加载消息失败:', e)
+	}
+}
+
+async function loadMoreHistory() {
+	if (!hasMoreHistory.value) return
+
+	try {
+		const result = await im.getMessages(
+			chatInfo.value.conversationId,
+			chatInfo.value.chatType,
+			15,
+			historyCursor.value
+		)
+		const olderMessages = (result.list || []).reverse()
+		if (olderMessages.length > 0) {
+			messageList.value = [...olderMessages, ...messageList.value]
+		}
+		hasMoreHistory.value = result.hasMore !== false
+		historyCursor.value = result.cursor || null
+		console.log('[chat.vue] 加载更多消息: count=', olderMessages.length, ', hasMore=', hasMoreHistory.value)
+	} catch (e) {
+		console.error('[chat.vue] 加载更多消息失败:', e)
+	}
+}
+
+// ===== 事件处理 =====
+
 function handleBack() {
-	onBack(pageMock.value.id)
 	uni.navigateBack({
 		delta: 1
 	})
 }
 
 function handleMoreClick() {
-	onMoreClick(pageMock.value.id)
 	uni.showToast({
 		title: '聊天设置占位',
 		icon: 'none'
@@ -115,7 +241,7 @@ function handleMoreClick() {
 }
 
 function handleHistoryLoadClick() {
-	if (visibleStartIndex.value <= 0) {
+	if (!hasMoreHistory.value) {
 		uni.showToast({
 			title: '没有更多历史消息',
 			icon: 'none'
@@ -123,12 +249,10 @@ function handleHistoryLoadClick() {
 		return
 	}
 
-	visibleStartIndex.value = Math.max(0, visibleStartIndex.value - 3)
-	onHistoryLoad(pageMock.value.id)
+	loadMoreHistory()
 }
 
 function handleToolbarActionClick(item) {
-	onToolbarAction(item)
 	uni.showToast({
 		title: `${item.label}入口占位`,
 		icon: 'none'
@@ -139,7 +263,7 @@ function handleInputChange(event) {
 	inputValue.value = event.detail.value
 }
 
-function handleSendClick() {
+async function handleSendClick() {
 	const content = `${inputValue.value || ''}`.trim()
 	if (!content) {
 		uni.showToast({
@@ -149,52 +273,35 @@ function handleSendClick() {
 		return
 	}
 
-	const nextMessage = {
-		id: `self-${Date.now()}`,
-		type: 'self',
-		text: content
-	}
-
-	messageList.value = [...messageList.value, nextMessage]
-	visibleStartIndex.value = Math.max(0, messageList.value.length - 8)
-	onSendMessage({
-		conversationId: pageMock.value.id,
-		content
-	})
 	inputValue.value = ''
+
+	try {
+		// 确定接收者：如果是私聊，接收者就是 targetId
+		const receiver = chatInfo.value.targetId
+		if (!receiver) {
+			console.error('[chat.vue] 发送失败: 缺少 targetId')
+			return
+		}
+
+		await im.sendMessage({
+			messageType: 'text',
+			content,
+			receiver,
+			chatType: chatInfo.value.chatType,
+		})
+
+		scrollToBottom()
+		console.log('[chat.vue] 消息发送成功')
+	} catch (e) {
+		console.error('[chat.vue] 消息发送失败:', e)
+		uni.showToast({
+			title: '发送失败',
+			icon: 'none'
+		})
+	}
 }
 
 function handleMessageClick(message) {
-	onMessageClick(message)
-}
-
-function onBack(conversationId) {
-	// TODO：替换私聊返回前埋点或草稿保存逻辑
-	console.log('message-chat-back', conversationId)
-}
-
-function onMoreClick(conversationId) {
-	// TODO：替换私聊更多操作面板逻辑
-	console.log('message-chat-more', conversationId)
-}
-
-function onHistoryLoad(conversationId) {
-	// TODO：替换私聊历史消息加载接口
-	console.log('message-chat-history-load', conversationId)
-}
-
-function onToolbarAction(item) {
-	// TODO：替换私聊工具栏动作逻辑
-	console.log('message-chat-toolbar-action', item.key)
-}
-
-function onSendMessage(payload) {
-	// TODO：替换私聊发送消息接口
-	console.log('message-chat-send', payload.conversationId, payload.content)
-}
-
-function onMessageClick(message) {
-	// TODO：替换私聊消息点击事件
 	console.log('message-chat-message-click', message.id)
 }
 </script>

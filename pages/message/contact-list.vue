@@ -47,8 +47,8 @@
 
 <script setup>
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
+import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
 import {
-	buildMessageChatUrl,
 	buildMessageContactListPageMock,
 	buildMessageSearchUrl,
 	buildMessageUserProfileUrl
@@ -57,52 +57,37 @@ import {
 const { safeTopPx } = useSafeAreaMetrics()
 const pageMock = buildMessageContactListPageMock()
 
+function buildChatUrl(item) {
+	return buildPageUrl('/pages/message/chat', {
+		conversationId: item.conversationId || item.id || '',
+		chatType: 1,
+		targetId: item.userId || item.id || '',
+		name: item.name || '',
+	})
+}
+
 function handleBack() {
-	onBack()
 	uni.navigateBack({
 		delta: 1
 	})
 }
 
 function handleSearchClick() {
-	onSearchClick()
 	uni.navigateTo({
 		url: buildMessageSearchUrl()
 	})
 }
 
 function handleContactClick(item) {
-	onContactClick(item)
 	uni.navigateTo({
-		url: buildMessageChatUrl(item)
+		url: buildChatUrl(item)
 	})
 }
 
 function handleMomentClick(item) {
-	onMomentClick(item)
 	uni.navigateTo({
 		url: buildMessageUserProfileUrl(item)
 	})
-}
-
-function onBack() {
-	// TODO：替换联系人列表返回逻辑
-	console.log('message-contact-list-back')
-}
-
-function onSearchClick() {
-	// TODO：替换联系人列表搜索逻辑
-	console.log('message-contact-list-search')
-}
-
-function onContactClick(item) {
-	// TODO：替换联系人列表点击逻辑
-	console.log('message-contact-list-click', item.id)
-}
-
-function onMomentClick(item) {
-	// TODO：替换联系人动态入口逻辑
-	console.log('message-contact-list-moment-click', item.id)
 }
 </script>
 
