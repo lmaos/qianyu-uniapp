@@ -67,6 +67,10 @@ const props = defineProps({
 		type: Number,
 		default: 88
 	},
+	safeGapRpx: {
+		type: Number,
+		default: 24
+	},
 	secondaryHeightRpx: {
 		type: Number,
 		default: 0
@@ -116,11 +120,12 @@ const props = defineProps({
 const { safeTopPx, windowHeightPx, rpxToPx } = useSafeAreaMetrics()
 const isScrollContent = computed(() => props.contentTag === 'scroll-view')
 
+const safeGapPx = computed(() => rpxToPx(props.safeGapRpx))
 const headerRowHeightPx = computed(() => rpxToPx(props.headerRowHeightRpx))
 const secondaryHeightPx = computed(() => rpxToPx(props.secondaryHeightRpx))
 const tertiaryHeightPx = computed(() => rpxToPx(props.tertiaryHeightRpx))
 const fixedStackHeightPx = computed(
-	() => safeTopPx.value + headerRowHeightPx.value + secondaryHeightPx.value + tertiaryHeightPx.value
+	() => safeTopPx.value + safeGapPx.value + headerRowHeightPx.value + secondaryHeightPx.value + tertiaryHeightPx.value
 )
 
 const resolvedPageStyle = computed(() => [
@@ -135,15 +140,15 @@ const resolvedPageStyle = computed(() => [
 const resolvedHeaderStyle = computed(() => [
 	{
 		top: '0px',
-		paddingTop: `${safeTopPx.value}px`,
-		height: `${safeTopPx.value + headerRowHeightPx.value}px`
+		paddingTop: `${safeTopPx.value + safeGapPx.value}px`,
+		height: `${safeTopPx.value + safeGapPx.value + headerRowHeightPx.value}px`
 	},
 	props.headerAreaStyle
 ])
 
 const resolvedSecondaryStyle = computed(() => [
 	{
-		top: `${safeTopPx.value + headerRowHeightPx.value}px`,
+		top: `${safeTopPx.value + safeGapPx.value + headerRowHeightPx.value}px`,
 		height: `${secondaryHeightPx.value}px`
 	},
 	props.secondaryAreaStyle
@@ -151,7 +156,7 @@ const resolvedSecondaryStyle = computed(() => [
 
 const resolvedTertiaryStyle = computed(() => [
 	{
-		top: `${safeTopPx.value + headerRowHeightPx.value + secondaryHeightPx.value}px`,
+		top: `${safeTopPx.value + safeGapPx.value + headerRowHeightPx.value + secondaryHeightPx.value}px`,
 		height: `${tertiaryHeightPx.value}px`
 	},
 	props.tertiaryAreaStyle
@@ -168,7 +173,7 @@ const refreshCoverStyle = computed(() => {
 	const revealDistance = Math.max(1, Number(props.refreshRevealDistancePx || 1))
 	const offsetPx = Math.min(0, Number(props.refreshPullDistancePx || 0) - revealDistance)
 	return {
-		top: `${safeTopPx.value}px`,
+		top: `${safeTopPx.value + safeGapPx.value}px`,
 		height: `${headerRowHeightPx.value}px`,
 		transform: `translateY(${offsetPx}px)`,
 		opacity: Math.min(1, Number(props.refreshPullDistancePx || 0) / revealDistance)

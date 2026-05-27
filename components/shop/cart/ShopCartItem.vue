@@ -21,7 +21,13 @@
 			</view>
 
 			<view class="shop-cart-item-main">
-				<text class="shop-cart-item-title">{{ itemInfo.title }}</text>
+				<view class="shop-cart-item-body">
+					<text class="shop-cart-item-title">{{ itemInfo.title }}</text>
+					<view class="shop-cart-item-meta-row">
+						<text v-if="itemInfo.specText" class="shop-cart-item-spec">{{ itemInfo.specText }}</text>
+						<text v-if="itemInfo.shipTime" class="shop-cart-item-ship">{{ itemInfo.shipTime }}</text>
+					</view>
+				</view>
 				<view class="shop-cart-item-footer">
 					<text class="shop-cart-item-price">¥{{ formatPrice(itemInfo.price) }}</text>
 
@@ -99,6 +105,7 @@ function formatPrice(value) {
 	position: relative;
 	overflow: hidden;
 	border-radius: 32rpx;
+	background: #ffffff;
 }
 
 .shop-cart-item-delete {
@@ -119,11 +126,15 @@ function formatPrice(value) {
 .shop-cart-item-card {
 	display: flex;
 	align-items: center;
+	width: 100%;
 	padding: 24rpx;
 	border-radius: 32rpx;
 	background: #ffffff;
 	box-shadow: 0 14rpx 36rpx rgba(15, 23, 42, 0.06);
 	transition: transform 0.18s ease;
+	box-sizing: border-box;
+	position: relative;
+	z-index: 1;
 }
 
 .shop-cart-item-check {
@@ -175,6 +186,15 @@ function formatPrice(value) {
 	flex: 1;
 	min-width: 0;
 	margin-left: 20rpx;
+	min-height: 132rpx;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.shop-cart-item-body {
+	display: flex;
+	flex-direction: column;
 }
 
 .shop-cart-item-title {
@@ -188,11 +208,40 @@ function formatPrice(value) {
 	-webkit-box-orient: vertical;
 }
 
+.shop-cart-item-meta-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10rpx;
+	margin-top: 10rpx;
+}
+
+.shop-cart-item-spec,
+.shop-cart-item-ship {
+	display: inline-flex;
+	align-items: center;
+	height: 40rpx;
+	padding: 0 14rpx;
+	border-radius: 999rpx;
+	font-size: 20rpx;
+	line-height: 28rpx;
+}
+
+.shop-cart-item-spec {
+	background: rgba(255, 151, 174, 0.1);
+	color: #d94f7b;
+}
+
+.shop-cart-item-ship {
+	background: #f8fafc;
+	color: #64748b;
+}
+
 .shop-cart-item-footer {
 	display: flex;
-	align-items: flex-end;
+	align-items: center;
 	justify-content: space-between;
-	margin-top: 18rpx;
+	gap: 16rpx;
 }
 
 .shop-cart-item-price {

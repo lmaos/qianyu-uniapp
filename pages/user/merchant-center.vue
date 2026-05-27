@@ -24,11 +24,19 @@ import UserMenuList from '@/components/user-center/common/UserMenuList.vue'
 import UserSectionCard from '@/components/user-center/common/UserSectionCard.vue'
 import UserSubPageLayout from '@/components/user-center/common/UserSubPageLayout.vue'
 import { getMerchantCenterPageMock } from '@/components/user-center/userCenterMock.js'
+import {
+	buildShopMerchantDeliveryUrl,
+	buildShopMerchantGoodsUrl,
+	buildShopMerchantPromotionUrl
+} from '@/components/shop/common/shopFlowMock.js'
+
+const currentUserId = ref('mine-self')
 
 const pageMock = ref(getMerchantCenterPageMock())
 
 onLoad((options) => {
 	pageMock.value = getMerchantCenterPageMock(options?.userId)
+	currentUserId.value = options?.userId || 'mine-self'
 })
 
 function handleBack() {
@@ -37,6 +45,19 @@ function handleBack() {
 
 function handleMenuSelect(item) {
 	onMenuSelect(item)
+	const routeMap = {
+		goods: buildShopMerchantGoodsUrl(currentUserId.value),
+		delivery: buildShopMerchantDeliveryUrl(currentUserId.value),
+		promotion: buildShopMerchantPromotionUrl(currentUserId.value)
+	}
+
+	if (routeMap[item.key]) {
+		uni.navigateTo({
+			url: routeMap[item.key]
+		})
+		return
+	}
+
 	uni.showToast({
 		title: `${item.label}占位`,
 		icon: 'none'

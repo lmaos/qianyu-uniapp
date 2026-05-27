@@ -176,6 +176,41 @@
 			}
 		},
 		{
+			"path": "pages/shop/store-home",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/order-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/merchant-goods",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/merchant-delivery",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/merchant-promotion",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
 			"path": "pages/user/add-friend",
 			"style": {
 				"navigationStyle": "custom",

@@ -8,6 +8,8 @@ import { IIMAdapter } from './IIMAdapter'
 import { ImEvent, ChatType, MessageType } from '../models/enums'
 import { createMessageBody } from '../models/MessageEntity'
 import { createConversation } from '../models/ConversationEntity'
+import * as TencentCloudChatModule from '@tencentcloud/chat'
+import * as TIMUploadPluginModule from 'tim-upload-plugin'
 
 // #ifdef H5
 import TencentCloudChat from '@tencentcloud/chat'
@@ -49,7 +51,15 @@ export class TencentAdapter extends IIMAdapter {
   // ===== 生命周期 =====
 
   async init() {
+<<<<<<< Updated upstream
     if (!TencentCloudChat) {
+=======
+    this._TencentCloudChat = TencentCloudChatModule.default || TencentCloudChatModule
+    this._TIMUploadPlugin = TIMUploadPluginModule.default || TIMUploadPluginModule
+    console.log('[TencentAdapter] SDK 加载成功')
+
+    if (!this._TencentCloudChat) {
+>>>>>>> Stashed changes
       console.warn('[TencentAdapter] SDK 未加载，跳过初始化')
       return
     }

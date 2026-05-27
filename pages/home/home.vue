@@ -69,6 +69,7 @@ import ShopSubNavExtra from '@/components/home/shop/ShopSubNavExtra.vue'
 import LiveTab from '@/components/home/live/LiveTab.vue'
 import RecommendTab from '@/components/home/recommend/RecommendTab.vue'
 import { buildMallHomeNavCategoryList } from '@/components/shop/category/shopCategoryMock.js'
+import { buildShopSearchUrl } from '@/components/shop/common/shopFlowMock.js'
 
 const props = defineProps({
 	active: {
@@ -844,9 +845,10 @@ function onSubNavRepeat(navItem) {
 function onShopSearchClick(categoryId) {
 	// TODO：替换商城搜索页跳转逻辑
 	console.log('shop-search-click', categoryId)
-	uni.showToast({
-		title: '搜索页占位',
-		icon: 'none'
+	uni.navigateTo({
+		url: buildShopSearchUrl({
+			categoryId
+		})
 	})
 }
 

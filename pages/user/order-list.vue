@@ -33,25 +33,44 @@
 				</view>
 			</view>
 		</UserSectionCard>
+
+		<ShopCustomerServiceSheet
+			:visible="serviceSheetVisible"
+			:sheet-data="serviceSheetData"
+			@close="handleCloseServiceSheet"
+			@question-click="handleServiceQuestionClick"
+			@menu-click="handleServiceMenuClick"
+			@primary="handleServicePrimary"
+			@secondary="handleServiceSecondary"
+		/>
 	</UserSubPageLayout>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import ShopCustomerServiceSheet from '@/components/shop/common/ShopCustomerServiceSheet.vue'
 import UserContentTabBar from '@/components/user-center/main/UserContentTabBar.vue'
 import UserSectionCard from '@/components/user-center/common/UserSectionCard.vue'
 import UserSubPageLayout from '@/components/user-center/common/UserSubPageLayout.vue'
 import { filterOrderListByStatus, getOrderListPageMock } from '@/components/user-center/userCenterMock.js'
+import {
+	buildShopOrderDetailUrl,
+	getShopCustomerServiceSheetMock
+} from '@/components/shop/common/shopFlowMock.js'
 
 const pageMock = ref(getOrderListPageMock())
 const activeStatus = ref('all')
+const currentUserId = ref('mine-self')
+const serviceSheetVisible = ref(false)
+const serviceSheetData = ref(getShopCustomerServiceSheetMock({ contextType: 'order' }))
 
 const statusTabList = computed(() => pageMock.value.statusTabList || [])
 const displayOrderList = computed(() => filterOrderListByStatus(pageMock.value.orderList || [], activeStatus.value))
 
 onLoad((options) => {
 	pageMock.value = getOrderListPageMock(options?.userId)
+	currentUserId.value = options?.userId || 'mine-self'
 	activeStatus.value = 'all'
 })
 
@@ -66,16 +85,66 @@ function handleStatusChange(tabItem) {
 
 function handleOrderDetail(item) {
 	onOrderDetail(item)
-	uni.showToast({
-		title: '订单详情占位',
-		icon: 'none'
+	uni.navigateTo({
+		url: buildShopOrderDetailUrl({
+			orderId: item.id,
+			userId: currentUserId.value
+		})
 	})
 }
 
 function handleOrderAction(item, actionKey) {
 	onOrderAction(item, actionKey)
+	if (actionKey === 'service') {
+		serviceSheetData.value = getShopCustomerServiceSheetMock({
+			contextType: 'order',
+			orderId: item.id,
+			userId: currentUserId.value
+		})
+		serviceSheetVisible.value = true
+		return
+	}
+
+	uni.navigateTo({
+		url: buildShopOrderDetailUrl({
+			orderId: item.id,
+			userId: currentUserId.value
+		})
+	})
+}
+
+function handleCloseServiceSheet() {
+	serviceSheetVisible.value = false
+}
+
+function handleServiceQuestionClick(question) {
+	onServiceQuestionClick(question)
 	uni.showToast({
-		title: actionKey === 'service' ? '客服入口占位' : '订单详情占位',
+		title: '问题已带入咨询',
+		icon: 'none'
+	})
+}
+
+function handleServiceMenuClick(menuItem) {
+	onServiceMenuClick(menuItem)
+	uni.showToast({
+		title: `${menuItem.label}占位`,
+		icon: 'none'
+	})
+}
+
+function handleServicePrimary() {
+	onServicePrimary()
+	uni.showToast({
+		title: '开始咨询占位',
+		icon: 'none'
+	})
+}
+
+function handleServiceSecondary() {
+	onServiceSecondary()
+	uni.showToast({
+		title: '投诉反馈占位',
 		icon: 'none'
 	})
 }
@@ -93,6 +162,26 @@ function onOrderDetail(item) {
 function onOrderAction(item, actionKey) {
 	// TODO：替换订单操作逻辑
 	console.log('user-order-action', item.id, actionKey)
+}
+
+function onServiceQuestionClick(question) {
+	// TODO：替换订单客服快捷问题逻辑
+	console.log('user-order-service-question', question)
+}
+
+function onServiceMenuClick(menuItem) {
+	// TODO：替换订单客服菜单逻辑
+	console.log('user-order-service-menu', menuItem.key)
+}
+
+function onServicePrimary() {
+	// TODO：替换订单客服主 CTA 逻辑
+	console.log('user-order-service-primary')
+}
+
+function onServiceSecondary() {
+	// TODO：替换订单客服次 CTA 逻辑
+	console.log('user-order-service-secondary')
 }
 </script>
 

@@ -85,6 +85,7 @@ import {
 	SHOP_PAGE_BACKGROUND
 } from '@/components/shop/common/shopSurface.js'
 import { getGoodsDetailMock } from '@/components/shop/detail/shopDetailMock.js'
+import { buildShopOrderDetailUrl } from '@/components/shop/common/shopFlowMock.js'
 
 const orderItemList = ref([])
 const orderContentStyle = {
@@ -137,9 +138,11 @@ function handleSubmitOrder() {
 			quantity: item.quantity
 		}))
 	})
-	uni.showToast({
-		title: '提交订单占位',
-		icon: 'none'
+	uni.navigateTo({
+		url: buildShopOrderDetailUrl({
+			orderId: 'submit-preview-order',
+			productId: orderItemList.value[0]?.productId
+		})
 	})
 }
 

@@ -127,6 +127,16 @@
 			@quantity-change="handlePopupQuantityChange"
 			@confirm="handleSkuPopupConfirm"
 		/>
+
+		<ShopCustomerServiceSheet
+			:visible="serviceSheetVisible"
+			:sheet-data="serviceSheetData"
+			@close="handleCloseServiceSheet"
+			@question-click="handleServiceQuestionClick"
+			@menu-click="handleServiceMenuClick"
+			@primary="handleServicePrimary"
+			@secondary="handleServiceSecondary"
+		/>
 	</view>
 </template>
 
@@ -134,6 +144,7 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import FullScreenPageLayout from '@/components/common/FullScreenPageLayout.vue'
+import ShopCustomerServiceSheet from '@/components/shop/common/ShopCustomerServiceSheet.vue'
 import ShopHeaderIconButton from '@/components/shop/common/ShopHeaderIconButton.vue'
 import ShopSubPageHeader from '@/components/shop/common/ShopSubPageHeader.vue'
 import GoodsBottomBar from '@/components/shop/detail/GoodsBottomBar.vue'
@@ -156,6 +167,10 @@ import {
 } from '@/components/shop/common/shopSurface.js'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import { getGoodsDetailMock } from '@/components/shop/detail/shopDetailMock.js'
+import {
+	buildShopStoreHomeUrl,
+	getShopCustomerServiceSheetMock
+} from '@/components/shop/common/shopFlowMock.js'
 
 const { windowHeightPx } = useSafeAreaMetrics()
 const skuPopupHeightPx = computed(() => Math.floor(windowHeightPx.value * 0.75))
@@ -169,6 +184,8 @@ const skuPopupMode = ref('select')
 const collected = ref(false)
 const shopFollowed = ref(false)
 const cartCount = ref(goodsDetail.value.cartCount || 0)
+const serviceSheetVisible = ref(false)
+const serviceSheetData = ref(getShopCustomerServiceSheetMock({ contextType: 'product' }))
 const detailContentStyle = {
 	paddingRight: '24rpx',
 	paddingLeft: '24rpx'
@@ -213,6 +230,10 @@ function loadGoodsDetail(productId) {
 	cartCount.value = nextDetail.cartCount || 0
 	shopFollowed.value = false
 	collected.value = false
+	serviceSheetData.value = getShopCustomerServiceSheetMock({
+		contextType: 'product',
+		productId: targetId
+	})
 	onProductDetailLoad({
 		productId: targetId
 	})
@@ -340,12 +361,26 @@ function handleEnterShopClick() {
 	onEnterShopClick({
 		productId: goodsDetail.value.productId
 	})
+	uni.navigateTo({
+		url: buildShopStoreHomeUrl({
+			storeId: `${goodsDetail.value.productId}-store`,
+			storeName: goodsDetail.value.shopInfo?.name,
+			productId: goodsDetail.value.productId
+		})
+	})
 }
 
 // 底部店铺入口。
 function handleBottomShopClick() {
 	onBottomShopClick({
 		productId: goodsDetail.value.productId
+	})
+	uni.navigateTo({
+		url: buildShopStoreHomeUrl({
+			storeId: `${goodsDetail.value.productId}-store`,
+			storeName: goodsDetail.value.shopInfo?.name,
+			productId: goodsDetail.value.productId
+		})
 	})
 }
 
@@ -354,6 +389,7 @@ function handleBottomServiceClick() {
 	onBottomServiceClick({
 		productId: goodsDetail.value.productId
 	})
+	serviceSheetVisible.value = true
 }
 
 // 底部购物车入口。
@@ -431,6 +467,42 @@ function stopMediaPlayback() {
 	goodsMediaSwiperRef.value?.stopPlayback?.()
 }
 
+function handleCloseServiceSheet() {
+	serviceSheetVisible.value = false
+}
+
+function handleServiceQuestionClick(question) {
+	onServiceQuestionClick(question)
+	uni.showToast({
+		title: '问题已带入咨询',
+		icon: 'none'
+	})
+}
+
+function handleServiceMenuClick(menuItem) {
+	onServiceMenuClick(menuItem)
+	uni.showToast({
+		title: `${menuItem.label}占位`,
+		icon: 'none'
+	})
+}
+
+function handleServicePrimary() {
+	onServicePrimary(goodsDetail.value.productId)
+	uni.showToast({
+		title: '开始咨询占位',
+		icon: 'none'
+	})
+}
+
+function handleServiceSecondary() {
+	onServiceSecondary(goodsDetail.value.productId)
+	uni.showToast({
+		title: '问题反馈占位',
+		icon: 'none'
+	})
+}
+
 // 以下为详情页预留回调，后续可直接接真实业务逻辑。
 function onProductDetailLoad(payload) {
 	// TODO：替换商品详情页初始化接口
@@ -505,6 +577,26 @@ function onCartEntryClick(payload) {
 function onAddCartClick(payload) {
 	// TODO：替换加入购物车逻辑
 	console.log('shop-detail-add-cart', payload.productId, payload.skuId, payload.quantity, payload.source)
+}
+
+function onServiceQuestionClick(question) {
+	// TODO：替换商品客服快捷问题逻辑
+	console.log('shop-detail-service-question', goodsDetail.value.productId, question)
+}
+
+function onServiceMenuClick(menuItem) {
+	// TODO：替换商品客服菜单逻辑
+	console.log('shop-detail-service-menu', goodsDetail.value.productId, menuItem.key)
+}
+
+function onServicePrimary(productId) {
+	// TODO：替换商品客服主 CTA 逻辑
+	console.log('shop-detail-service-primary', productId)
+}
+
+function onServiceSecondary(productId) {
+	// TODO：替换商品客服次 CTA 逻辑
+	console.log('shop-detail-service-secondary', productId)
 }
 
 function formatPrice(value) {

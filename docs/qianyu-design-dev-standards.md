@@ -104,7 +104,7 @@
 | 顶部安全区复用 | 顶部固定头部优先使用 `SafeTopArea.vue` | `components/common/SafeTopArea.vue` |
 | 底部安全区复用 | 固定底部操作栏优先使用 `SafeBottomArea.vue` | `components/common/SafeBottomArea.vue` |
 | 普通全屏子页 | 优先使用 `FullScreenPageLayout.vue` 承担头部/内容/底部预留 | `components/common/FullScreenPageLayout.vue` |
-| 带固定顶部堆叠 + 下拉刷新页 | 优先使用 `RefreshTopStackLayout.vue` | `components/common/RefreshTopStackLayout.vue` |
+| 带固定顶部堆叠 + 下拉刷新页 | 优先使用 `RefreshTopStackLayout.vue`，顶部安全缓冲默认按 `24rpx` 处理 | `components/common/RefreshTopStackLayout.vue` |
 | H5 滚动容器约束 | 共享布局里的滚动容器必须显式渲染 `scroll-view`，不要用动态 `:is="'scroll-view'"`，否则 H5 下容易出现顶部安全区错位、内容顶进固定头部、内部滚动失效 | `components/common/FullScreenPageLayout.vue`, `components/common/RefreshTopStackLayout.vue` |
 | 下拉刷新/上拉加载页 | 优先使用 `PullPagingShell.vue`，不要各页重复造刷新容器 | `components/common/PullPagingShell.vue` |
 
@@ -260,7 +260,7 @@
 | `pages/message/` | 消息频道页面，如消息首页、联系人、搜索、私聊 |
 | `pages/live/` | 直播榜单等直播辅助页面 |
 | `pages/live-room/` | 直播间主页面 |
-| `pages/shop/` | 商城子页面，如分类、详情、购物车、订单等 |
+| `pages/shop/` | 商城子页面，如分类、搜索、店铺首页、详情、购物车、订单、商家工作台等 |
 | `pages/mine/` | 我的主页面 |
 | `pages/user/` | 个人中心子页面集合 |
 | `pages/user-profile/` | 他人资料页 |
@@ -300,6 +300,7 @@
 | SVG Data URI | `composables/useSvgIcon.js` | 将 SVG 字符串转成可直接给 `image` 使用的资源 | 新 SVG 图标优先走统一生成方式 |
 | 活动协议定义 | `components/common/activity/activityActionProtocol.js` | 统一维护活动弹窗 `actionUrl` 协议字段、类型与示例 | 新增活动跳转时优先补协议定义，不要先在页面硬编码 |
 | 活动协议分发 | `components/common/activity/activityActionRouter.js` | 统一解析 `pages://` 与 `http(s)://` 并分发到页面、Tab、直播间、web-view | 页面层消费分发器，展示组件只 emit `action` |
+| 商城流程 mock / builder | `components/shop/common/shopFlowMock.js` | 统一维护商城搜索、店铺首页、订单详情、商家工作台、客服弹层上下文 mock 与 URL builder | 新增商城子流程时优先扩展这里，不在页面里散落 route builder |
 
 ### 6.2 通用布局组件
 
@@ -308,7 +309,7 @@
 | SafeTopArea | `components/common/SafeTopArea.vue` | 固定顶部安全区头部 | 负责顶部 inset、边框、背景、阴影 |
 | SafeBottomArea | `components/common/SafeBottomArea.vue` | 固定底部操作栏 | 负责底部 inset、内边距、最小高度 |
 | FullScreenPageLayout | `components/common/FullScreenPageLayout.vue` | 普通非 Tab 全屏子页 | 统一头部、内容、底部保留区 |
-| RefreshTopStackLayout | `components/common/RefreshTopStackLayout.vue` | 顶部多层固定 + 下拉刷新页 | 适合商城检索/筛选类页面 |
+| RefreshTopStackLayout | `components/common/RefreshTopStackLayout.vue` | 顶部多层固定 + 下拉刷新页 | 默认包含 `24rpx` 顶部安全缓冲，适合商城检索/筛选类页面 |
 | H5 scroll-view 约束 | `components/common/FullScreenPageLayout.vue`, `components/common/RefreshTopStackLayout.vue` | H5 滚动页 | 必须显式使用 `scroll-view`，保证安全区预留与内部滚动稳定 |
 | PullPagingShell | `components/common/PullPagingShell.vue` | 下拉刷新 + 触底加载 + 自定义底部状态 | 页面只关心状态与事件，不重写刷新壳 |
 | ActivityPopupShell | `components/common/activity/ActivityPopupShell.vue` | 活动弹窗公共壳层 | 统一遮罩、右上角 `X`、弹层层级与关闭行为 |
@@ -329,7 +330,8 @@
 | ShopSubPageHeader | `components/shop/common/ShopSubPageHeader.vue` | 商城子页面顶部标题栏 | 左返回 + 中标题 + 右侧操作占位 |
 | ShopHeaderIconButton | `components/shop/common/ShopHeaderIconButton.vue` | 商城头部/工具 SVG 按钮 | 尺寸与激活态统一，优先复用 |
 | shopSurface | `components/shop/common/shopSurface.js` | 商城背景、头部背景、SVG 图标集合 | 商城子页不要再单独造一套头部图标 |
-| shopCategoryMock / shopDetailMock / shopCartMock | `components/shop/**/**Mock.js` | 商城分类、详情、购物车 mock 能力层 | 商城页优先从对应 mock 文件取数据与 URL |
+| shopCategoryMock / shopDetailMock / shopCartMock / shopFlowMock | `components/shop/**/**Mock.js` | 商城分类、详情、购物车、搜索/店铺/订单/商家工作台 mock 能力层 | 商城页优先从对应 mock 文件取数据与 URL |
+| ShopCustomerServiceSheet | `components/shop/common/ShopCustomerServiceSheet.vue` | 商品详情、订单列表、订单详情等客服承接弹层 | 客服入口优先复用统一底部弹层，页面层只传上下文与回调 |
 | ShopProductList / ShopProductItem | `components/home/shop/ShopProductList.vue`, `components/home/shop/ShopProductItem.vue` | 商城商品卡片与商品列表复用层 | 首页商城、分类结果等商品流优先复用 |
 | UserSubPageLayout | `components/user-center/common/UserSubPageLayout.vue` | 我的/资料类子页面骨架 | 统一浅色子页头部、内容区、底部区 |
 | UserSectionCard | `components/user-center/common/UserSectionCard.vue` | 我的/资料页通用信息卡片 | 默认统一圆角、阴影、浅渐变背景 |

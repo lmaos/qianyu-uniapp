@@ -17,6 +17,7 @@ export function getShopCartMockList() {
 			productId: detailMock.productId,
 			skuId: skuInfo.id,
 			title: skuInfo.title,
+			specText: skuInfo.name,
 			thumbnailBackground: skuInfo.thumbnailBackground,
 			thumbnailText: skuInfo.thumbnailText,
 			price: Number(skuInfo.price) || 0,

@@ -484,7 +484,7 @@
                 <tr><td>顶部安全区复用</td><td>顶部固定头部优先使用 SafeTopArea.vue</td></tr>
                 <tr><td>底部安全区复用</td><td>固定底部操作栏优先使用 SafeBottomArea.vue</td></tr>
                 <tr><td>普通全屏子页</td><td>优先使用 FullScreenPageLayout.vue 承担头部 / 内容 / 底部预留</td></tr>
-                <tr><td>固定顶部堆叠 + 下拉刷新页</td><td>优先使用 RefreshTopStackLayout.vue</td></tr>
+                <tr><td>固定顶部堆叠 + 下拉刷新页</td><td>优先使用 RefreshTopStackLayout.vue，顶部安全缓冲默认按 24rpx 处理</td></tr>
                 <tr><td>H5 滚动容器约束</td><td>共享布局里的滚动容器必须显式渲染 scroll-view，不要用动态 :is='scroll-view'，否则 H5 下容易出现顶部安全区错位、内容顶进固定头部、内部滚动失效</td></tr>
                 <tr><td>下拉刷新 / 上拉加载页</td><td>优先使用 PullPagingShell.vue，不要各页重复造刷新容器</td></tr>
               </tbody>
@@ -683,7 +683,7 @@
                 <tr><td>pages/message/</td><td>消息频道页面，如消息首页、联系人、搜索、私聊</td></tr>
                 <tr><td>pages/live/</td><td>直播榜单等直播辅助页面</td></tr>
                 <tr><td>pages/live-room/</td><td>直播间主页面</td></tr>
-                <tr><td>pages/shop/</td><td>商城子页面，如分类、详情、购物车、订单等</td></tr>
+                <tr><td>pages/shop/</td><td>商城子页面，如分类、搜索、店铺首页、详情、购物车、订单、商家工作台等</td></tr>
                 <tr><td>pages/mine/</td><td>我的主页面</td></tr>
                 <tr><td>pages/user/</td><td>个人中心子页面集合</td></tr>
                 <tr><td>pages/user-profile/</td><td>他人资料页</td></tr>
@@ -735,6 +735,7 @@
                 <tr><td>SVG Data URI</td><td>composables/useSvgIcon.js</td><td>将 SVG 字符串转成可直接给 image 使用的资源</td></tr>
                 <tr><td>活动协议定义</td><td>components/common/activity/activityActionProtocol.js</td><td>统一维护活动弹窗 actionUrl 协议字段、类型与示例</td></tr>
                 <tr><td>活动协议分发</td><td>components/common/activity/activityActionRouter.js</td><td>统一解析 pages:// 与 http(s):// 并分发到页面、Tab、直播间、web-view</td></tr>
+                <tr><td>商城流程 mock / builder</td><td>components/shop/common/shopFlowMock.js</td><td>统一维护商城搜索、店铺首页、订单详情、商家工作台、客服弹层上下文 mock 与 URL builder</td></tr>
               </tbody>
             </table>
           </div>
@@ -747,7 +748,7 @@
                 <tr><td>SafeTopArea</td><td>固定顶部安全区头部</td><td>负责顶部 inset、边框、背景、阴影</td></tr>
                 <tr><td>SafeBottomArea</td><td>固定底部操作栏</td><td>负责底部 inset、内边距、最小高度</td></tr>
                 <tr><td>FullScreenPageLayout</td><td>普通非 Tab 全屏子页</td><td>统一头部、内容、底部保留区</td></tr>
-                <tr><td>RefreshTopStackLayout</td><td>顶部多层固定 + 下拉刷新页</td><td>适合商城检索 / 筛选类页面</td></tr>
+                <tr><td>RefreshTopStackLayout</td><td>顶部多层固定 + 下拉刷新页</td><td>默认包含 24rpx 顶部安全缓冲，适合商城检索 / 筛选类页面</td></tr>
                 <tr><td>H5 scroll-view 约束</td><td>H5 滚动页</td><td>必须显式使用 scroll-view，保证安全区预留与内部滚动稳定</td></tr>
                 <tr><td>PullPagingShell</td><td>下拉刷新 + 触底加载 + 自定义底部状态</td><td>页面只关心状态与事件，不重写刷新壳</td></tr>
                 <tr><td>ActivityPopupShell</td><td>活动弹窗公共壳层</td><td>统一遮罩、右上角 X、弹层层级与关闭行为</td></tr>
@@ -768,8 +769,9 @@
                 <tr><td>RoomChat / OnlinePanel / GiftPanel</td><td>直播间聊天、在线用户、礼物分层模块</td><td>房间内功能组件，不直接持有页面业务状态</td></tr>
                 <tr><td>web-view 活动承接页</td><td>http(s):// 活动外链</td><td>活动页统一从协议分发器进入，不单独散落多个 web-view 页面</td></tr>
                 <tr><td>ShopSubPageHeader / ShopHeaderIconButton / shopSurface</td><td>商城子页面头部与表面层</td><td>商城子页统一复用，不单独造一套头部图标与背景</td></tr>
+                <tr><td>shopCategoryMock / shopDetailMock / shopCartMock / shopFlowMock</td><td>商城分类、详情、购物车、搜索 / 店铺 / 订单 / 商家工作台 mock 能力层</td><td>商城页优先从对应 mock 文件取数据与 URL</td></tr>
+                <tr><td>ShopCustomerServiceSheet</td><td>商品详情、订单列表、订单详情等客服承接弹层</td><td>客服入口优先复用统一底部弹层，页面层只传上下文与回调</td></tr>
                 <tr><td>ShopProductList / ShopProductItem</td><td>商城商品卡片与商品列表复用层</td><td>首页商城、分类结果等商品流优先复用</td></tr>
-                <tr><td>shopCategoryMock / shopDetailMock / shopCartMock</td><td>商城分类、详情、购物车 mock 能力层</td><td>商城页优先从对应 mock 文件取数据与 URL</td></tr>
                 <tr><td>UserSubPageLayout / UserSectionCard / userSubPageSurface</td><td>我的 / 资料类子页面骨架与表面层</td><td>统一浅色子页头部、内容区、底部区与卡片样式</td></tr>
                 <tr><td>userCenterMock</td><td>个人中心路由 builder 与核心 mock 数据源</td><td>个人中心与关联用户页优先复用它的 builder</td></tr>
                 <tr><td>messageMock</td><td>消息频道联系人、会话、私聊、搜索路由与 mock 数据源</td><td>消息页与相关跳转统一复用</td></tr>
