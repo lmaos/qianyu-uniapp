@@ -11,16 +11,6 @@ import { createConversation } from '../models/ConversationEntity'
 import * as TencentCloudChatModule from '@tencentcloud/chat'
 import * as TIMUploadPluginModule from 'tim-upload-plugin'
 
-// #ifdef H5
-import TencentCloudChat from '@tencentcloud/chat'
-import TIMUploadPlugin from 'tim-upload-plugin'
-// #endif
-// #ifndef H5
-// App / 小程序端使用 tim-wx-sdk（需安装: npm install tim-wx-sdk tim-upload-plugin）
-import TencentCloudChat from 'tim-wx-sdk'
-import TIMUploadPlugin from 'tim-upload-plugin'
-// #endif
-
 // 腾讯 SDK 消息类型 → QY MessageType 映射
 const SDK_MSG_TYPE_MAP = {
   TIMTextElem: MessageType.TEXT,
@@ -51,28 +41,20 @@ export class TencentAdapter extends IIMAdapter {
   // ===== 生命周期 =====
 
   async init() {
-<<<<<<< Updated upstream
-    if (!TencentCloudChat) {
-=======
     this._TencentCloudChat = TencentCloudChatModule.default || TencentCloudChatModule
     this._TIMUploadPlugin = TIMUploadPluginModule.default || TIMUploadPluginModule
-    console.log('[TencentAdapter] SDK 加载成功')
 
     if (!this._TencentCloudChat) {
->>>>>>> Stashed changes
       console.warn('[TencentAdapter] SDK 未加载，跳过初始化')
       return
     }
 
-    this._TencentCloudChat = TencentCloudChat
-    this._TIMUploadPlugin = TIMUploadPlugin
-
     console.log('[TencentAdapter] 初始化 SDK: sdkAppId=', this.config.sdkAppId)
-    this._sdk = TencentCloudChat.create({
+    this._sdk = this._TencentCloudChat.create({
       SDKAppID: this.config.sdkAppId,
     })
     this._sdk.setLogLevel(this.config.logLevel ?? 1)
-    this._sdk.registerPlugin({ 'tim-upload-plugin': TIMUploadPlugin })
+    this._sdk.registerPlugin({ 'tim-upload-plugin': this._TIMUploadPlugin })
     console.log('[TencentAdapter] SDK 初始化完成')
   }
 
