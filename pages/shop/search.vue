@@ -186,6 +186,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import PullPagingShell from '@/components/common/PullPagingShell.vue'
 import RefreshTopStackLayout from '@/components/common/RefreshTopStackLayout.vue'
+import { buildStaticFrostBackground, STATIC_FROST_AREA_STYLE } from '@/components/common/frostSurface.js'
 import ShopProductList from '@/components/home/shop/ShopProductList.vue'
 import ShopHeaderIconButton from '@/components/shop/common/ShopHeaderIconButton.vue'
 import ShopFilterSidebar from '@/components/shop/category/ShopFilterSidebar.vue'
@@ -237,16 +238,16 @@ let bottomPullTimer = null
 let scrollTopResetTimer = null
 let reachLowerRequestId = 0
 
-const searchTopPanelBackground =
+const searchTopPanelBackground = buildStaticFrostBackground(
 	'linear-gradient(180deg, rgba(255, 251, 252, 0.34) 0%, rgba(250, 251, 253, 0.48) 42%, rgba(248, 250, 252, 0.58) 100%)'
+)
 
 const searchTopbarAreaStyle = {
 	paddingLeft: '24rpx',
 	paddingRight: '24rpx',
 	boxSizing: 'border-box',
 	background: searchTopPanelBackground,
-	backdropFilter: 'blur(32rpx) saturate(165%)',
-	WebkitBackdropFilter: 'blur(32rpx) saturate(165%)'
+	...STATIC_FROST_AREA_STYLE
 }
 const searchFilterbarAreaStyle = {
 	paddingLeft: '24rpx',
@@ -255,8 +256,7 @@ const searchFilterbarAreaStyle = {
 	background: searchTopPanelBackground,
 	borderBottom: '1rpx solid rgba(255, 255, 255, 0.44)',
 	boxShadow: '0 16rpx 34rpx rgba(255, 171, 191, 0.06)',
-	backdropFilter: 'blur(32rpx) saturate(165%)',
-	WebkitBackdropFilter: 'blur(32rpx) saturate(165%)'
+	...STATIC_FROST_AREA_STYLE
 }
 
 const discoveryMock = computed(() =>
@@ -790,11 +790,11 @@ function onGoodsOpen(item) {
 	width: 248rpx;
 	padding: 10rpx;
 	border-radius: 24rpx;
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 248, 251, 0.92) 100%);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 248, 251, 0.92) 100%);
 	border: 1rpx solid rgba(255, 255, 255, 0.92);
 	box-shadow: 0 18rpx 36rpx rgba(15, 23, 42, 0.08);
-	backdrop-filter: blur(14rpx);
-	-webkit-backdrop-filter: blur(14rpx);
 }
 
 .shop-search-filter-dropdown-item + .shop-search-filter-dropdown-item {

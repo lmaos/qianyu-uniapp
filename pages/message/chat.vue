@@ -485,9 +485,9 @@ function handleMessageClick(message) {
 	bottom: 0;
 	left: 0;
 	padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
-	background: rgba(248, 250, 252, 0.96);
-	backdrop-filter: blur(20rpx);
-	-webkit-backdrop-filter: blur(20rpx);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		rgba(248, 250, 252, 0.96);
 	box-shadow: 0 -14rpx 32rpx rgba(15, 23, 42, 0.05);
 }
 

@@ -213,8 +213,8 @@ function getSubNavItemStyle(index) {
 }
 
 .sub-nav-panel-compact {
-	border-bottom-left-radius: 28rpx;
-	border-bottom-right-radius: 28rpx;
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
 }
 
 .sub-nav-panel-light.sub-nav-panel-compact {

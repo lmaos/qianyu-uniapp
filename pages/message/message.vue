@@ -848,10 +848,10 @@ onBeforeUnmount(() => {
 	padding: 0 24rpx;
 	margin-bottom: 12rpx;
 	border-radius: 999rpx;
-	background: rgba(255, 255, 255, 0.88);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		rgba(255, 255, 255, 0.88);
 	box-shadow: 0 12rpx 28rpx rgba(148, 163, 184, 0.12);
-	backdrop-filter: blur(24rpx);
-	-webkit-backdrop-filter: blur(24rpx);
 }
 
 .message-refresh-spinner {
