@@ -1,9 +1,15 @@
 <script setup>
 	import { onLaunch } from '@dcloudio/uni-app'
 	import { initSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
+	import { useIm } from '@/composables/useIm.js'
+    import imConfig from '@/core/im/im.config.js'
+	import { initUserService } from '@/core/user/UserService.js'
+
+
 	onLaunch(() => {
 		initSafeAreaMetrics()
 		console.log('App Launch')
+			initUserService({ baseUrl: imConfig.baseUrl })
 		initAndroidSystemNavigationBar()
 		initImService()
 	})

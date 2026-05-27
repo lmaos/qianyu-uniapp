@@ -358,6 +358,7 @@ class ImServiceImpl {
    * @param {Object} [body]  消息体（新会话时用于填充 preview）
    */
   _incrementUnreadCount(convId, body) {
+    if (!this._storage) return
     try {
       const key = this._storage._key('conversations')
       const raw = uni.getStorageSync(key)
@@ -392,6 +393,7 @@ class ImServiceImpl {
    * 将指定会话的 unreadCount 重置为 0
    */
   _resetUnreadCount(convId) {
+    if (!this._storage) return
     try {
       const key = this._storage._key('conversations')
       const raw = uni.getStorageSync(key)
@@ -413,6 +415,7 @@ class ImServiceImpl {
    * @returns {number}
    */
   getTotalUnreadCount() {
+    if (!this._storage) return 0
     try {
       const key = this._storage._key('conversations')
       const raw = uni.getStorageSync(key)
