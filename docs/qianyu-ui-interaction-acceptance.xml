@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uiAcceptanceStandard project="qianyu" version="1.0">
+	<documentMeta>
+		<title>千隅 UI交互验收与工具使用严格规范</title>
+		<purpose>统一后续 UI 验收、交互验收、截图回归、自动化测量、工具使用和交付口径，避免只看代码、只看局部预览或只做单点截图就宣布通过。</purpose>
+		<trigger>当用户提出“验收、UI验收、交互验收、截图检查、真机检查、自动化验证、回归验证”等要求时，必须执行本规范。</trigger>
+		<usage>后续执行验收任务时，优先直接参考本文件，不再只依赖上下文回忆。</usage>
+	</documentMeta>
+
+	<coreRules>
+		<rule id="ua-001">禁止只通过代码阅读、样式推断或单个组件局部预览就宣布验收通过。</rule>
+		<rule id="ua-002">禁止只验证临时 HTML/模拟页/脱离真实路由的独立预览，就认定真实页面通过。</rule>
+		<rule id="ua-003">验收必须优先落在真实页面入口、真实路由、真实布局壳层、真实父容器链路上。</rule>
+		<rule id="ua-004">如果共享布局壳、全屏容器、安全区、滚动容器、动画容器被改动，必须回归受影响的复用页面，不允许只验当前单页。</rule>
+		<rule id="ua-005">UI 验收结论必须同时包含：操作路径、关键状态、测量数据、视觉观察结果；缺一项都不能直接下“通过”结论。</rule>
+		<rule id="ua-006">如发现预览页结果与真实运行结果不一致，必须以真实运行结果为准，并回溯修正验收方法。</rule>
+	</coreRules>
+
+	<toolPolicy>
+		<preferredOrder>
+			<item order="1">优先访问本地真实 H5 路由，例如 http://localhost:5173/#/pages/...，直接进入目标页面。</item>
+			<item order="2">优先使用 Playwright，并复用系统已有 Chrome / Edge 做自动化测量。</item>
+			<item order="3">需要定位尺寸、滚动、遮挡、安全区、固定层问题时，必须读取真实 DOM / 容器位置数据。</item>
+			<item order="4">临时验收脚本、截图、比对产物只放 session 临时目录，不写入仓库。</item>
+		</preferredOrder>
+		<mandatoryChecks>
+			<item>必须确认当前验收对象是否为真实页面，而不是脱离壳层的独立组件。</item>
+			<item>必须记录页面路由、设备视口、验收入口、操作步骤。</item>
+			<item>必须同时做自动化测量和肉眼视觉检查，不能只依赖其中一种。</item>
+		</mandatoryChecks>
+		<forbiddenPatterns>
+			<item>禁止只截一张静态图就认定动画、滑动、切页、回弹、遮挡、吸附行为正常。</item>
+			<item>禁止只验证轨道内部截图，却不验证整页真实容器、父层高度和底色暴露情况。</item>
+			<item>禁止在真实页面不可访问或未验证的情况下，使用“已通过”“已验收完成”等确定性表述。</item>
+		</forbiddenPatterns>
+	</toolPolicy>
+
+	<acceptanceFlow>
+		<phase id="prepare">
+			<goal>明确验收对象和真实入口。</goal>
+			<requiredStep>确认目标页面路由、父布局壳、共享组件链路、真实触发路径。</requiredStep>
+			<requiredStep>确认要验的是首屏、滚动、切换、手势、动画、弹层、刷新还是混合场景。</requiredStep>
+		</phase>
+		<phase id="baseline">
+			<goal>先看真实静态初始态。</goal>
+			<requiredStep>检查首屏是否满屏、是否露底色、是否有白边、是否被父容器裁切。</requiredStep>
+			<requiredStep>检查顶部安全区、底部安全区、固定按钮、固定头部、标题、底部条是否位置正确。</requiredStep>
+		</phase>
+		<phase id="interaction">
+			<goal>检查真实交互过程，不只看结果态。</goal>
+			<requiredStep>验证点击、滑动、拖拽、滚动、切页、切 Tab、切子导航、弹层开关、返回重进。</requiredStep>
+			<requiredStep>至少抽样：起始态、中间态、结束态、边界态、回退态。</requiredStep>
+		</phase>
+		<phase id="measurement">
+			<goal>用数据佐证视觉结论。</goal>
+			<requiredStep>读取 boundingClientRect、scrollTop、scrollHeight、clientHeight、window.scrollY 等关键数据。</requiredStep>
+			<requiredStep>确认到底是谁在滚动、谁在裁切、谁在遮挡、谁暴露了底色。</requiredStep>
+		</phase>
+		<phase id="regression">
+			<goal>共享壳层修改后做最小必要回归。</goal>
+			<requiredStep>如果动到全屏容器、安全区、刷新壳、动画容器，至少回归异常页、共享子页、长列表页各 1 个。</requiredStep>
+		</phase>
+		<phase id="conclusion">
+			<goal>给出可追溯结论。</goal>
+			<requiredStep>输出通过 / 未通过 / 部分通过，并说明依据、缺口和剩余风险。</requiredStep>
+		</phase>
+	</acceptanceFlow>
+
+	<requiredAcceptanceItems>
+		<layout>
+			<item>首屏图片、背景、视频、Banner 是否真正铺满可视区域。</item>
+			<item>页面是否存在白边、露底色、空白区、图片被拉伸、父层裁切、局部没填满。</item>
+			<item>顶部状态栏、安全区、标题区、固定按钮区是否重叠或错位。</item>
+			<item>底部操作区、底部安全区、悬浮按钮是否被截断或漂移。</item>
+		</layout>
+		<interaction>
+			<item>点击后是否有正确反馈，是否触发预期回调，是否出现误触区域。</item>
+			<item>滑动中间态是否平滑，是否露出前一张/后一张残影、白缝、交叉边缘。</item>
+			<item>切换结束后是否吸附准确，定位是否漂移，文案和按钮是否跳动。</item>
+			<item>边界行为是否符合预期，例如第一页右滑锁定、最后一页继续滑动的处理方式。</item>
+		</interaction>
+		<animation>
+			<item>进入动画、退出动画、场景切换动画过程中是否露底、闪白、掉帧、覆盖顺序错误。</item>
+			<item>切换时父层背景、兄弟层、过渡层是否被错误暴露。</item>
+		</animation>
+		<scrollAndRefresh>
+			<item>滚动容器是否真正在滚动目标层，而不是 body 或错误父层。</item>
+			<item>下拉刷新、顶部吸附、局部滚动、固定头部遮挡是否同时正确。</item>
+		</scrollAndRefresh>
+		<stateConsistency>
+			<item>切 Tab、切二级导航、切三级导航后是否只局部刷新，不刷新整页。</item>
+			<item>离开页面再返回后，状态、滚动位置、选中态、背景、主题是否异常。</item>
+		</stateConsistency>
+	</requiredAcceptanceItems>
+
+	<minimumScenarioMatrix>
+		<scenario id="scene-01">真实页面初始态</scenario>
+		<scenario id="scene-02">一次完整主交互过程</scenario>
+		<scenario id="scene-03">交互中间态截图或测量</scenario>
+		<scenario id="scene-04">边界态（第一页、最后一页、顶部、底部、空数据或极限滑动）</scenario>
+		<scenario id="scene-05">返回重进或二次进入</scenario>
+		<scenario id="scene-06">共享布局相关页最小回归</scenario>
+	</minimumScenarioMatrix>
+
+	<blockingFailures>
+		<failure>出现白边、露底色、空白区、父容器高度错误、背景未铺满。</failure>
+		<failure>实际运行结果与验收环境不一致，但仍宣布通过。</failure>
+		<failure>动画过程中闪白、层级错误、覆盖错误、切场景露底。</failure>
+		<failure>手势边界行为错误，例如应锁定却移动，应吸附却漂移，应进入下一页却无响应。</failure>
+		<failure>只验证组件局部，不验证真实页面壳层和父级容器。</failure>
+	</blockingFailures>
+
+	<deliveryRequirements>
+		<item>结论必须写清：页面路由、验收入口、设备视口、操作步骤、关键测量值、视觉结论。</item>
+		<item>如果使用了临时验收页、模拟页、脱离业务壳的预览页，必须明确标注“仅作辅助，不可作为最终通过依据”。</item>
+		<item>如果未能进入真实页面或缺少运行入口，必须明确说明阻塞，不可冒充已完成验收。</item>
+		<item>如果用户提供了截图，必须优先解释截图里的真实问题，再决定是否继续自动化验证。</item>
+	</deliveryRequirements>
+</uiAcceptanceStandard>

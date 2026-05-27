@@ -1,8 +1,8 @@
 <template>
 	<view class="video-detail-page" :style="pageStyle">
-		<view class="video-detail-header" :style="{ paddingTop: `${safeTopInsetRpx}rpx` }">
+		<view class="video-detail-header" :style="[headerStyle, { paddingTop: `${safeTopInsetRpx}rpx` }]">
 			<view class="video-detail-header-side">
-				<view class="video-detail-back-button" @tap="handleBack">
+				<view class="video-detail-back-button" :style="backButtonStyle" @tap="handleBack">
 					<image class="video-detail-back-icon" :src="userSubPageBackIconSvg" mode="aspectFit" />
 				</view>
 			</view>
@@ -71,7 +71,10 @@ import {
 } from '@/components/user-center/main/userContentIcons.js'
 import {
 	USER_SUB_PAGE_BACKGROUND,
+	USER_SUB_PAGE_BACK_BUTTON_BACKGROUND,
+	USER_SUB_PAGE_BACK_BUTTON_BORDER,
 	USER_SUB_PAGE_CARD_BACKGROUND,
+	USER_SUB_PAGE_HEADER_BACKGROUND,
 	userSubPageBackIconSvg
 } from '@/components/user-center/common/userSubPageSurface.js'
 import { getVideoDetailPageMock } from '@/components/user-center/userCenterMock.js'
@@ -84,6 +87,13 @@ const safeBottomInsetRpx = computed(() => Math.max(20, pxToRpx(safeBottomPx.valu
 const pageStyle = computed(() => ({
 	background: USER_SUB_PAGE_BACKGROUND
 }))
+const headerStyle = {
+	background: USER_SUB_PAGE_HEADER_BACKGROUND
+}
+const backButtonStyle = {
+	background: USER_SUB_PAGE_BACK_BUTTON_BACKGROUND,
+	border: USER_SUB_PAGE_BACK_BUTTON_BORDER
+}
 const scrollContentStyle = computed(() => ({
 	paddingTop: `${safeTopInsetRpx.value + 112}rpx`,
 	paddingRight: '24rpx',
@@ -148,7 +158,6 @@ function onVideoAction(actionKey) {
 	padding-right: 24rpx;
 	padding-left: 24rpx;
 	height: 88rpx;
-	background: rgba(248, 250, 252, 0.92);
 	border-bottom: 1rpx solid rgba(226, 232, 240, 0.72);
 	box-shadow: 0 10rpx 28rpx rgba(148, 163, 184, 0.06);
 }
@@ -167,8 +176,6 @@ function onVideoAction(actionKey) {
 	width: 64rpx;
 	height: 64rpx;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.88);
-	border: 1rpx solid rgba(255, 255, 255, 0.94);
 	box-shadow: 0 12rpx 28rpx rgba(148, 163, 184, 0.1);
 }
 

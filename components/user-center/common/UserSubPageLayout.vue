@@ -8,6 +8,7 @@
 		:header-height-rpx="88"
 		:header-side-padding-rpx="24"
 		:header-background="USER_SUB_PAGE_HEADER_BACKGROUND"
+		:header-area-style="USER_SUB_PAGE_HEADER_AREA_STYLE"
 		header-border-bottom="1rpx solid rgba(226, 232, 240, 0.72)"
 		header-box-shadow="0 10rpx 28rpx rgba(148, 163, 184, 0.06)"
 		:footer-reserve-rpx="footerReserveRpx"
@@ -16,13 +17,20 @@
 		:footer-side-padding-rpx="footerSidePaddingRpx"
 		:footer-inner-min-height-rpx="footerInnerMinHeightRpx"
 		:footer-background="USER_SUB_PAGE_FOOTER_BACKGROUND"
+		:footer-area-style="USER_SUB_PAGE_FOOTER_AREA_STYLE"
 		footer-border-top="1rpx solid rgba(226, 232, 240, 0.78)"
 		footer-box-shadow="0 -10rpx 28rpx rgba(148, 163, 184, 0.05)"
 	>
 		<template #header>
 			<view class="user-sub-page-header">
 				<view class="user-sub-page-back" @tap="emit('back')">
-					<view class="user-sub-page-back-button">
+					<view
+						class="user-sub-page-back-button"
+						:style="{
+							background: USER_SUB_PAGE_BACK_BUTTON_BACKGROUND,
+							border: USER_SUB_PAGE_BACK_BUTTON_BORDER
+						}"
+					>
 						<image class="user-sub-page-back-icon" :src="userSubPageBackIconSvg" mode="aspectFit" />
 					</view>
 				</view>
@@ -46,8 +54,12 @@ import { computed } from 'vue'
 import FullScreenPageLayout from '@/components/common/FullScreenPageLayout.vue'
 import {
 	USER_SUB_PAGE_BACKGROUND,
+	USER_SUB_PAGE_BACK_BUTTON_BACKGROUND,
+	USER_SUB_PAGE_BACK_BUTTON_BORDER,
 	USER_SUB_PAGE_FOOTER_BACKGROUND,
+	USER_SUB_PAGE_FOOTER_AREA_STYLE,
 	USER_SUB_PAGE_HEADER_BACKGROUND,
+	USER_SUB_PAGE_HEADER_AREA_STYLE,
 	userSubPageBackIconSvg
 } from '@/components/user-center/common/userSubPageSurface.js'
 
@@ -144,8 +156,6 @@ const resolvedContentStyle = computed(() => [
 	width: 64rpx;
 	height: 64rpx;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.88);
-	border: 1rpx solid rgba(255, 255, 255, 0.94);
 	box-shadow: 0 12rpx 28rpx rgba(148, 163, 184, 0.1);
 }
 

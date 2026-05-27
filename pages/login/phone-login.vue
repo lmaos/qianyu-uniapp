@@ -1,7 +1,6 @@
 <template>
 	<view class="page-shell">
-		<image class="page-background-image" src="/static/images/auth/login-bg.jpeg" mode="aspectFill" />
-		<view class="page-background-mask"></view>
+		<image class="page-background-image" src="/static/images/auth/login-bg-gs.jpg" mode="aspectFill" />
 
 		<view class="page-content">
 			<view class="top-bar">
@@ -345,19 +344,9 @@ onUnmounted(() => {
 
 .page-background-image {
 	position: absolute;
-	inset: -56rpx;
-	width: calc(100% + 112rpx);
-	height: calc(100% + 112rpx);
-	filter: blur(15rpx) saturate(1.04);
-	transform: scale(1.18);
-}
-
-.page-background-mask {
-	position: absolute;
 	inset: 0;
-	background:
-		radial-gradient(circle at top right, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 32%),
-		linear-gradient(180deg, rgba(248, 250, 252, 0.16) 0%, rgba(248, 250, 252, 0.54) 30%, rgba(248, 250, 252, 0.92) 100%);
+	width: 100%;
+	height: 100%;
 }
 
 .page-content {
@@ -381,9 +370,9 @@ onUnmounted(() => {
 	padding: 0 28rpx;
 	border: 1rpx solid rgba(255, 255, 255, 0.5);
 	border-radius: 999rpx;
-	background: rgba(255, 255, 255, 0.38);
-	backdrop-filter: blur(18rpx);
-	-webkit-backdrop-filter: blur(18rpx);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		rgba(255, 255, 255, 0.38);
 	font-size: 24rpx;
 	color: #334155;
 }
@@ -413,9 +402,9 @@ onUnmounted(() => {
 	padding: 40rpx 32rpx 34rpx;
 	border: 1rpx solid rgba(255, 255, 255, 0.58);
 	border-radius: 40rpx;
-	background: rgba(255, 255, 255, 0.52);
-	backdrop-filter: blur(30rpx);
-	-webkit-backdrop-filter: blur(30rpx);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		rgba(255, 255, 255, 0.52);
 	box-shadow: 0 24rpx 56rpx rgba(148, 163, 184, 0.14);
 }
 
@@ -562,7 +551,7 @@ onUnmounted(() => {
 	margin-top: 28rpx;
 	padding: 28rpx;
 	border-radius: 28rpx;
-	background: rgba(255, 255, 255, 0.54);
+	background: rgba(255, 255, 255, 0.62);
 }
 
 .mock-tip-title {

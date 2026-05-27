@@ -140,6 +140,7 @@ import RefreshTopStackLayout from '@/components/common/RefreshTopStackLayout.vue
 import ShopProductList from '@/components/home/shop/ShopProductList.vue'
 import ShopSubPageHeader from '@/components/shop/common/ShopSubPageHeader.vue'
 import ShopFilterSidebar from '@/components/shop/category/ShopFilterSidebar.vue'
+import { buildStaticFrostBackground } from '@/components/common/frostSurface.js'
 import {
 	SHOP_HEADER_AREA_STYLE,
 	SHOP_HEADER_BACKGROUND,
@@ -220,20 +221,19 @@ const searchTopbarAreaStyle = {
 	boxSizing: 'border-box',
 	background: SHOP_HEADER_BACKGROUND,
 	borderBottom: SHOP_HEADER_BORDER,
-	backdropFilter: SHOP_HEADER_AREA_STYLE.backdropFilter,
-	WebkitBackdropFilter: SHOP_HEADER_AREA_STYLE.WebkitBackdropFilter
+	...SHOP_HEADER_AREA_STYLE
 }
 const searchTabbarAreaStyle = {
-	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 248, 251, 0.84) 100%)',
-	borderBottom: '1rpx solid rgba(255, 255, 255, 0.72)',
-	backdropFilter: 'blur(18rpx)',
-	WebkitBackdropFilter: 'blur(18rpx)'
+	background: buildStaticFrostBackground(
+		'linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 248, 251, 0.84) 100%)'
+	),
+	borderBottom: '1rpx solid rgba(255, 255, 255, 0.72)'
 }
 const searchFilterbarAreaStyle = {
-	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 249, 251, 0.82) 100%)',
-	borderBottom: '1rpx solid rgba(255, 255, 255, 0.68)',
-	backdropFilter: 'blur(16rpx)',
-	WebkitBackdropFilter: 'blur(16rpx)'
+	background: buildStaticFrostBackground(
+		'linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 249, 251, 0.82) 100%)'
+	),
+	borderBottom: '1rpx solid rgba(255, 255, 255, 0.68)'
 }
 const contentInnerStyle = computed(() => {
 	const bottomPaddingPx =

@@ -75,8 +75,7 @@ const navStyle = computed(() => {
 		height: `${navBarHeightPx}px`,
 		background: SHOP_HEADER_BACKGROUND,
 		borderBottom: SHOP_HEADER_BORDER,
-		backdropFilter: SHOP_HEADER_AREA_STYLE.backdropFilter,
-		WebkitBackdropFilter: SHOP_HEADER_AREA_STYLE.WebkitBackdropFilter
+		...SHOP_HEADER_AREA_STYLE
 	}
 })
 

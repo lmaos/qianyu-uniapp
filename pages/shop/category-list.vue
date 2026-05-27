@@ -121,8 +121,7 @@ const topbarStyle = computed(() => ({
 	height: `${topbarHeightPx.value}px`,
 	background: SHOP_HEADER_BACKGROUND,
 	borderBottom: SHOP_HEADER_BORDER,
-	backdropFilter: SHOP_HEADER_AREA_STYLE.backdropFilter,
-	WebkitBackdropFilter: SHOP_HEADER_AREA_STYLE.WebkitBackdropFilter
+	...SHOP_HEADER_AREA_STYLE
 }))
 const layoutStyle = computed(() => ({
 	height: `${Math.max(windowHeight - topbarHeightPx.value, 0)}px`,

@@ -1,17 +1,26 @@
+import { buildStaticFrostBackground, STATIC_FROST_AREA_STYLE } from '@/components/common/frostSurface.js'
 import { createSvgDataUri } from '@/composables/useSvgIcon.js'
 
 export const SHOP_PAGE_BACKGROUND =
 	'linear-gradient(180deg, #fff9fb 0%, #fff2f7 16%, #f8fafc 52%, #f3f6fb 100%)'
 
-export const SHOP_HEADER_BACKGROUND =
+export const SHOP_HEADER_BACKGROUND = buildStaticFrostBackground(
 	'linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 248, 251, 0.9) 100%)'
+)
 
 export const SHOP_HEADER_BORDER = '1rpx solid rgba(255, 255, 255, 0.92)'
 
-export const SHOP_HEADER_AREA_STYLE = {
-	backdropFilter: 'blur(22rpx)',
-	WebkitBackdropFilter: 'blur(22rpx)'
-}
+export const SHOP_HEADER_AREA_STYLE = STATIC_FROST_AREA_STYLE
+
+export const SHOP_HEADER_BUTTON_BACKGROUND = buildStaticFrostBackground(
+	'linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 247, 250, 0.9) 100%)'
+)
+
+export const SHOP_HEADER_BUTTON_ACTIVE_BACKGROUND = buildStaticFrostBackground(
+	'linear-gradient(180deg, rgba(255, 244, 248, 0.98) 0%, rgba(255, 233, 241, 0.94) 100%)'
+)
+
+export const SHOP_HEADER_BUTTON_BORDER = '1rpx solid rgba(255, 255, 255, 0.92)'
 
 export const SHOP_TOP_BACK_ICON = createSvgDataUri(`
 	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
