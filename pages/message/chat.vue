@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
 import { useIm } from '@/composables/useIm.js'
 import { getMessageDirection } from '@/core/im/models/MessageEntity.js'
@@ -181,6 +181,21 @@ onHide(() => {
 		im.markConversationRead(chatInfo.value.conversationId, chatInfo.value.chatType).catch(() => {})
 	}
 })
+
+watch(
+	() => im.isReady.value,
+	(value) => {
+		if (!value || !chatInfo.value.conversationId) {
+			return
+		}
+
+		loadMessages()
+		im.markConversationRead(chatInfo.value.conversationId, chatInfo.value.chatType).catch(() => {})
+	},
+	{
+		flush: 'post'
+	}
+)
 
 // ===== 消息加载 =====
 

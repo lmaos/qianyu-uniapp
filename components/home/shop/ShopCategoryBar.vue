@@ -65,12 +65,10 @@ const emit = defineEmits(['category-change', 'category-page-click'])
 
 .shop-category-panel-compact {
 	min-height: 78rpx;
-	border-radius: 24rpx;
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 249, 251, 0.82) 100%);
-	border: 1rpx solid rgba(255, 255, 255, 0.92);
-	box-shadow: 0 14rpx 30rpx rgba(255, 171, 191, 0.08), inset 0 1rpx 0 rgba(255, 255, 255, 0.48);
-	backdrop-filter: blur(14rpx);
-	-webkit-backdrop-filter: blur(14rpx);
+	border-radius: 0;
+	background: transparent;
+	border: none;
+	box-shadow: none;
 	box-sizing: border-box;
 }
 
@@ -104,12 +102,12 @@ const emit = defineEmits(['category-change', 'category-page-click'])
 }
 
 .shop-category-bar-compact .shop-category-item {
-	height: 56rpx;
-	padding: 0 16rpx;
-	margin-right: 12rpx;
-	background: rgba(255, 255, 255, 0.86);
-	border: 1rpx solid rgba(255, 255, 255, 0.86);
-	box-shadow: 0 8rpx 18rpx rgba(255, 171, 191, 0.06);
+	height: auto;
+	padding: 0;
+	margin-right: 20rpx;
+	background: transparent;
+	border: none;
+	box-shadow: none;
 }
 
 .shop-category-text {
@@ -117,6 +115,8 @@ const emit = defineEmits(['category-change', 'category-page-click'])
 	line-height: 32rpx;
 	color: #667085;
 	white-space: nowrap;
+	display: inline-block;
+	transform-origin: center center;
 }
 
 .shop-category-bar-compact .shop-category-text {
@@ -127,6 +127,7 @@ const emit = defineEmits(['category-change', 'category-page-click'])
 .shop-category-text-active {
 	font-weight: 600;
 	color: #d94f7b;
+	transform: scale(1.12);
 }
 
 .shop-category-item-active .shop-category-text,
@@ -139,6 +140,11 @@ const emit = defineEmits(['category-change', 'category-page-click'])
 .shop-category-item-active {
 	background: linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 247, 250, 0.94) 100%);
 	box-shadow: 0 12rpx 24rpx rgba(255, 171, 191, 0.1);
+}
+
+.shop-category-bar-compact .shop-category-item-active {
+	background: transparent;
+	box-shadow: none;
 }
 
 .shop-category-entry {
@@ -157,11 +163,11 @@ const emit = defineEmits(['category-change', 'category-page-click'])
 
 .shop-category-bar-compact .shop-category-entry {
 	min-width: 84rpx;
-	height: 56rpx;
-	padding: 0 18rpx;
-	margin-left: 8rpx;
-	background: rgba(255, 255, 255, 0.88);
-	box-shadow: 0 10rpx 22rpx rgba(255, 171, 191, 0.08);
+	height: auto;
+	padding: 0;
+	margin-left: 0;
+	background: transparent;
+	box-shadow: none;
 }
 
 .shop-category-entry-text {

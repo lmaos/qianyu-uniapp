@@ -156,8 +156,6 @@ function formatPrice(value) {
 	line-height: 24rpx;
 	color: #ffffff;
 	background: rgba(17, 24, 39, 0.48);
-	backdrop-filter: blur(14rpx);
-	-webkit-backdrop-filter: blur(14rpx);
 }
 
 .shop-product-badge {

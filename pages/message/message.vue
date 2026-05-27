@@ -152,7 +152,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, toRef } from 'vue'
+import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { onShow, onHide } from '@dcloudio/uni-app'
 import PullPagingShell from '@/components/common/PullPagingShell.vue'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
@@ -225,6 +225,7 @@ let swipeBaseOffsetX = 0
 let swipeLockedAxis = ''
 
 let _convUpdatedOff = null // onConversationUpdated 取消监听函数
+const pageVisible = ref(false)
 
 // ===== 会话数据转换 =====
 
@@ -304,6 +305,7 @@ function refreshFromSource() {
 // ===== 生命周期 =====
 
 onShow(async () => {
+	pageVisible.value = true
 	// 绑定页面 listener（收到消息时刷新会话列表）
 	const listener = {
 		register() { console.log('[message.vue] listener register') },
@@ -326,6 +328,7 @@ onShow(async () => {
 })
 
 onHide(() => {
+	pageVisible.value = false
 	im.unbindListener({
 		leave() { console.log('[message.vue] listener unbind') },
 	})
@@ -334,6 +337,20 @@ onHide(() => {
 		_convUpdatedOff = null
 	}
 })
+
+watch(
+	() => im.isReady.value,
+	(value) => {
+		if (!value || !pageVisible.value) {
+			return
+		}
+
+		loadConversationList()
+	},
+	{
+		flush: 'post'
+	}
+)
 
 // ===== 计算属性 =====
 

@@ -194,39 +194,22 @@ function getSubNavItemStyle(index) {
 	position: relative;
 	display: flex;
 	flex-direction: column;
-	background: rgba(10, 10, 10, 0.58);
+	background:
+		url('/static/images/home/home-subnav-dark.png') center / 100% 100% no-repeat,
+		linear-gradient(180deg, rgba(10, 10, 10, 0.72) 0%, rgba(10, 10, 10, 0.56) 100%);
 	border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 	box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.22);
-	backdrop-filter: blur(24rpx);
-	-webkit-backdrop-filter: blur(24rpx);
 	box-sizing: border-box;
 	overflow: hidden;
 }
 
 /* 浅色主题的导航背景。 */
 .sub-nav-panel-light {
-	background: linear-gradient(
-		180deg,
-		rgba(255, 251, 252, 0.42) 0%,
-		rgba(250, 251, 253, 0.58) 38%,
-		rgba(248, 250, 252, 0.72) 100%
-	);
+	background:
+		url('/static/images/home/home-subnav-light.png') center / 100% 100% no-repeat,
+		linear-gradient(180deg, rgba(255, 251, 252, 0.5) 0%, rgba(248, 250, 252, 0.72) 100%);
 	border-bottom: 1rpx solid rgba(255, 255, 255, 0.52);
 	box-shadow: 0 18rpx 42rpx rgba(255, 171, 191, 0.08);
-	backdrop-filter: blur(32rpx) saturate(165%);
-	-webkit-backdrop-filter: blur(32rpx) saturate(165%);
-}
-
-.sub-nav-panel-light::before {
-	content: '';
-	position: absolute;
-	inset: 0;
-	background:
-		radial-gradient(circle at top left, rgba(255, 196, 209, 0.24) 0%, rgba(255, 196, 209, 0) 42%),
-		radial-gradient(circle at top right, rgba(196, 223, 255, 0.2) 0%, rgba(196, 223, 255, 0) 38%),
-		linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 100%);
-	pointer-events: none;
-	z-index: 0;
 }
 
 .sub-nav-panel-compact {
@@ -235,26 +218,11 @@ function getSubNavItemStyle(index) {
 }
 
 .sub-nav-panel-light.sub-nav-panel-compact {
-	background: linear-gradient(
-		180deg,
-		rgba(255, 251, 252, 0.34) 0%,
-		rgba(250, 251, 253, 0.48) 42%,
-		rgba(248, 250, 252, 0.58) 100%
-	);
+	background:
+		url('/static/images/home/home-subnav-light.png') center / 100% 100% no-repeat,
+		linear-gradient(180deg, rgba(255, 251, 252, 0.42) 0%, rgba(248, 250, 252, 0.62) 100%);
 	border-bottom: 1rpx solid rgba(255, 255, 255, 0.44);
 	box-shadow: 0 16rpx 34rpx rgba(255, 171, 191, 0.06);
-}
-
-.sub-nav-panel-light.sub-nav-panel-compact::after {
-	content: '';
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	height: 56rpx;
-	background: linear-gradient(180deg, rgba(255, 248, 250, 0.02) 0%, rgba(255, 248, 250, 0.24) 100%);
-	pointer-events: none;
-	z-index: 0;
 }
 
 /* 二级导航项所在行。 */
@@ -278,16 +246,16 @@ function getSubNavItemStyle(index) {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	min-width: 112rpx;
 }
 
 /* 浅色主题下的选中态二级导航胶囊。 */
 .sub-nav-item-active-light {
-	height: 62rpx;
-	padding: 0 22rpx;
-	border-radius: 999rpx;
-	background: linear-gradient(135deg, rgba(255, 255, 255, 0.66) 0%, rgba(255, 248, 250, 0.74) 100%);
-	border: 1rpx solid rgba(255, 255, 255, 0.76);
-	box-shadow: 0 12rpx 26rpx rgba(255, 171, 191, 0.08);
+	height: auto;
+	padding: 0;
+	background: transparent;
+	border: none;
+	box-shadow: none;
 }
 
 .sub-nav-text {
@@ -307,6 +275,10 @@ function getSubNavItemStyle(index) {
 
 .sub-nav-text-active-light {
 	color: #fe2c55;
+	display: inline-block;
+	font-weight: 700;
+	transform: scale(1.12);
+	transform-origin: center center;
 }
 
 .sub-nav-refresh-cover {
@@ -316,17 +288,13 @@ function getSubNavItemStyle(index) {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(10, 10, 10, 0.92);
+	background: transparent;
 	pointer-events: none;
 	z-index: 2;
 }
 
 .sub-nav-refresh-cover-light {
-	background:
-		radial-gradient(circle at top left, rgba(255, 196, 209, 0.22) 0%, rgba(255, 196, 209, 0) 42%),
-		linear-gradient(180deg, rgba(255, 247, 250, 0.58) 0%, rgba(248, 250, 252, 0.46) 100%);
-	backdrop-filter: blur(22rpx) saturate(160%);
-	-webkit-backdrop-filter: blur(22rpx) saturate(160%);
+	background: transparent;
 }
 
 .sub-nav-refresh-text {

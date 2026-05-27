@@ -45,11 +45,11 @@ const emit = defineEmits(['search-click', 'cart-click'])
 	height: 112rpx;
 	padding: 0 24rpx;
 	border-radius: 32rpx;
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 249, 251, 0.92) 100%);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 249, 251, 0.92) 100%);
 	border: 1rpx solid rgba(255, 255, 255, 0.9);
 	box-shadow: 0 18rpx 40rpx rgba(255, 171, 191, 0.1);
-	backdrop-filter: blur(22rpx);
-	-webkit-backdrop-filter: blur(22rpx);
 	box-sizing: border-box;
 }
 
@@ -91,7 +91,9 @@ const emit = defineEmits(['search-click', 'cart-click'])
 	padding: 0 14rpx;
 	font-size: 18rpx;
 	line-height: 24rpx;
-	background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 247, 250, 0.9) 100%);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 247, 250, 0.9) 100%);
 	border: 1rpx solid rgba(255, 255, 255, 0.92);
 	box-shadow: 0 10rpx 22rpx rgba(255, 171, 191, 0.08);
 	color: #d94f7b;
@@ -118,7 +120,9 @@ const emit = defineEmits(['search-click', 'cart-click'])
 	margin: 0 20rpx;
 	padding: 0 22rpx;
 	border-radius: 999rpx;
-	background: rgba(255, 255, 255, 0.92);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		rgba(255, 255, 255, 0.92);
 	border: 1rpx solid rgba(255, 255, 255, 0.9);
 	box-shadow: 0 12rpx 26rpx rgba(255, 171, 191, 0.08);
 	box-sizing: border-box;
@@ -127,7 +131,9 @@ const emit = defineEmits(['search-click', 'cart-click'])
 .shop-top-bar-compact .shop-top-search {
 	height: 64rpx;
 	margin: 0 10rpx 0 0;
-	background: rgba(255, 255, 255, 0.9);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		rgba(255, 255, 255, 0.9);
 	border: 1rpx solid rgba(255, 255, 255, 0.9);
 	box-shadow: 0 10rpx 22rpx rgba(255, 171, 191, 0.08);
 }
@@ -155,7 +161,9 @@ const emit = defineEmits(['search-click', 'cart-click'])
 	width: 72rpx;
 	height: 72rpx;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.9);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		rgba(255, 255, 255, 0.9);
 	box-shadow: 0 12rpx 26rpx rgba(255, 171, 191, 0.1);
 	flex-shrink: 0;
 }
@@ -163,7 +171,9 @@ const emit = defineEmits(['search-click', 'cart-click'])
 .shop-top-bar-compact .shop-top-cart {
 	width: 64rpx;
 	height: 64rpx;
-	background: rgba(255, 255, 255, 0.9);
+	background:
+		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
+		rgba(255, 255, 255, 0.9);
 	box-shadow: 0 10rpx 22rpx rgba(255, 171, 191, 0.08);
 }
 

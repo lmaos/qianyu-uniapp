@@ -10,12 +10,14 @@
 			@change="handleChange"
 		>
 			<swiper-item v-for="(item, index) in banners" :key="item.id || index">
-				<view class="banner-card" :style="{ background: item.background }" @tap="handleItemClick(item, index)">
-					<view class="banner-glow"></view>
-					<view class="banner-content">
-						<view class="banner-badge">{{ item.badge }}</view>
-						<text class="banner-title">{{ item.title }}</text>
-						<text class="banner-desc">{{ item.desc }}</text>
+				<view class="banner-card" @tap="handleItemClick(item, index)">
+					<image class="banner-image" :src="item.image" mode="aspectFill" />
+					<view class="banner-overlay">
+						<view class="banner-content">
+							<view class="banner-badge">{{ item.badge }}</view>
+							<text class="banner-title">{{ item.title }}</text>
+							<text class="banner-desc">{{ item.desc }}</text>
+						</view>
 					</view>
 				</view>
 			</swiper-item>
@@ -93,26 +95,28 @@ function handleItemClick(item, index) {
 .banner-card {
 	position: relative;
 	height: 256rpx;
-	padding: 24rpx 26rpx;
 	border-radius: 32rpx;
 	border: 1rpx solid rgba(255, 255, 255, 0.12);
 	box-shadow: 0 24rpx 48rpx rgba(0, 0, 0, 0.22);
 	overflow: hidden;
 }
 
-.banner-glow {
+.banner-image {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.banner-overlay {
 	position: absolute;
-	top: -40rpx;
-	right: -30rpx;
-	width: 220rpx;
-	height: 220rpx;
-	border-radius: 50%;
-	background: radial-gradient(circle, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 72%);
+	inset: 0;
+	background: linear-gradient(90deg, rgba(9, 11, 18, 0.48) 0%, rgba(9, 11, 18, 0.16) 52%, rgba(9, 11, 18, 0.08) 100%);
 }
 
 .banner-content {
 	position: relative;
 	z-index: 1;
+	padding: 24rpx 26rpx;
 }
 
 .banner-badge {
@@ -155,8 +159,6 @@ function handleItemClick(item, index) {
 	padding: 8rpx 10rpx;
 	border-radius: 999rpx;
 	background: rgba(9, 11, 18, 0.26);
-	backdrop-filter: blur(14rpx);
-	-webkit-backdrop-filter: blur(14rpx);
 }
 
 .banner-dot {

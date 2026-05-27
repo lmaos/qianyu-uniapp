@@ -48,7 +48,7 @@ const RECOMMEND_BANNER_POOL = [
 		desc: '精选热卖与补贴商品',
 		actionText: '立即抢购',
 		tagText: '今日焦点',
-		background: 'linear-gradient(135deg, #ff8ca5 0%, #ffb493 52%, #ffd8bc 100%)'
+		image: '/static/images/home/shop-banner-1.jpg'
 	},
 	{
 		id: 'banner-brand',
@@ -56,7 +56,7 @@ const RECOMMEND_BANNER_POOL = [
 		desc: '大牌新品直降',
 		actionText: '查看新品',
 		tagText: '质感新色',
-		background: 'linear-gradient(135deg, #a698ff 0%, #7db8ff 55%, #d7e8ff 100%)'
+		image: '/static/images/home/shop-banner-2.jpg'
 	},
 	{
 		id: 'banner-life',
@@ -64,7 +64,7 @@ const RECOMMEND_BANNER_POOL = [
 		desc: '家居电器与日用品专区',
 		actionText: '进入专区',
 		tagText: '温润生活',
-		background: 'linear-gradient(135deg, #70d7b0 0%, #8ee3dc 56%, #dffaf4 100%)'
+		image: '/static/images/home/shop-banner-3.jpg'
 	}
 ]
 const RECOMMEND_ZONE_CONFIG = [

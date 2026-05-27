@@ -1,9 +1,6 @@
 <template>
 	<view :class="['page-shell', isLightScene ? 'page-shell-light' : '']" :style="pageShellStyle">
-		<view v-if="isLightScene" class="page-light-background" :style="lightBackgroundStyle">
-			<view class="page-light-background-glow page-light-background-glow-left"></view>
-			<view class="page-light-background-glow page-light-background-glow-right"></view>
-		</view>
+		<view v-if="isLightScene" class="page-light-background" :style="lightBackgroundStyle"></view>
 
 		<HomeSubNavShell
 			:tab-list="subNavList"
@@ -333,9 +330,7 @@ const bottomPullSlotStyle = computed(() => {
 		height: bottomPullVisible.value ? `${homeMock.bottomPullSlotHeightRpx}rpx` : '0rpx',
 		paddingLeft: `${activeContentSidePaddingRpx.value}rpx`,
 		paddingRight: `${activeContentSidePaddingRpx.value}rpx`,
-		background: isLightScene.value
-			? 'linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.92) 42%, #f8fafc 100%)'
-			: 'transparent'
+		background: 'transparent'
 	}
 })
 
@@ -918,29 +913,6 @@ onBeforeUnmount(() => {
 	z-index: 0;
 	pointer-events: none;
 	overflow: hidden;
-}
-
-.page-light-background-glow {
-	position: absolute;
-	border-radius: 50%;
-	filter: blur(10rpx);
-	opacity: 0.9;
-}
-
-.page-light-background-glow-left {
-	top: -120rpx;
-	left: -80rpx;
-	width: 360rpx;
-	height: 360rpx;
-	background: radial-gradient(circle, rgba(255, 212, 226, 0.54) 0%, rgba(255, 212, 226, 0) 72%);
-}
-
-.page-light-background-glow-right {
-	top: 72rpx;
-	right: -110rpx;
-	width: 420rpx;
-	height: 420rpx;
-	background: radial-gradient(circle, rgba(214, 230, 255, 0.44) 0%, rgba(214, 230, 255, 0) 74%);
 }
 
 /* 内容区容器：scroll-view 的直接父层。 */

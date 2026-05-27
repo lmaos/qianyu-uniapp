@@ -114,19 +114,22 @@ const liveMock = {
 			id: 'banner-1',
 			title: '直播盛典专场',
 			desc: '精选高热直播间',
-			badge: '活动'
+			badge: '活动',
+			image: '/static/images/home/live-banner-1.jpg'
 		},
 		{
 			id: 'banner-2',
 			title: '新人主播推荐',
 			desc: '轻松发现新面孔',
-			badge: '推荐'
+			badge: '推荐',
+			image: '/static/images/home/live-banner-2.jpg'
 		},
 		{
 			id: 'banner-3',
 			title: '同城热播榜',
 			desc: '附近正在升温',
-			badge: '同城'
+			badge: '同城',
+			image: '/static/images/home/live-banner-3.jpg'
 		}
 	],
 	categories: [
@@ -143,13 +146,8 @@ const liveMock = {
 
 liveMock.rowHeightRpx = liveMock.cardCoverHeightRpx + liveMock.rowGapRpx
 
-const bannerList = liveMock.banners.map((item, index) => ({
-	...item,
-	background: [
-		'linear-gradient(135deg, rgba(255, 120, 163, 0.96) 0%, rgba(103, 47, 145, 0.92) 100%)',
-		'linear-gradient(135deg, rgba(85, 215, 247, 0.96) 0%, rgba(66, 84, 173, 0.92) 100%)',
-		'linear-gradient(135deg, rgba(255, 190, 97, 0.96) 0%, rgba(170, 74, 124, 0.92) 100%)'
-	][index]
+const bannerList = liveMock.banners.map((item) => ({
+	...item
 }))
 
 const categoryTabs = liveMock.categories
@@ -451,10 +449,10 @@ defineExpose({
 	min-width: 0;
 	padding: 8rpx;
 	border-radius: 999rpx;
-	background: rgba(255, 255, 255, 0.06);
+	background:
+		url('/static/images/home/home-subnav-dark.png') center / 100% 100% no-repeat,
+		rgba(255, 255, 255, 0.06);
 	border: 1rpx solid rgba(255, 255, 255, 0.08);
-	backdrop-filter: blur(18rpx);
-	-webkit-backdrop-filter: blur(18rpx);
 }
 
 .category-tab {

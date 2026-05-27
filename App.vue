@@ -1,27 +1,83 @@
 <script setup>
-	import { onLaunch } from '@dcloudio/uni-app'
+	import { onLaunch, onShow } from '@dcloudio/uni-app'
 	import { initSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 	import { useIm } from '@/composables/useIm.js'
-    import imConfig from '@/core/im/im.config.js'
+	import imConfig from '@/core/im/im.config.js'
 	import { initUserService } from '@/core/user/UserService.js'
 
+	let startupWarmupScheduled = false
+	let imStartupPromise = null
 
 	onLaunch(() => {
 		initSafeAreaMetrics()
 		console.log('App Launch')
-			initUserService({ baseUrl: imConfig.baseUrl })
+		initUserService({ baseUrl: imConfig.baseUrl })
+		syncRootSurfaceBackground()
 		initAndroidSystemNavigationBar()
-		initImService()
 	})
 
-    async function initImService() {
-		try {
-			const { start } = useIm()
-			await start(10001, imConfig)
-		} catch (e) {
-			console.error('[App] IM 服务初始化失败:', e)
-		}
+	onShow(() => {
+		schedulePostLaunchWarmup()
+	})
+
+	async function initImService() {
+		const { start } = useIm()
+		await start(10001, imConfig)
 	}
+
+	function schedulePostLaunchWarmup() {
+		if (startupWarmupScheduled) {
+			return
+		}
+
+		startupWarmupScheduled = true
+		runAfterFirstFrame(() => {
+			void ensureImServiceStarted()
+		})
+	}
+
+	async function ensureImServiceStarted() {
+		if (imStartupPromise) {
+			return imStartupPromise
+		}
+
+		imStartupPromise = initImService().catch((error) => {
+			console.error('[App] IM 服务初始化失败:', error)
+			imStartupPromise = null
+			throw error
+		})
+		return imStartupPromise
+	}
+
+	function runAfterFirstFrame(task) {
+		// #ifdef H5
+		if (typeof requestAnimationFrame === 'function') {
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => {
+					task()
+				})
+			})
+			return
+		}
+		// #endif
+
+		setTimeout(task, 32)
+	}
+
+	function syncRootSurfaceBackground() {
+		// #ifdef H5
+		if (typeof document === 'undefined') {
+			return
+		}
+
+		const rootBackgroundColor = '#f8fafc'
+		document.documentElement.style.backgroundColor = rootBackgroundColor
+		if (document.body) {
+			document.body.style.backgroundColor = rootBackgroundColor
+		}
+		// #endif
+	}
+
 	function initAndroidSystemNavigationBar() {
 		// #ifdef APP-PLUS
 		const systemInfo = uni.getSystemInfoSync()
@@ -65,12 +121,18 @@
 	html,
 	body,
 	#app,
-	uni-app,
+	uni-app {
+		background: #f8fafc;
+		color: #101828;
+		height: 100%;
+		min-height: 100%;
+	}
+
 	uni-page,
 	uni-page-wrapper,
 	uni-page-body {
-		background: #000000;
-		color: #ffffff;
+		background: transparent;
+		color: inherit;
 		height: 100%;
 		min-height: 100%;
 	}

@@ -91,7 +91,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import { useIm } from '@/composables/useIm.js'
@@ -173,6 +173,20 @@ onLoad((options) => {
 	keyword.value = decodeURIComponent(`${options.keyword || ''}`.trim())
 	loadConversationData()
 })
+
+watch(
+	() => im.isReady.value,
+	(value) => {
+		if (!value) {
+			return
+		}
+
+		loadConversationData()
+	},
+	{
+		flush: 'post'
+	}
+)
 
 function handleBack() {
 	uni.navigateBack({

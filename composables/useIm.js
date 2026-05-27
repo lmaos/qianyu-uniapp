@@ -18,6 +18,9 @@ const totalUnread = ref(0)
 let _sdkReadyOff = null
 let _sdkNotReadyOff = null
 let _convUpdatedOff = null
+let _coreListenersBound = false
+let _initPromise = null
+let _startPromise = null
 
 export function useIm() {
 
@@ -37,6 +40,22 @@ export function useIm() {
    * @param {string} [options.baseUrl]             服务端 API 地址
    */
   async function start(userId, options = {}) {
+    if (isReady.value) {
+      return
+    }
+
+    if (_startPromise) {
+      return _startPromise
+    }
+
+    _startPromise = _start(userId, options).catch((error) => {
+      _startPromise = null
+      throw error
+    })
+    return _startPromise
+  }
+
+  async function _start(userId, options = {}) {
     const channel = options.channel || 'tencent'
     const baseUrl = options.baseUrl || ''
 
@@ -67,7 +86,33 @@ export function useIm() {
    * @param {string} [options.baseUrl] 服务端 API 地址
    */
   async function init(options) {
+    if (isInitialized.value) {
+      return
+    }
+
+    if (_initPromise) {
+      return _initPromise
+    }
+
     const service = getService()
+    bindCoreListeners(service)
+
+    _initPromise = service.init(options)
+      .then(() => {
+        isInitialized.value = true
+        console.log('[useIm] 初始化完成: channel=', options.channel)
+      })
+      .catch((error) => {
+        _initPromise = null
+        throw error
+      })
+    return _initPromise
+  }
+
+  function bindCoreListeners(service) {
+    if (_coreListenersBound) {
+      return
+    }
 
     // 注册内部状态监听
     _sdkReadyOff = service.on(ImEvent.SDK_READY, () => {
@@ -82,10 +127,7 @@ export function useIm() {
     _convUpdatedOff = service.on(ImEvent.CONVERSATION_UPDATED, () => {
       _updateTotalUnread()
     })
-
-    await service.init(options)
-    isInitialized.value = true
-    console.log('[useIm] 初始化完成: channel=', options.channel)
+    _coreListenersBound = true
   }
 
   /**
@@ -105,6 +147,7 @@ export function useIm() {
     console.log('[useIm] 登出')
     await getService().logout()
     isReady.value = false
+    _startPromise = null
   }
 
   // ===== 消息 =====

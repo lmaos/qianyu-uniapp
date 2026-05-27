@@ -9,14 +9,13 @@
 			@change="handleChange"
 		>
 			<swiper-item v-for="item in bannerList" :key="item.id">
-				<view class="shop-recommend-banner-item" :style="{ background: item.background }" @tap="handleBannerTap(item)">
-					<view class="shop-recommend-banner-glow"></view>
-					<view class="shop-recommend-banner-content">
-						<view v-if="item.tagText" class="shop-recommend-banner-tag">{{ item.tagText }}</view>
-						<text class="shop-recommend-banner-title">{{ item.title }}</text>
-						<text class="shop-recommend-banner-desc">{{ item.desc }}</text>
-						<view class="shop-recommend-banner-action-chip">
-							<text class="shop-recommend-banner-action">{{ item.actionText }}</text>
+				<view class="shop-recommend-banner-item" @tap="handleBannerTap(item)">
+					<image class="shop-recommend-banner-image" :src="item.image" mode="aspectFill" />
+					<view class="shop-recommend-banner-overlay">
+						<view class="shop-recommend-banner-content">
+							<view v-if="item.tagText" class="shop-recommend-banner-tag">{{ item.tagText }}</view>
+							<text class="shop-recommend-banner-title">{{ item.title }}</text>
+							<text class="shop-recommend-banner-desc">{{ item.desc }}</text>
 						</view>
 					</view>
 				</view>
@@ -85,14 +84,16 @@ function handleBannerTap(item) {
 	box-shadow: 0 18rpx 42rpx rgba(255, 163, 184, 0.16);
 }
 
-.shop-recommend-banner-glow {
+.shop-recommend-banner-image {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.shop-recommend-banner-overlay {
 	position: absolute;
-	top: -36rpx;
-	right: -24rpx;
-	width: 220rpx;
-	height: 220rpx;
-	border-radius: 50%;
-	background: radial-gradient(circle, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 72%);
+	inset: 0;
+	background: linear-gradient(90deg, rgba(15, 23, 42, 0.22) 0%, rgba(15, 23, 42, 0.08) 52%, rgba(15, 23, 42, 0.04) 100%);
 }
 
 .shop-recommend-banner-content {
@@ -114,13 +115,11 @@ function handleBannerTap(item) {
 	padding: 0 16rpx;
 	margin-bottom: 10rpx;
 	border-radius: 999rpx;
-	background: rgba(255, 255, 255, 0.22);
+	background: rgba(15, 23, 42, 0.34);
 	font-size: 18rpx;
 	font-weight: 600;
 	line-height: 24rpx;
 	color: rgba(255, 255, 255, 0.96);
-	backdrop-filter: blur(12rpx);
-	-webkit-backdrop-filter: blur(12rpx);
 }
 
 .shop-recommend-banner-title {
@@ -137,25 +136,6 @@ function handleBannerTap(item) {
 	color: rgba(255, 255, 255, 0.88);
 }
 
-.shop-recommend-banner-action {
-	font-size: 22rpx;
-	font-weight: 600;
-	line-height: 30rpx;
-	color: #7a2843;
-}
-
-.shop-recommend-banner-action-chip {
-	display: inline-flex;
-	align-items: center;
-	align-self: flex-start;
-	height: 44rpx;
-	padding: 0 18rpx;
-	margin-top: 14rpx;
-	border-radius: 999rpx;
-	background: rgba(255, 255, 255, 0.86);
-	box-shadow: 0 10rpx 24rpx rgba(255, 255, 255, 0.18);
-}
-
 .shop-recommend-banner-indicator {
 	position: absolute;
 	right: 18rpx;
@@ -166,9 +146,7 @@ function handleBannerTap(item) {
 	gap: 8rpx;
 	padding: 8rpx 10rpx;
 	border-radius: 999rpx;
-	background: rgba(17, 24, 39, 0.14);
-	backdrop-filter: blur(12rpx);
-	-webkit-backdrop-filter: blur(12rpx);
+	background: rgba(17, 24, 39, 0.2);
 }
 
 .shop-recommend-banner-dot {
