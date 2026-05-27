@@ -50,26 +50,20 @@
 					<text class="agreement-text">和</text>
 					<text class="agreement-link" @tap.stop="handleAgreementLinkClick('privacy')">《隐私政策》</text>
 				</view>
-
-				<view class="mock-card">
-					<text class="mock-card-title">{{ loginMock.mockTitle }}</text>
-					<text class="mock-card-text">{{ loginMock.mockDesc }}</text>
-				</view>
 			</view>
 		</view>
 	</view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { useLoginAgreement } from '@/composables/useLoginAgreement.js'
 
 const loginMock = {
 	title: '登录',
 	subtitle: '继续使用千隅',
 	phoneButtonText: '手机号登录',
 	wechatButtonText: '微信快捷登录',
-	mockTitle: 'Mock 登录说明',
-	mockDesc: 'TODO：替换真实登录 SDK、三方授权回调、用户信息换取与登录态持久化。',
 	socialList: [
 		{ key: 'google', label: 'Google', icon: '/static/images/auth/icons/google.svg' },
 		{ key: 'qq', label: 'QQ', icon: '/static/images/auth/icons/qq.svg' },
@@ -77,10 +71,20 @@ const loginMock = {
 	]
 }
 
-const agreed = ref(true)
+const {
+	agreed,
+	syncAgreementState,
+	toggleAgreement,
+	ensureAgreementAccepted,
+	openAgreementPage
+} = useLoginAgreement()
 
-function handlePhoneLoginClick() {
-	if (!ensureAgreementAccepted()) {
+onShow(() => {
+	syncAgreementState()
+})
+
+async function handlePhoneLoginClick() {
+	if (!(await ensureAgreementAccepted())) {
 		return
 	}
 
@@ -90,8 +94,8 @@ function handlePhoneLoginClick() {
 	})
 }
 
-function handleWechatLoginClick() {
-	if (!ensureAgreementAccepted()) {
+async function handleWechatLoginClick() {
+	if (!(await ensureAgreementAccepted())) {
 		return
 	}
 
@@ -99,8 +103,8 @@ function handleWechatLoginClick() {
 	mockSocialLoginSuccess('微信登录成功')
 }
 
-function handleSocialLoginClick(item) {
-	if (!ensureAgreementAccepted()) {
+async function handleSocialLoginClick(item) {
+	if (!(await ensureAgreementAccepted())) {
 		return
 	}
 
@@ -120,31 +124,8 @@ function handleSocialLoginClick(item) {
 	mockSocialLoginSuccess('微信登录成功')
 }
 
-function toggleAgreement() {
-	agreed.value = !agreed.value
-	uni.showToast({
-		title: agreed.value ? '已同意协议' : '已取消勾选',
-		icon: 'none'
-	})
-}
-
 function handleAgreementLinkClick(type) {
-	uni.showToast({
-		title: type === 'user' ? '用户协议占位' : '隐私政策占位',
-		icon: 'none'
-	})
-}
-
-function ensureAgreementAccepted() {
-	if (agreed.value) {
-		return true
-	}
-
-	uni.showToast({
-		title: '请先勾选协议',
-		icon: 'none'
-	})
-	return false
+	openAgreementPage(type)
 }
 
 function mockSocialLoginSuccess(title) {
@@ -407,28 +388,5 @@ function onQqLogin() {
 
 .agreement-link {
 	color: #0f172a;
-}
-
-.mock-card {
-	margin-top: 28rpx;
-	padding: 26rpx 28rpx;
-	border-radius: 28rpx;
-	background: rgba(255, 255, 255, 0.52);
-}
-
-.mock-card-title {
-	display: block;
-	font-size: 26rpx;
-	font-weight: 600;
-	line-height: 38rpx;
-	color: #0f172a;
-}
-
-.mock-card-text {
-	display: block;
-	margin-top: 10rpx;
-	font-size: 22rpx;
-	line-height: 34rpx;
-	color: #667085;
 }
 </style>

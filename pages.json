@@ -25,6 +25,13 @@
 			}
 		},
 		{
+			"path": "pages/login/agreement",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
 			"path": "pages/index/index",
 			"style": {
 				"navigationStyle": "custom",

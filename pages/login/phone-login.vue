@@ -109,6 +109,8 @@
 
 <script setup>
 import { computed, onUnmounted, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { useLoginAgreement } from '@/composables/useLoginAgreement.js'
 
 const phoneLoginMock = {
 	tabs: [
@@ -126,7 +128,6 @@ const phoneLoginMock = {
 }
 
 const activeTab = ref('code')
-const agreed = ref(true)
 const countdown = ref(0)
 const codeForm = ref({
 	phone: '',
@@ -139,8 +140,20 @@ const passwordForm = ref({
 
 let countdownTimer = null
 
+const {
+	agreed,
+	syncAgreementState,
+	toggleAgreement,
+	ensureAgreementAccepted,
+	openAgreementPage
+} = useLoginAgreement()
+
 const codeButtonText = computed(() => {
 	return countdown.value > 0 ? `${countdown.value}s后重试` : '获取验证码'
+})
+
+onShow(() => {
+	syncAgreementState()
 })
 
 function handleBackClick() {
@@ -180,27 +193,12 @@ function handleCodeButtonClick() {
 	})
 }
 
-function toggleAgreement() {
-	agreed.value = !agreed.value
-	uni.showToast({
-		title: agreed.value ? '已同意协议' : '已取消勾选',
-		icon: 'none'
-	})
-}
-
 function handleAgreementLinkClick(type) {
-	uni.showToast({
-		title: type === 'user' ? '用户协议占位' : '隐私政策占位',
-		icon: 'none'
-	})
+	openAgreementPage(type)
 }
 
-function handleSubmit() {
-	if (!agreed.value) {
-		uni.showToast({
-			title: '请先勾选协议',
-			icon: 'none'
-		})
+async function handleSubmit() {
+	if (!(await ensureAgreementAccepted())) {
 		return
 	}
 
