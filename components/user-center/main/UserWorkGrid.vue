@@ -16,20 +16,10 @@
 					@tap="emit('item-click', item)"
 				>
 					<view class="user-work-thumb" :style="{ background: item.coverBackground }">
-						<text class="user-work-thumb-text">{{ item.coverText }}</text>
-						<view class="user-work-thumb-mask"></view>
 						<view class="user-work-play-meta">
 							<view class="user-work-stat">
 								<image class="user-work-stat-icon" :src="userViewStatIconSvg" mode="aspectFit" />
 								<text class="user-work-stat-text">{{ item.playCountText }}</text>
-							</view>
-							<view class="user-work-stat">
-								<image class="user-work-stat-icon" :src="userLikeStatIconSvg" mode="aspectFit" />
-								<text class="user-work-stat-text">{{ item.likeCountText }}</text>
-							</view>
-							<view class="user-work-stat">
-								<image class="user-work-stat-icon" :src="userCommentStatIconSvg" mode="aspectFit" />
-								<text class="user-work-stat-text">{{ item.commentCountText }}</text>
 							</view>
 						</view>
 					</view>
@@ -47,11 +37,7 @@
 
 <script setup>
 import UserVirtualRows from '@/components/user-center/main/UserVirtualRows.vue'
-import {
-	userCommentStatIconSvg,
-	userLikeStatIconSvg,
-	userViewStatIconSvg
-} from '@/components/user-center/main/userContentIcons.js'
+import { userViewStatIconSvg } from '@/components/user-center/main/userContentIcons.js'
 
 defineProps({
 	rowList: {
@@ -87,9 +73,8 @@ const emit = defineEmits(['item-click'])
 	flex: 1;
 	min-width: 0;
 	height: 320rpx;
-	border-radius: 24rpx;
+	border-radius: 16rpx;
 	background: #e2e8f0;
-	box-shadow: 0 12rpx 28rpx rgba(148, 163, 184, 0.08);
 }
 
 .user-work-item--placeholder {
@@ -98,51 +83,21 @@ const emit = defineEmits(['item-click'])
 
 .user-work-thumb {
 	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: center;
 	height: 100%;
-}
-
-.user-work-thumb-text {
-	position: relative;
-	z-index: 1;
-	font-size: 24rpx;
-	font-weight: 700;
-	line-height: 30rpx;
-	color: rgba(255, 255, 255, 0.82);
-}
-
-.user-work-thumb-mask {
-	position: absolute;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	height: 136rpx;
-	background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.58) 100%);
+	border-radius: 16rpx;
 }
 
 .user-work-play-meta {
 	position: absolute;
-	left: 14rpx;
-	right: 14rpx;
+	left: 16rpx;
 	bottom: 14rpx;
-	z-index: 1;
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 10rpx;
-	padding: 10rpx 14rpx;
-	border-radius: 18rpx;
-	background: rgba(15, 23, 42, 0.44);
-	backdrop-filter: blur(12rpx);
-	-webkit-backdrop-filter: blur(12rpx);
 }
 
 .user-work-stat {
 	display: inline-flex;
 	align-items: center;
-	min-width: 0;
 	gap: 8rpx;
 }
 

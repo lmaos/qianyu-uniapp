@@ -86,10 +86,13 @@
 		<scrollAndRefresh>
 			<item>滚动容器是否真正在滚动目标层，而不是 body 或错误父层。</item>
 			<item>下拉刷新、顶部吸附、局部滚动、固定头部遮挡是否同时正确。</item>
+			<item>首页推荐瀑布流必须在真实首页路由下验证：移动端双列是否持续错落；H5 非手机端宽屏是否会随容器宽度扩展到 3~5 列；左右边距是否与商城一致；推荐区是否不再显示额外“为你推荐”头部；卡片封面高度是否保持一致、是否明显大于信息区、底部无暗色遮罩、卡片无阴影且圆角不过大；正文是否只保留标题/作者/点赞等必要信息；滚动中是否抖动；下拉刷新后是否只刷新推荐区；触底分页后是否平滑续接。</item>
+			<item>个人中心动态列表与作品列表必须验证：动态卡片是否与推荐流保持同一套轻量视觉风格；动态封面是否无暗色遮罩和大块统计背景；视频作品卡片是否只展示观看数且不出现额外背景条。</item>
 		</scrollAndRefresh>
 		<stateConsistency>
 			<item>切 Tab、切二级导航、切三级导航后是否只局部刷新，不刷新整页。</item>
 			<item>离开页面再返回后，状态、滚动位置、选中态、背景、主题是否异常。</item>
+			<item>首页从推荐切到商城/直播再返回推荐时，推荐流滚动位置、双列布局和底部分页状态不能异常重置或错列。</item>
 		</stateConsistency>
 	</requiredAcceptanceItems>
 
@@ -100,6 +103,7 @@
 		<scenario id="scene-04">边界态（第一页、最后一页、顶部、底部、空数据或极限滑动）</scenario>
 		<scenario id="scene-05">返回重进或二次进入</scenario>
 		<scenario id="scene-06">共享布局相关页最小回归</scenario>
+		<scenario id="scene-07">首页推荐瀑布流：移动端双列 / H5 宽屏多列、连续滚动、下拉刷新、触底分页、切频道返回</scenario>
 	</minimumScenarioMatrix>
 
 	<blockingFailures>

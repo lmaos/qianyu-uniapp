@@ -41,6 +41,8 @@ const PRODUCT_COVER_BACKGROUND_POOL = [
 	'linear-gradient(135deg, #fff1de 0%, #fffaf1 100%)',
 	'linear-gradient(135deg, #e4f5ff 0%, #f3fbff 100%)'
 ]
+const PRODUCT_PREVIEW_SKU_NAME_LIST = ['标准款', '高配款', '礼盒款']
+const PRODUCT_PREVIEW_MEDIA_LABEL_LIST = ['主图', '细节', '场景', '搭配', '展示', '质感']
 const RECOMMEND_BANNER_POOL = [
 	{
 		id: 'banner-subsidy',
@@ -179,7 +181,20 @@ export function buildCategoryNewProductList(categoryId = 'recommend') {
 
 // 生成商品详情页路由，直接把商品 ID 和基础信息带过去做 mock 展示。
 export function buildShopProductDetailUrl(productInfo = {}) {
-	return `/pages/shop/product-detail?productId=${encodeURIComponent(productInfo.id || '')}`
+	return buildShopProductDetailPageUrl('/pages/shop/product-detail', {
+		productId: productInfo.id || '',
+		title: productInfo.title || '',
+		price: productInfo.price || '',
+		originalPrice: productInfo.originalPrice || '',
+		shopName: productInfo.shopName || '',
+		coverBackground: productInfo.coverBackground || '',
+		coverText: productInfo.coverText || '',
+		activityTags: Array.isArray(productInfo.activityTags) ? productInfo.activityTags.join('|') : '',
+		topLeftBadge: productInfo.badges?.topLeft || '',
+		topRightBadge: productInfo.badges?.topRight || '',
+		bottomLeftBadge: productInfo.badges?.bottomLeft || '',
+		bottomRightBadge: productInfo.badges?.bottomRight || ''
+	})
 }
 
 // 根据商品 ID 反查商品 mock 数据，详情页只需要携带 productId 即可完成初始化。
@@ -208,25 +223,71 @@ export function resolveShopProductById(productId = '') {
 
 // 将路由参数恢复成详情页可直接消费的商品对象。
 export function buildShopProductFromQuery(query = {}) {
+	const title = readQueryText(query.title)
+	const shopName = readQueryText(query.shopName)
+	const coverBackground = readQueryText(query.coverBackground)
+	const coverText = readQueryText(query.coverText)
+	const activityTags = readQueryText(query.activityTags)
+
 	return {
 		id: `${query.productId || ''}`.trim() || 'shop-product-detail',
-		title: `${query.title || '商品详情占位'}`.trim() || '商品详情占位',
+		title: title || '商品详情占位',
 		price: normalizePrice(query.price, 199),
 		originalPrice: normalizePrice(query.originalPrice, 259),
-		shopName: `${query.shopName || '千语自营旗舰店'}`.trim() || '千语自营旗舰店',
-		coverBackground: `${query.coverBackground || PRODUCT_COVER_BACKGROUND_POOL[0]}`.trim() || PRODUCT_COVER_BACKGROUND_POOL[0],
-		coverText: `${query.coverText || '热卖'}`.trim() || '热卖',
-		activityTags: `${query.activityTags || ''}`
+		shopName: shopName || '千语自营旗舰店',
+		coverBackground: coverBackground || PRODUCT_COVER_BACKGROUND_POOL[0],
+		coverText: coverText || '热卖',
+		activityTags: `${activityTags || ''}`
 			.split('|')
 			.map((item) => item.trim())
 			.filter(Boolean),
 		badges: {
-			topLeft: `${query.topLeftBadge || ''}`.trim(),
-			topRight: `${query.topRightBadge || ''}`.trim(),
-			bottomLeft: `${query.bottomLeftBadge || ''}`.trim(),
-			bottomRight: `${query.bottomRightBadge || ''}`.trim()
+			topLeft: readQueryText(query.topLeftBadge),
+			topRight: readQueryText(query.topRightBadge),
+			bottomLeft: readQueryText(query.bottomLeftBadge),
+			bottomRight: readQueryText(query.bottomRightBadge)
 		}
 	}
+}
+
+// 详情页首屏预置数据：只保留首屏必需字段，后续可直接替换成列表接口返回的轻量对象。
+export function buildShopProductDetailPreview(productInfo = {}) {
+	const baseProduct = normalizePreviewProduct(productInfo)
+	const skuList = buildPreviewSkuList(baseProduct)
+
+	return {
+		productId: baseProduct.id,
+		baseProduct,
+		skuList,
+		evaluateSummary: {
+			totalCount: 1286,
+			sevenDayPositiveRate: '98.2%',
+			goodRate: '96%',
+			neutralCount: 36,
+			badCount: 8
+		},
+		reviewList: [],
+		shopInfo: buildPreviewShopInfo(baseProduct),
+		introBlocks: [],
+		serviceMarkdown: '',
+		cartCount: 0
+	}
+}
+
+// 从路由 query 恢复详情页首屏数据，兼容列表直传和直接打开详情页两种入口。
+export function resolveShopProductDetailPreview(query = {}) {
+	const hasQueryPayload = [
+		query?.title,
+		query?.price,
+		query?.shopName,
+		query?.coverBackground,
+		query?.coverText
+	].some((item) => `${item || ''}`.trim())
+	const previewProduct = hasQueryPayload
+		? buildShopProductFromQuery(query)
+		: resolveShopProductById(query?.productId)
+
+	return buildShopProductDetailPreview(previewProduct)
 }
 
 function buildProductList({ categoryId = 'recommend', sectionIndex = 1, count = 4 }) {
@@ -259,6 +320,117 @@ function buildBadgeMap(seed, categoryLabel) {
 		topRight: seed % 3 === 0 ? '618' : '',
 		bottomLeft: seed % 4 === 0 ? `${categoryLabel}券` : '',
 		bottomRight: seed % 5 === 0 ? '包邮' : ''
+	}
+}
+
+function buildPreviewSkuList(baseProduct) {
+	return PRODUCT_PREVIEW_SKU_NAME_LIST.map((skuName, index) => {
+		const skuIndex = index + 1
+		const price = normalizePrice(baseProduct.price + index * 16, baseProduct.price || 199)
+		const originalPrice = normalizePrice(baseProduct.originalPrice + index * 18, (baseProduct.originalPrice || price) + 28)
+		const stock = [36, 18, 12][index] || 10
+		const activityTagList = baseProduct.activityTags?.filter(Boolean) || []
+
+		return {
+			id: `${baseProduct.id}-sku-${skuIndex}`,
+			name: skuName,
+			title: `${baseProduct.title} ${skuName}`,
+			shortDesc: `${skuName}支持后续替换为真实 SKU 接口字段`,
+			thumbnailBackground: PRODUCT_COVER_BACKGROUND_POOL[(skuIndex + baseProduct.id.length) % PRODUCT_COVER_BACKGROUND_POOL.length],
+			thumbnailText: skuName.slice(0, 2),
+			price,
+			originalPrice,
+			soldCount: `${4200 + skuIndex * 260}`,
+			subsidyText: activityTagList[0] || '平台补贴',
+			discountText: activityTagList[1] || '限时直降',
+			fullReductionText: '满 300 减 30',
+			promotionText: '支持后续替换为真实活动与库存接口',
+			authTagList: ['7天保价', '支持发票', skuIndex === 1 ? '24小时发货' : '48小时发货'],
+			logisticsInfo: {
+				shipTime: skuIndex === 1 ? '24小时发货' : '48小时发货',
+				logisticName: skuIndex === 1 ? '顺丰速运' : '京东物流'
+			},
+			afterSaleTagList: ['运费险', '坏损包退', '价保服务'],
+			stock,
+			stockText: `库存 ${stock} 件`,
+			mediaList: buildPreviewMediaList(baseProduct, skuIndex),
+			paramList: buildPreviewParamList(baseProduct, skuName),
+			benefitText: '首屏预置数据，后续进入详情后异步替换完整内容'
+		}
+	})
+}
+
+function buildPreviewMediaList(baseProduct, skuIndex) {
+	return PRODUCT_PREVIEW_MEDIA_LABEL_LIST.map((label, index) => ({
+		id: `${baseProduct.id}-sku-${skuIndex}-preview-${index + 1}`,
+		type: 'image',
+		url: '',
+		background: PRODUCT_COVER_BACKGROUND_POOL[(skuIndex + index) % PRODUCT_COVER_BACKGROUND_POOL.length],
+		label: `${baseProduct.coverText || label}${index + 1}`
+	}))
+}
+
+function buildPreviewParamList(baseProduct, skuName) {
+	return [
+		{ label: '规格', value: skuName },
+		{ label: '店铺', value: baseProduct.shopName },
+		{ label: '活动', value: baseProduct.activityTags?.join(' / ') || '平台补贴' },
+		{ label: '包装', value: '官方标配' }
+	]
+}
+
+function buildPreviewShopInfo(baseProduct) {
+	return {
+		name: baseProduct.shopName,
+		desc: '当前为首屏预置店铺信息，后续可异步替换完整店铺详情。',
+		avatarText: `${baseProduct.shopName || '店'}`.slice(0, 1) || '店',
+		avatarBackground: baseProduct.coverBackground || PRODUCT_COVER_BACKGROUND_POOL[0],
+		followerCount: '12.6万'
+	}
+}
+
+function normalizePreviewProduct(productInfo = {}) {
+	if (productInfo?.id) {
+		return {
+			id: `${productInfo.id}`.trim() || 'recommend-product-1-1',
+			title: `${productInfo.title || '商品详情占位'}`.trim() || '商品详情占位',
+			price: normalizePrice(productInfo.price, 199),
+			originalPrice: normalizePrice(productInfo.originalPrice, normalizePrice(productInfo.price, 199) + 40),
+			shopName: `${productInfo.shopName || '千语自营旗舰店'}`.trim() || '千语自营旗舰店',
+			coverBackground: `${productInfo.coverBackground || PRODUCT_COVER_BACKGROUND_POOL[0]}`.trim() || PRODUCT_COVER_BACKGROUND_POOL[0],
+			coverText: `${productInfo.coverText || '热卖'}`.trim() || '热卖',
+			activityTags: Array.isArray(productInfo.activityTags) ? productInfo.activityTags.filter(Boolean) : [],
+			badges: {
+				topLeft: `${productInfo.badges?.topLeft || ''}`.trim(),
+				topRight: `${productInfo.badges?.topRight || ''}`.trim(),
+				bottomLeft: `${productInfo.badges?.bottomLeft || ''}`.trim(),
+				bottomRight: `${productInfo.badges?.bottomRight || ''}`.trim()
+			}
+		}
+	}
+
+	return resolveShopProductById('recommend-product-1-1')
+}
+
+function buildShopProductDetailPageUrl(path, query = {}) {
+	const queryString = Object.entries(query)
+		.filter(([, value]) => value !== undefined && value !== null && `${value}` !== '')
+		.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+		.join('&')
+
+	return queryString ? `${path}?${queryString}` : path
+}
+
+function readQueryText(value) {
+	const rawText = `${value || ''}`.trim()
+	if (!rawText) {
+		return ''
+	}
+
+	try {
+		return decodeURIComponent(rawText)
+	} catch {
+		return rawText
 	}
 }
 

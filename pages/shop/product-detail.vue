@@ -141,8 +141,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { computed, nextTick, ref } from 'vue'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import FullScreenPageLayout from '@/components/common/FullScreenPageLayout.vue'
 import ShopCustomerServiceSheet from '@/components/shop/common/ShopCustomerServiceSheet.vue'
 import ShopHeaderIconButton from '@/components/shop/common/ShopHeaderIconButton.vue'
@@ -168,14 +168,19 @@ import {
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import { getGoodsDetailMock } from '@/components/shop/detail/shopDetailMock.js'
 import {
+	buildShopCustomerServiceSheetPreview,
 	buildShopStoreHomeUrl,
 	getShopCustomerServiceSheetMock
 } from '@/components/shop/common/shopFlowMock.js'
+import {
+	buildShopProductDetailPreview,
+	resolveShopProductDetailPreview
+} from '@/components/home/shop/shopProductMock.js'
 
 const { windowHeightPx } = useSafeAreaMetrics()
 const skuPopupHeightPx = computed(() => Math.floor(windowHeightPx.value * 0.75))
 
-const goodsDetail = ref(getGoodsDetailMock('recommend-product-1-1'))
+const goodsDetail = ref(buildShopProductDetailPreview())
 const goodsMediaSwiperRef = ref(null)
 const selectedSkuId = ref(goodsDetail.value.skuList[0]?.id || '')
 const skuQuantity = ref(1)
@@ -185,11 +190,13 @@ const collected = ref(false)
 const shopFollowed = ref(false)
 const cartCount = ref(goodsDetail.value.cartCount || 0)
 const serviceSheetVisible = ref(false)
-const serviceSheetData = ref(getShopCustomerServiceSheetMock({ contextType: 'product' }))
+const serviceSheetData = ref(buildShopCustomerServiceSheetPreview(goodsDetail.value.baseProduct))
 const detailContentStyle = {
 	paddingRight: '24rpx',
 	paddingLeft: '24rpx'
 }
+let fullDetailTimer = null
+let detailLoadRequestId = 0
 
 // 当前详情页的全部 SKU 列表。
 const skuList = computed(() => {
@@ -217,17 +224,72 @@ const currentMediaList = computed(() => {
 })
 
 onLoad((options) => {
-	loadGoodsDetail(options?.productId)
+	initializeGoodsDetail(options)
 })
 
-// 根据商品 ID 加载详情页 mock 数据。
+onUnload(() => {
+	cancelScheduledFullDetailLoad()
+})
+
+// 先用列表传入的轻量首屏数据完成页面布局，再异步替换为完整详情数据。
+function initializeGoodsDetail(options = {}) {
+	const previewDetail = resolveShopProductDetailPreview(options)
+	applyGoodsDetail(previewDetail, {
+		resetActionState: true,
+		resetQuantity: true
+	})
+	serviceSheetData.value = buildShopCustomerServiceSheetPreview(previewDetail.baseProduct)
+	scheduleFullDetailLoad(previewDetail.productId)
+}
+
+function scheduleFullDetailLoad(productId) {
+	const targetId = `${productId || 'recommend-product-1-1'}`.trim() || 'recommend-product-1-1'
+	detailLoadRequestId += 1
+	const requestId = detailLoadRequestId
+	cancelScheduledFullDetailLoad()
+
+	nextTick(() => {
+		fullDetailTimer = setTimeout(() => {
+			if (requestId !== detailLoadRequestId) {
+				return
+			}
+
+			loadGoodsDetail(targetId)
+		}, 32)
+	})
+}
+
+function cancelScheduledFullDetailLoad() {
+	if (fullDetailTimer) {
+		clearTimeout(fullDetailTimer)
+		fullDetailTimer = null
+	}
+}
+
+function applyGoodsDetail(nextDetail, { resetActionState = false, resetQuantity = false } = {}) {
+	const nextSkuList = nextDetail?.skuList || []
+	const currentSelectedSkuId = selectedSkuId.value
+	goodsDetail.value = nextDetail
+	selectedSkuId.value = nextSkuList.some((item) => item.id === currentSelectedSkuId)
+		? currentSelectedSkuId
+		: nextSkuList[0]?.id || ''
+	if (resetQuantity) {
+		skuQuantity.value = 1
+	}
+	cartCount.value = nextDetail.cartCount || 0
+	if (resetActionState) {
+		shopFollowed.value = false
+		collected.value = false
+	}
+}
+
+// 根据商品 ID 加载详情页完整 mock 数据。
 function loadGoodsDetail(productId) {
 	const targetId = `${productId || 'recommend-product-1-1'}`.trim() || 'recommend-product-1-1'
 	const nextDetail = getGoodsDetailMock(targetId)
-	goodsDetail.value = nextDetail
-	selectedSkuId.value = nextDetail.skuList[0]?.id || ''
-	skuQuantity.value = 1
-	cartCount.value = nextDetail.cartCount || 0
+	applyGoodsDetail(nextDetail, {
+		resetQuantity: true
+	})
 	shopFollowed.value = false
 	collected.value = false
 	serviceSheetData.value = getShopCustomerServiceSheetMock({
@@ -505,7 +567,7 @@ function handleServiceSecondary() {
 
 // 以下为详情页预留回调，后续可直接接真实业务逻辑。
 function onProductDetailLoad(payload) {
-	// TODO：替换商品详情页初始化接口
+	// TODO：替换商品详情页完整数据接口；首屏轻量数据已由列表侧提前透传
 	console.log('shop-detail-load', payload.productId)
 }
 

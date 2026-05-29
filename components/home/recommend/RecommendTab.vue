@@ -1,88 +1,144 @@
 <template>
 	<view class="recommend-tab">
-		<view class="placeholder-card">
-			<text class="placeholder-title">{{ recommendMock.title }}</text>
-			<text class="placeholder-desc">{{ recommendMock.desc }}</text>
-			<view class="placeholder-button" @tap="handleActionClick">
-				{{ recommendMock.buttonText }}
-			</view>
+		<RecommendFeedMasonry
+			:item-list="renderList"
+			:active="active"
+			:parent-scroll-top-px="parentScrollTop"
+			:container-width-rpx="containerWidthRpx"
+			@item-click="handleItemClick"
+			@author-click="handleAuthorClick"
+		/>
+
+		<view class="recommend-footer">
+			<text class="recommend-footer-text">{{ footerText }}</text>
 		</view>
 	</view>
 </template>
 
 <script setup>
-import { onBeforeUnmount, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import RecommendFeedMasonry from '@/components/home/recommend/RecommendFeedMasonry.vue'
+import { buildRecommendFeedSource, recommendFeedMock } from '@/components/home/recommend/recommendFeedMock.js'
 
 const props = defineProps({
 	active: {
 		type: Boolean,
 		default: false
+	},
+	parentScrollTop: {
+		type: Number,
+		default: 0
+	},
+	containerWidthRpx: {
+		type: Number,
+		default: 686
 	}
 })
 
-const recommendMock = {
-	title: '推荐组件骨架',
-	desc: 'TODO：替换推荐组件接口、信息流卡片和个性化推荐数据',
-	buttonText: '推荐占位操作'
-}
-
+const sourceList = buildRecommendFeedSource(40)
+const currentPage = ref(1)
+const refreshCursor = ref(0)
+const loadingMore = ref(false)
 const pendingTaskList = new Set()
 
-// 点击推荐占位按钮时，统一进入推荐页交互回调。
-function handleActionClick() {
-	onRecommendAction()
+const rotatedSourceList = computed(() => {
+	if (!sourceList.length) {
+		return []
+	}
+
+	const offset = refreshCursor.value % sourceList.length
+	return offset ? [...sourceList.slice(offset), ...sourceList.slice(0, offset)] : sourceList
+})
+
+const renderList = computed(() => {
+	return rotatedSourceList.value.slice(0, currentPage.value * recommendFeedMock.pageSize)
+})
+
+const footerText = computed(() => {
+	if (loadingMore.value) {
+		return '正在加载更多推荐...'
+	}
+
+	if (renderList.value.length >= rotatedSourceList.value.length) {
+		return '推荐内容已经到底啦'
+	}
+
+	return '继续上滑，查看更多推荐'
+})
+
+function handleItemClick(item) {
+	onRecommendItemClick(item)
+	if (!item?.detailUrl) {
+		return
+	}
+
+	uni.navigateTo({
+		url: item.detailUrl
+	})
 }
 
-// 推荐页按钮占位回调，后续可替换成跳转或埋点逻辑。
-function onRecommendAction() {
-	// TODO：替换推荐组件点击回调
-	console.log('recommend-tab-action')
+function handleAuthorClick(item) {
+	onRecommendAuthorClick(item)
+	if (!item?.profileUrl) {
+		return
+	}
+
+	uni.navigateTo({
+		url: item.profileUrl
+	})
 }
 
-// 推荐页统一实现触底加载协议，供 home.vue 调用。
 function handleParentReachLower() {
-	if (!props.active) {
+	if (!props.active || loadingMore.value) {
 		return Promise.resolve({ status: 'busy' })
 	}
 
-	// TODO：替换推荐组件触底加载回调
-	console.log('recommend-tab-load-more')
+	loadingMore.value = true
+	onLoadMore()
 	return scheduleTask({
-		delay: 360,
+		delay: recommendFeedMock.loadDelayMs,
 		cancelValue: { status: 'busy' },
 		run: (resolve) => {
-			resolve({ status: 'no-more' })
+			if (renderList.value.length >= rotatedSourceList.value.length) {
+				loadingMore.value = false
+				resolve({ status: 'no-more' })
+				return
+			}
+
+			currentPage.value += 1
+			loadingMore.value = false
+			resolve({ status: 'loaded' })
 		}
 	})
 }
 
-// 推荐页统一实现下拉刷新协议，供 home.vue 调用。
 function handleParentRefresh() {
 	if (!props.active) {
 		return Promise.resolve()
 	}
 
-	// TODO：替换推荐组件下拉刷新回调
-	console.log('recommend-tab-refresh')
+	onRefresh()
 	return scheduleTask({
-		delay: 500,
+		delay: recommendFeedMock.refreshDelayMs,
 		cancelValue: undefined,
 		run: (resolve) => {
+			refreshCursor.value =
+				(refreshCursor.value + recommendFeedMock.refreshRotateStep) % Math.max(1, sourceList.length)
+			currentPage.value = 1
+			loadingMore.value = false
 			resolve()
 		}
 	})
 }
 
-// 推荐频道失活后，清理仍在等待中的 mock 定时任务。
 watch(
 	() => props.active,
 	(value) => {
-		if (value) {
-			return
+		if (!value) {
+			loadingMore.value = false
+			clearPendingTasks()
 		}
-
-		clearPendingTasks()
-	}
+	},
 )
 
 onBeforeUnmount(() => {
@@ -114,7 +170,26 @@ function clearPendingTasks() {
 	pendingTaskList.clear()
 }
 
-// 向父组件暴露统一的刷新与触底方法，便于未来新增模块保持同一规范。
+function onRefresh() {
+	// TODO：替换推荐流下拉刷新接口
+	console.log('recommend-refresh')
+}
+
+function onLoadMore() {
+	// TODO：替换推荐流分页加载接口
+	console.log('recommend-load-more')
+}
+
+function onRecommendItemClick(item) {
+	// TODO：替换推荐流卡片点击埋点或路由协议
+	console.log('recommend-item-click', item?.id)
+}
+
+function onRecommendAuthorClick(item) {
+	// TODO：替换推荐流作者点击埋点或主页跳转协议
+	console.log('recommend-author-click', item?.id)
+}
+
 defineExpose({
 	handleParentRefresh,
 	handleParentReachLower
@@ -123,42 +198,26 @@ defineExpose({
 
 <style scoped>
 .recommend-tab {
-	height: 100%;
+	min-height: 100%;
 }
 
-.placeholder-card {
-	padding: 40rpx 32rpx;
-	border-radius: 32rpx;
-	background: #ffffff;
-	box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.08);
+.recommend-footer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 28rpx 0 12rpx;
 }
 
-.placeholder-title {
-	display: block;
-	font-size: 40rpx;
-	font-weight: 600;
-	line-height: 56rpx;
-	color: #0f172a;
-}
-
-.placeholder-desc {
-	display: block;
-	margin-top: 20rpx;
-	font-size: 26rpx;
-	line-height: 38rpx;
-	color: #667085;
-}
-
-.placeholder-button {
+.recommend-footer-text {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	height: 72rpx;
-	padding: 0 32rpx;
-	margin-top: 40rpx;
+	height: 52rpx;
+	padding: 0 22rpx;
 	border-radius: 999rpx;
-	background: #f2f4f7;
+	background: #f5f7fb;
 	font-size: 24rpx;
-	color: #0f172a;
+	line-height: 34rpx;
+	color: #667085;
 }
 </style>

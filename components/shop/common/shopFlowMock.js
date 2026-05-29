@@ -56,17 +56,16 @@ export function getShopSearchPageMock({ keyword = '', categoryId = '' } = {}) {
 
 	const storeList = Array.from({ length: 3 }, (_, index) => {
 		const leadProduct = productList[index * 2] || productList[index] || resolveShopProductById('recommend-product-1-1')
-		const shopDetail = getGoodsDetailMock(leadProduct.id)
 		return {
 			id: `search-store-${index + 1}`,
-			name: shopDetail.shopInfo.name,
+			name: leadProduct.shopName,
 			scoreText: `4.${9 - index}`,
 			desc: index === 0 ? '官方补贴 · 闪电发货 · 每日上新' : index === 1 ? '轻家电精选 · 直播同款 · 会员专享' : '生活好物集合 · 爆款返场',
 			followerText: `${12 + index * 3}.6万关注`,
 			tagList: ['官方', '包邮', index === 0 ? '24小时发货' : '客服秒回'],
 			storeUrl: buildShopStoreHomeUrl({
 				storeId: `search-store-${index + 1}`,
-				storeName: shopDetail.shopInfo.name,
+				storeName: leadProduct.shopName,
 				productId: leadProduct.id
 			}),
 			recommendList: productList.slice(index * 2, index * 2 + 2).map((item) => ({
@@ -98,8 +97,8 @@ export function getShopSearchPageMock({ keyword = '', categoryId = '' } = {}) {
 
 export function getShopStoreHomeMock({ storeId = '', storeName = '', productId = 'recommend-product-1-1' } = {}) {
 	const normalizedProductId = `${productId || 'recommend-product-1-1'}`.trim() || 'recommend-product-1-1'
-	const detailMock = getGoodsDetailMock(normalizedProductId)
-	const resolvedStoreName = `${storeName || detailMock.shopInfo.name || '千语自营旗舰店'}`.trim() || '千语自营旗舰店'
+	const leadProduct = resolveShopProductById(normalizedProductId)
+	const resolvedStoreName = `${storeName || leadProduct.shopName || '千语自营旗舰店'}`.trim() || '千语自营旗舰店'
 	const baseGoodsList = buildRecommendFeedList('recommend', 3).slice(0, 10)
 	const goodsList = baseGoodsList.map((item) => ({
 		...item,
@@ -110,10 +109,10 @@ export function getShopStoreHomeMock({ storeId = '', storeName = '', productId =
 		storeId: `${storeId || `${normalizedProductId}-store`}`.trim(),
 		storeInfo: {
 			name: resolvedStoreName,
-			desc: detailMock.shopInfo.desc,
-			avatarText: detailMock.shopInfo.avatarText,
-			avatarBackground: detailMock.shopInfo.avatarBackground,
-			followerText: detailMock.shopInfo.followerCount,
+			desc: '主营数码家电 / 家居生活 / 轻奢好物',
+			avatarText: `${resolvedStoreName}`.slice(0, 1) || '店',
+			avatarBackground: leadProduct.coverBackground,
+			followerText: '12.6万',
 			scoreText: '4.9',
 			replyRateText: '98%',
 			goodsCountText: `${goodsList.length * 8}+`,
@@ -134,6 +133,25 @@ export function getShopStoreHomeMock({ storeId = '', storeName = '', productId =
 			new: goodsList.slice(2, 10),
 			hot: [...goodsList].sort((left, right) => Number(right.price || 0) - Number(left.price || 0)).slice(0, 8)
 		}
+	}
+}
+
+export function buildShopCustomerServiceSheetPreview(productInfo = {}) {
+	const baseProduct = productInfo?.id ? productInfo : resolveShopProductById(productInfo?.productId || 'recommend-product-1-1')
+	return {
+		title: '商品客服',
+		desc: '首屏先展示轻量客服信息，后续可异步替换真实客服会话能力。',
+		contextSummary: `${baseProduct.shopName} · ${baseProduct.title}`,
+		questionList: ['什么时候发货？', '支持哪些售后？', '现在有优惠吗？'],
+		menuList: [
+			{ key: 'goods-stock', label: '库存与规格', desc: '查看当前商品库存与规格说明' },
+			{ key: 'promotion-price', label: '优惠与活动', desc: '了解补贴、券和活动价格' },
+			{ key: 'delivery-service', label: '发货与物流', desc: '查看发货时效与物流服务' },
+			{ key: 'manual-service', label: '人工客服', desc: '转人工处理复杂问题' }
+		],
+		faqText: '当前是商品详情页首屏轻量客服数据，后续可以切换成真实客服接口。',
+		primaryText: '开始咨询',
+		secondaryText: '问题反馈'
 	}
 }
 
@@ -167,11 +185,11 @@ export function getShopCustomerServiceSheetMock({
 		}
 	}
 
-	const detailMock = getGoodsDetailMock(productId)
+	const baseProduct = resolveShopProductById(productId)
 	return {
 		title: '商品客服',
 		desc: '先用快捷问题定位，再决定是否进入人工咨询。',
-		contextSummary: `${detailMock.shopInfo.name} · ${detailMock.baseProduct.title}`,
+		contextSummary: `${baseProduct.shopName} · ${baseProduct.title}`,
 		questionList: ['什么时候发货？', '支持哪些售后？', '直播同款有优惠吗？'],
 		menuList: [
 			{ key: 'goods-stock', label: '库存与规格', desc: '咨询规格、库存和 SKU 差异' },

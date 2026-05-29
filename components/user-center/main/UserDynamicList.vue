@@ -14,27 +14,9 @@
 						class="user-dynamic-thumb"
 						:style="{ background: layoutItem.item.coverBackground, height: `${layoutItem.thumbHeightRpx}rpx` }"
 					>
-						<text class="user-dynamic-thumb-tag">{{ layoutItem.item.contentType === 'video' ? '视频' : '图文' }}</text>
-						<text class="user-dynamic-thumb-text">{{ layoutItem.item.coverText }}</text>
-						<view class="user-dynamic-thumb-mask"></view>
-						<view class="user-dynamic-stats user-dynamic-stats--overlay">
-							<view class="user-dynamic-stat">
-								<image class="user-dynamic-stat-icon" :src="userViewStatIconSvg" mode="aspectFit" />
-								<text class="user-dynamic-stat-text">{{ layoutItem.item.viewCountText }}</text>
-							</view>
-							<view class="user-dynamic-stat">
-								<image class="user-dynamic-stat-icon" :src="userLikeStatIconSvg" mode="aspectFit" />
-								<text class="user-dynamic-stat-text">{{ layoutItem.item.likeCountText }}</text>
-							</view>
-							<view class="user-dynamic-stat">
-								<image class="user-dynamic-stat-icon" :src="userCommentStatIconSvg" mode="aspectFit" />
-								<text class="user-dynamic-stat-text">{{ layoutItem.item.commentCountText }}</text>
-							</view>
-						</view>
 					</view>
 
 					<view v-else class="user-dynamic-plain" :style="{ background: layoutItem.item.coverBackground }">
-						<text class="user-dynamic-plain-tag">文字</text>
 						<text class="user-dynamic-title user-dynamic-title--plain">{{ layoutItem.item.title }}</text>
 						<view class="user-dynamic-stats user-dynamic-stats--plain">
 							<view class="user-dynamic-stat user-dynamic-stat--plain">
@@ -53,13 +35,23 @@
 					</view>
 
 					<view v-if="layoutItem.item.hasMedia" class="user-dynamic-meta">
-						<text
-							v-if="layoutItem.item.title"
-							class="user-dynamic-title"
-							:class="{ 'user-dynamic-title--single': layoutItem.titleLineCount <= 1 }"
-						>
+						<text v-if="layoutItem.item.title" class="user-dynamic-title">
 							{{ layoutItem.item.title }}
 						</text>
+						<view class="user-dynamic-stats user-dynamic-stats--meta">
+							<view class="user-dynamic-stat user-dynamic-stat--meta">
+								<image class="user-dynamic-stat-icon" :src="userViewStatDarkIconSvg" mode="aspectFit" />
+								<text class="user-dynamic-stat-text">{{ layoutItem.item.viewCountText }}</text>
+							</view>
+							<view class="user-dynamic-stat user-dynamic-stat--meta">
+								<image class="user-dynamic-stat-icon" :src="userLikeStatDarkIconSvg" mode="aspectFit" />
+								<text class="user-dynamic-stat-text">{{ layoutItem.item.likeCountText }}</text>
+							</view>
+							<view class="user-dynamic-stat user-dynamic-stat--meta">
+								<image class="user-dynamic-stat-icon" :src="userCommentStatDarkIconSvg" mode="aspectFit" />
+								<text class="user-dynamic-stat-text">{{ layoutItem.item.commentCountText }}</text>
+							</view>
+						</view>
 					</view>
 				</view>
 			</view>
@@ -71,11 +63,8 @@
 import { computed } from 'vue'
 import {
 	userCommentStatDarkIconSvg,
-	userCommentStatIconSvg,
 	userLikeStatDarkIconSvg,
-	userLikeStatIconSvg,
 	userViewStatDarkIconSvg,
-	userViewStatIconSvg
 } from '@/components/user-center/main/userContentIcons.js'
 
 const props = defineProps({
@@ -108,11 +97,11 @@ const masonryConfig = {
 	columnGapRpx: 20,
 	containerPaddingRpx: 24,
 	bufferPx: 560,
-	mediaBaseHeightRpx: 352,
+	mediaBaseHeightRpx: 436,
 	mediaTitleLineHeightRpx: 34,
 	plainTitleLineHeightRpx: 38,
 	plainMinHeightRpx: 184,
-	cardBottomPaddingRpx: 16
+	cardBottomPaddingRpx: 18
 }
 
 const itemList = computed(() => {
@@ -147,11 +136,9 @@ const layoutList = computed(() => {
 
 	return itemList.value.map((item, index) => {
 		const titleLineCount = item.hasMedia ? estimateTitleLineCount(item.title) : estimatePlainTitleLineCount(item.title)
-		const thumbHeightRpx = item.hasMedia
-			? masonryConfig.mediaBaseHeightRpx + Math.max(0, titleLineCount - 1) * 14
-			: 0
+		const thumbHeightRpx = item.hasMedia ? masonryConfig.mediaBaseHeightRpx : 0
 		const metaHeightRpx = item.hasMedia
-			? (item.title ? titleLineCount * masonryConfig.mediaTitleLineHeightRpx + 30 : 0) + masonryConfig.cardBottomPaddingRpx
+			? (item.title ? titleLineCount * masonryConfig.mediaTitleLineHeightRpx + 54 : 0) + masonryConfig.cardBottomPaddingRpx
 			: 0
 		const plainHeightRpx = item.hasMedia
 			? 0
@@ -227,67 +214,28 @@ function resolveLayoutStyle(layoutItem) {
 
 .user-dynamic-item {
 	overflow: hidden;
-	border-radius: 28rpx;
+	border-radius: 16rpx;
 	background: #ffffff;
-	box-shadow: 0 12rpx 28rpx rgba(148, 163, 184, 0.1);
 }
 
 .user-dynamic-thumb {
 	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 18rpx;
-	box-sizing: border-box;
-}
-
-.user-dynamic-thumb-tag {
-	position: absolute;
-	top: 18rpx;
-	left: 18rpx;
-	padding: 6rpx 14rpx;
-	border-radius: 999rpx;
-	background: rgba(255, 255, 255, 0.92);
-	font-size: 20rpx;
-	line-height: 28rpx;
-	color: #0f172a;
-}
-
-.user-dynamic-thumb-text {
-	position: relative;
-	z-index: 1;
-	font-size: 28rpx;
-	font-weight: 700;
-	line-height: 36rpx;
-	color: rgba(15, 23, 42, 0.76);
-}
-
-.user-dynamic-thumb-mask {
-	position: absolute;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	height: 140rpx;
-	background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.62) 100%);
+	border-radius: 16rpx;
 }
 
 .user-dynamic-meta {
-	padding: 14rpx 18rpx 16rpx;
+	padding: 14rpx 14rpx 18rpx;
 }
 
 .user-dynamic-title {
 	display: -webkit-box;
 	overflow: hidden;
-	font-size: 24rpx;
-	font-weight: 600;
-	line-height: 34rpx;
+	font-size: 28rpx;
+	font-weight: 500;
+	line-height: 38rpx;
 	color: #0f172a;
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
-}
-
-.user-dynamic-title--single {
-	-webkit-line-clamp: 1;
 }
 
 .user-dynamic-title--plain {
@@ -301,54 +249,31 @@ function resolveLayoutStyle(layoutItem) {
 .user-dynamic-plain {
 	display: flex;
 	flex-direction: column;
-	padding: 20rpx 18rpx 18rpx;
+	padding: 18rpx 16rpx 16rpx;
 	box-sizing: border-box;
-}
-
-.user-dynamic-plain-tag {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	align-self: flex-start;
-	padding: 6rpx 14rpx;
-	margin-bottom: 16rpx;
-	border-radius: 999rpx;
-	background: rgba(255, 255, 255, 0.78);
-	font-size: 20rpx;
-	line-height: 28rpx;
-	color: #334155;
 }
 
 .user-dynamic-stats {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 10rpx 16rpx;
-}
-
-.user-dynamic-stats--overlay {
-	position: absolute;
-	left: 18rpx;
-	right: 18rpx;
-	bottom: 14rpx;
-	z-index: 1;
+	gap: 10rpx 18rpx;
 }
 
 .user-dynamic-stats--plain {
 	margin-top: 18rpx;
 }
 
+.user-dynamic-stats--meta {
+	margin-top: 14rpx;
+}
+
 .user-dynamic-stat {
 	display: inline-flex;
 	align-items: center;
 	gap: 8rpx;
-	padding: 6rpx 12rpx;
-	border-radius: 999rpx;
-	background: rgba(15, 23, 42, 0.18);
-	backdrop-filter: blur(10rpx);
-	-webkit-backdrop-filter: blur(10rpx);
 	font-size: 20rpx;
 	line-height: 28rpx;
-	color: #ffffff;
+	color: #667085;
 }
 
 .user-dynamic-stat-icon {
@@ -365,8 +290,9 @@ function resolveLayoutStyle(layoutItem) {
 
 .user-dynamic-stat--plain {
 	color: #475467;
-	background: rgba(255, 255, 255, 0.54);
-	backdrop-filter: none;
-	-webkit-backdrop-filter: none;
+}
+
+.user-dynamic-stat--meta {
+	color: #98a2b3;
 }
 </style>

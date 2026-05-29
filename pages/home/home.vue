@@ -165,7 +165,10 @@ const homeSceneConfigMap = {
 		contentComponent: RecommendTab,
 		contentGapRpx: 36,
 		defaultContentKey: '',
-		resolveContentProps: () => ({})
+		resolveContentProps: () => ({
+			parentScrollTop: activeChildScrollTopPx.value,
+			containerWidthRpx: 750 - homeMock.mallContentSidePaddingRpx * 2
+		})
 	}
 }
 
@@ -261,7 +264,9 @@ const contentTopPaddingPx = computed(() => {
 })
 
 const activeContentSidePaddingRpx = computed(() => {
-	return activeSubNav.value === 'mall' ? homeMock.mallContentSidePaddingRpx : homeMock.contentSidePaddingRpx
+	return ['mall', 'recommend'].includes(activeSubNav.value)
+		? homeMock.mallContentSidePaddingRpx
+		: homeMock.contentSidePaddingRpx
 })
 
 const activeChildScrollTopPx = computed(() => {

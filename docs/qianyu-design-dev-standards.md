@@ -33,7 +33,7 @@
 
 | 项目 | 规范 |
 | --- | --- |
-| 主风格 | 轻玻璃感、浅色渐变、圆角卡片、柔和阴影、轻社交氛围 |
+| 主风格 | 轻透感、浅色渐变、圆角卡片、柔和阴影、轻社交氛围；轻玻璃视觉优先通过静态图片表达 |
 | 情绪表达 | 不走厚重商务风，不走强游戏风，强调“年轻化 + 轻陪伴 + 内容感” |
 | 卡片语言 | 大圆角、浅底、微阴影、局部渐变、必要时可加入轻流光 |
 | 图标风格 | 优先 SVG，线条简洁、识别明确、可适配多语言，不依赖中文占位字 |
@@ -44,7 +44,7 @@
 
 | 模块 | 主题 | 风格说明 | 参考来源 |
 | --- | --- | --- | --- |
-| 首页-商城/推荐 | 浅色 | 粉白/蓝白渐变背景，顶部毛玻璃子导航，内容卡片轻盈 | `pages/home/home.vue` |
+| 首页-商城/推荐 | 浅色 | 粉白/蓝白渐变背景，顶部静态图像化子导航，内容卡片轻盈 | `pages/home/home.vue` |
 | 首页-直播 | 深色 | 黑色沉浸式、强内容导向、榜单与分类并存、突出房间内容流 | `composables/useAppTheme.js`, `components/home/live/LiveTab.vue` |
 | 直播间 | 深色 | 全屏沉浸、顶部信息悬浮、底部输入与礼物浮层、强调实时互动氛围 | `pages/live-room/live-room.vue`, `components/room/RoomIndex.vue` |
 | 玩伴/小窝 | 浅色 | 粉蓝年轻化、轻社交、轻陪伴、轻反馈、轻流光 | `pages/friend/friend.vue`, `components/friend/playmateMock.js` |
@@ -79,6 +79,7 @@
 | 页面头部行高 | 通用子页头部 `88rpx` |
 | 首页二级导航高度 | `80rpx` |
 | 卡片阴影 | 轻阴影，不用厚重投影；优先柔和扩散阴影 |
+| 性能型尺寸策略 | 性能敏感页面与组件优先使用固定值，避免高频自动计算样式 |
 
 ### 3.5 背景与样式来源规范
 
@@ -90,6 +91,7 @@
 | 商城表面层来源 | 商城子页背景、头部背景、头部图标来源于 `shopSurface.js` | `components/shop/common/shopSurface.js` |
 | 个人中心表面层来源 | 个人中心子页背景、卡片背景、返回图标来源于 `userSubPageSurface.js` | `components/user-center/common/userSubPageSurface.js` |
 | 频道局部背景 | 私聊页、玩伴页、直播卡面等允许有业务域局部渐变，但不能脱离项目总风格 | `pages/message/chat.vue`, `pages/friend/friend.vue`, `components/home/live/LiveTab.vue` |
+| 性能型视觉实现 | 毛玻璃、雾化、Banner 氛围等表面优先用静态图片和固定渐变，不使用高成本 `blur/backdrop-filter` | `components/home/HomeSubNavShell.vue`, `components/home/shop/ShopRecommendBanner.vue`, `components/home/live/elements/LiveBanner.vue` |
 | uni.scss 使用原则 | 当前 `uni.scss` 仍是 uni-app 默认变量文件，不作为项目主视觉 token 来源；项目真实视觉 token 以 JS surface/theme 文件为准 | `uni.scss` |
 
 ---
@@ -124,7 +126,9 @@
 | 根 Tab 页面只做容器，不堆业务逻辑 | `pages/index/index.vue` 负责 tab 切换与主题联动 |
 | 页面负责状态与路由 | 页面/容器层负责解析参数、主题、滚动、刷新、分页、导航 |
 | 业务展示组件只负责渲染与事件抛出 | 列表卡片、头部条、工具条等组件不直接绑定真实业务 API |
+| 启动性能 | 页面/容器层只保留首屏必需初始化，非关键补数与占位异步任务优先延后到首帧后执行 |
 | 隐藏场景要停止资源占用 | Home 场景组件需接收 `active`，隐藏时停止轮播、定时器、异步 mock | `pages/home/home.vue` |
+| 首页推荐流 | 推荐频道移动端保持双列瀑布流；H5 非手机端宽屏按容器宽度自适应 3~5 列。左右边距与商城频道保持一致；推荐内容直接起瀑布流，不额外插入“为你推荐”头部块。卡片以封面为主、信息保持极简，刷新、分页和切换状态由频道容器统一承接，卡片层只负责渲染与事件抛出 | `components/home/recommend/RecommendTab.vue`, `components/home/recommend/RecommendFeedMasonry.vue` |
 
 ### 4.4 直播频道专项规范
 
@@ -192,6 +196,8 @@
 | 活动协议分发 | 活动弹窗与活动入口的跳转统一通过 `dispatchActivityAction()` 分发，不在多个页面重复写协议解析 | `components/common/activity/activityActionRouter.js` |
 | 外链承接页 | 外部活动链接统一进入 `pages/web/web-view.vue`，不要在业务页各自分散实现 web-view 页 | `pages/web/web-view.vue` |
 | 页面注册 | 所有新页面必须同步写入 `pages.json` | `pages.json` |
+| 详情首屏加载 | 商城详情优先复用列表已带轻量数据完成首屏，再异步补齐完整详情 | `pages/shop/product-detail.vue`, `components/shop/common/shopFlowMock.js` |
+| 推荐流数据组织 | 首页推荐流优先由域内 mock/helper 统一输出卡片数据、详情 URL 和分页基线，不把推荐 mock 散落到页面与卡片组件 | `components/home/recommend/recommendFeedMock.js` |
 | API 替换接口位 | 当前统一保留 mock-first / callback-first，不直接把真实接口写死在展示组件中 | 多处 `TODO：替换...` |
 | 资源释放 | 轮播、刷新、分页、定时器都要支持在隐藏/离开时停止 | `pages/home/home.vue`, `components/home/live/LiveTab.vue` |
 | 频道级 builder | 消息、个人中心、玩伴、直播榜单等频道优先提供 builder/mock helper，再由页面消费 | `components/message/messageMock.js`, `components/user-center/userCenterMock.js`, `components/friend/playmateMock.js`, `components/home/live/liveRankMock.js` |
@@ -205,6 +211,9 @@
 | 路由跳转 | 统一由页面或 mock helper 构建 URL | 在深层展示组件硬编码复杂 query |
 | 图标使用 | 优先 SVG/统一 icon helper | 中文字占位图标、不同模块风格割裂 |
 | 布局容器 | 复用公共布局组件 | 每个页面重新计算安全区与头底预留 |
+| 启动链路 | 阻塞首屏的初始化、补数和 mock 任务优先拆到 `setTimeout` 等首帧后时机 | 在页面/组件创建阶段同步堆叠非关键工作 |
+| 三级导航 | 三级导航切换优先保持局部联动、锚点滚动和固定高度容器 | 切换时整页重排、整页回顶或重新拉全量数据 |
+| 首页推荐流 | 移动端保持双列瀑布流；H5 非手机端宽屏按固定列间距 + 最小卡宽自适应 3~5 列。分页、下拉刷新和隐藏态资源释放统一走首页频道协议 | 在卡片层直接接分页/刷新逻辑，或依赖高频宽度计算/整页重排导致滚动抖动 |
 | 组件职责 | 父层负责数据/状态/路由，子层负责渲染/事件 | 子组件里混合页面状态、路由、接口、副作用 |
 
 ### 5.5 AI自动化UI测试
@@ -324,6 +333,8 @@
 | LiveBanner | `components/home/live/elements/LiveBanner.vue` | 直播频道 Banner | 只处理展示、切换与点击事件，不接频道业务 |
 | LiveHotRankCard | `components/home/live/elements/LiveHotRankCard.vue` | 直播榜单入口卡 | 负责榜单入口展示，跳转由上层决定 |
 | LiveCardItem | `components/home/live/elements/LiveCardItem.vue` | 直播双列流卡片 | 负责直播卡片展示与点击抛出 |
+| RecommendTab / RecommendFeedMasonry / RecommendFeedCard | `components/home/recommend/*.vue` | 首页推荐瀑布流与推荐卡片（移动端双列，H5 宽屏自适应多列） | 推荐频道复用首页刷新/分页协议；左右边距与商城一致；封面区保持干净，不叠加底部暗色遮罩；卡片无阴影、小圆角、正文只保留标题/作者/点赞等必要信息 |
+| UserDynamicList / UserWorkGrid | `components/user-center/main/*.vue` | 个人中心动态瀑布流与作品宫格 | 与推荐流保持一致的轻量内容卡片风格：媒体封面优先、无阴影、小圆角；动态列表避免封面叠加遮罩和大块统计胶囊；视频作品列表仅展示观看数且不使用背景条 |
 | RoomIndex | `components/room/RoomIndex.vue` | 直播间整页 UI 组装 | 负责房间表现层，业务事件全部向页面层抛出 |
 | RoomChat / OnlinePanel / GiftPanel | `components/room/chat/*.vue`, `components/room/online/*.vue`, `components/room/gift/*.vue` | 直播间聊天、在线用户、礼物分层模块 | 属于房间内功能组件，不直接持有页面业务状态 |
 | web-view 活动承接页 | `pages/web/web-view.vue` | `http(s)://` 活动外链 | 活动页统一从协议分发器进入，不单独散落多个 web-view 页面 |
