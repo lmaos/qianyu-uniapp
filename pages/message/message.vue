@@ -31,9 +31,9 @@
 							<text class="message-page-subtitle">联系人与聊天</text>
 						</view>
 
-						<view class="message-notice-chip" @tap.stop="handleMessageBadgeClick">
-							<text class="message-notice-chip-label">消息</text>
-							<view v-if="totalUnread > 0" class="message-notice-chip-count">{{ totalUnread }}</view>
+						<view class="message-notice-chip" @tap.stop="handleNotificationClick">
+							<text class="message-notice-chip-label">{{ pageMock.notificationBadge.label }}</text>
+							<view v-if="notificationUnreadCount > 0" class="message-notice-chip-count">{{ notificationUnreadCount }}</view>
 						</view>
 					</view>
 
@@ -152,7 +152,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { onShow, onHide } from '@dcloudio/uni-app'
 import PullPagingShell from '@/components/common/PullPagingShell.vue'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
@@ -160,14 +160,15 @@ import { useIm } from '@/composables/useIm.js'
 import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
 import {
 	buildMessageContactListUrl,
+	buildMessageNotificationUrl,
 	buildMessagePageMock,
 	buildMessageSearchUrl,
 	buildMessageUserProfileUrl
 } from '@/components/message/messageMock.js'
 
 const im = useIm()
-const totalUnread = toRef(im, 'totalUnread')
 const pageMock = buildMessagePageMock()
+const notificationUnreadCount = Number(pageMock.notificationBadge?.unreadCount || 0)
 const { safeTopPx, rpxToPx } = useSafeAreaMetrics()
 const muteIconSvg =
 	"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M10.5 8.5 14.2 5.6a.8.8 0 0 1 1.3.64v11.52a.8.8 0 0 1-1.3.64l-3.7-2.88H7.8A1.8 1.8 0 0 1 6 13.72v-3.44A1.8 1.8 0 0 1 7.8 8.5h2.7Z' fill='%2398A2B3'/%3E%3Cpath d='m18 9 3 6M21 9l-3 6' stroke='%2398A2B3' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E"
@@ -574,8 +575,10 @@ function handleContentTap() {
 	}
 }
 
-function handleMessageBadgeClick() {
-	console.log('message-badge-click', totalUnread.value)
+function handleNotificationClick() {
+	uni.navigateTo({
+		url: buildMessageNotificationUrl()
+	})
 }
 
 function handleSearchClick() {

@@ -95,6 +95,13 @@
 			}
 		},
 		{
+			"path": "pages/message/notification",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
 			"path": "pages/mine/mine",
 			"style": {
 				"navigationStyle": "custom",

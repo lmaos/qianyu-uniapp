@@ -193,8 +193,8 @@
 | --- | --- | --- |
 | Mock 数据集中管理 | 每个业务域优先放在对应 `*Mock.js`，不要把大块 mock 常量散落在页面里 | `components/user-center/userCenterMock.js`, `components/friend/playmateMock.js`, `components/shop/category/shopCategoryMock.js` |
 | 路由参数构建 | 页面 URL 优先通过 builder/helper 生成，避免字符串硬拼 | `buildPageUrl()` in `components/user-center/userCenterMock.js` |
-| 活动协议定义来源 | `actionUrl` 协议唯一收敛到 `components/common/activity/activityActionProtocol.js`，统一维护 `https://`、`http://`、`pages://` 规则与示例 | `components/common/activity/activityActionProtocol.js` |
-| 活动协议分发 | 活动弹窗与活动入口的跳转统一通过 `dispatchActivityAction()` 分发，不在多个页面重复写协议解析 | `components/common/activity/activityActionRouter.js` |
+| 公共跳转协议定义来源 | `actionUrl` 协议统一收敛到 `components/common/navigation/navigationActionProtocol.js`，统一维护 `https://`、`http://`、`page://` 与兼容 `pages://` 的规则与示例 | `components/common/navigation/navigationActionProtocol.js` |
+| 公共跳转协议分发 | 协议跳转统一通过 `dispatchNavigationAction()` 分发；活动弹窗继续通过 `dispatchActivityAction()` 兼容接入，不在多个页面重复写协议解析 | `components/common/navigation/navigationActionRouter.js`, `components/common/activity/activityActionRouter.js` |
 | 外链承接页 | 外部活动链接统一进入 `pages/web/web-view.vue`，不要在业务页各自分散实现 web-view 页 | `pages/web/web-view.vue` |
 | 页面注册 | 所有新页面必须同步写入 `pages.json` | `pages.json` |
 | 详情首屏加载 | 商城详情优先复用列表已带轻量数据完成首屏，再异步补齐完整详情 | `pages/shop/product-detail.vue`, `components/shop/common/shopFlowMock.js` |
@@ -309,8 +309,8 @@
 | 安全区与尺寸换算 | `composables/useSafeAreaMetrics.js` | 提供安全区、窗口尺寸、`rpxToPx/pxToRpx`、头部/底部预留计算 | 不要在页面里复制安全区算法 |
 | 全局主题 | `composables/useAppTheme.js` | 提供浅色/深色主题配置与切换 | 页面不要自行维护第二套主题状态 |
 | SVG Data URI | `composables/useSvgIcon.js` | 将 SVG 字符串转成可直接给 `image` 使用的资源 | 新 SVG 图标优先走统一生成方式 |
-| 活动协议定义 | `components/common/activity/activityActionProtocol.js` | 统一维护活动弹窗 `actionUrl` 协议字段、类型与示例 | 新增活动跳转时优先补协议定义，不要先在页面硬编码 |
-| 活动协议分发 | `components/common/activity/activityActionRouter.js` | 统一解析 `pages://` 与 `http(s)://` 并分发到页面、Tab、直播间、web-view | 页面层消费分发器，展示组件只 emit `action` |
+| 公共跳转协议定义 | `components/common/navigation/navigationActionProtocol.js` | 统一维护全局 `actionUrl` 协议字段、类型与示例，支持 `page://` / `http(s)://` 并兼容旧 `pages://` | 新增协议跳转时优先补这里，不要先在页面硬编码 |
+| 公共跳转协议分发 | `components/common/navigation/navigationActionRouter.js` | 统一解析 `page://`、兼容 `pages://` 与 `http(s)://`，并分发到页面、Tab、直播间、web-view | 页面层消费分发器，展示组件只 emit `action` |
 | 商城流程 mock / builder | `components/shop/common/shopFlowMock.js` | 统一维护商城搜索、店铺首页、订单详情、商家工作台、客服弹层上下文 mock 与 URL builder | 新增商城子流程时优先扩展这里，不在页面里散落 route builder |
 
 ### 6.2 通用布局组件
@@ -351,7 +351,7 @@
 | UserSectionCard | `components/user-center/common/UserSectionCard.vue` | 我的/资料页通用信息卡片 | 默认统一圆角、阴影、浅渐变背景 |
 | userSubPageSurface | `components/user-center/common/userSubPageSurface.js` | 个人中心子页背景、头部、返回图标 | 子页统一引用，不单独重写 |
 | userCenterMock | `components/user-center/userCenterMock.js` | 个人中心路由 builder 与核心 mock 数据源 | 个人中心与关联用户页优先复用它的 builder |
-| messageMock | `components/message/messageMock.js` | 消息频道联系人、会话、私聊、搜索路由与 mock 数据源 | 消息页与相关跳转统一复用 |
+| messageMock | `components/message/messageMock.js` | 消息频道联系人、会话、私聊、通知列表、搜索路由与 mock 数据源 | 消息页、通知页与相关跳转统一复用 |
 | PlaymateLaunchSheet | `components/friend/PlaymateLaunchSheet.vue` | 玩伴发布入口弹层 | 属于业务域公共组件，后续扩展玩法时优先在此增强 |
 | playmateMock / playmateIcons | `components/friend/playmateMock.js`, `components/friend/playmateIcons.js` | 玩伴频道 mock 数据与 SVG 图标来源 | 玩伴页与子流程优先统一复用 |
 | UserInfoCard | `components/user/UserInfoCard.vue` | 用户资料摘要卡 | 资料类页面与关系页面优先复用，不重复造头像/昵称/状态头卡 |

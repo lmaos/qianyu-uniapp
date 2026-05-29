@@ -14,7 +14,7 @@
 			<view class="chat-more-button" @tap="handleMoreClick">···</view>
 		</view>
 
-		<view class="chat-body">
+		<view class="chat-body" :style="chatBodyStyle">
 			<view class="chat-history-button" @tap="handleHistoryLoadClick">
 				{{ hasMoreHistory ? '查看更多消息' : '已经是最早消息' }}
 			</view>
@@ -47,44 +47,63 @@
 			</scroll-view>
 		</view>
 
-		<view class="chat-toolbar">
-			<view class="chat-toolbar-actions">
-				<view
-					v-for="item in actionList"
-					:key="item.key"
-					class="chat-toolbar-action"
-					@tap="handleToolbarActionClick(item)"
-				>
-					{{ item.label }}
+		<SafeBottomArea
+			:gap-rpx="30"
+			:top-padding-rpx="16"
+			:side-padding-rpx="24"
+			:inner-min-height-rpx="150"
+			background="url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat, rgba(248, 250, 252, 0.96)"
+			box-shadow="0 -14rpx 32rpx rgba(15, 23, 42, 0.05)"
+		>
+			<view class="chat-toolbar">
+				<view class="chat-toolbar-actions">
+					<view
+						v-for="item in actionList"
+						:key="item.key"
+						class="chat-toolbar-action"
+						@tap="handleToolbarActionClick(item)"
+					>
+						{{ item.label }}
+					</view>
+				</view>
+
+				<view class="chat-input-row">
+					<input
+						class="chat-input"
+						:value="inputValue"
+						placeholder="输入消息..."
+						placeholder-style="color: #98a2b3;"
+						confirm-type="send"
+						@input="handleInputChange"
+						@confirm="handleSendClick"
+					/>
+					<view class="chat-send-button" @tap="handleSendClick">发送</view>
 				</view>
 			</view>
-
-			<view class="chat-input-row">
-				<input
-					class="chat-input"
-					:value="inputValue"
-					placeholder="输入消息..."
-					placeholder-style="color: #98a2b3;"
-					confirm-type="send"
-					@input="handleInputChange"
-					@confirm="handleSendClick"
-				/>
-				<view class="chat-send-button" @tap="handleSendClick">发送</view>
-			</view>
-		</view>
+		</SafeBottomArea>
 	</view>
 </template>
 
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
+import SafeBottomArea from '@/components/common/SafeBottomArea.vue'
+import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import { useIm } from '@/composables/useIm.js'
 import { getMessageDirection } from '@/core/im/models/MessageEntity.js'
 
 const im = useIm()
 
-const systemInfo = uni.getSystemInfoSync()
-const safeTopPx = systemInfo.safeAreaInsets?.top || systemInfo.statusBarHeight || 0
+const CHAT_COMPOSER_LAYOUT = {
+	topPaddingRpx: 16,
+	innerMinHeightRpx: 150,
+	gapRpx: 30
+}
+
+const { safeTopPx, footerReservePx } = useSafeAreaMetrics()
+const chatBodyStyle = computed(() => ({
+	paddingBottom: `${footerReservePx(CHAT_COMPOSER_LAYOUT)}px`
+}))
 
 // ===== 页面状态 =====
 
@@ -323,7 +342,10 @@ function handleMessageClick(message) {
 
 <style scoped>
 .chat-page {
+	height: 100vh;
 	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
 	background:
 		radial-gradient(circle at top right, rgba(255, 201, 213, 0.4) 0%, rgba(255, 201, 213, 0) 32%),
 		linear-gradient(180deg, #fff7fa 0%, #f8fafc 48%, #f8fafc 100%);
@@ -396,6 +418,10 @@ function handleMessageClick(message) {
 }
 
 .chat-body {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
 	padding: 28rpx 24rpx 0;
 	box-sizing: border-box;
 }
@@ -414,7 +440,8 @@ function handleMessageClick(message) {
 }
 
 .chat-message-scroll {
-	height: calc(100vh - 360rpx);
+	flex: 1;
+	min-height: 0;
 }
 
 .chat-message-list {
@@ -480,15 +507,8 @@ function handleMessageClick(message) {
 }
 
 .chat-toolbar {
-	position: fixed;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
-	background:
-		url('/static/images/common/frost-glass-light.png') center / 100% 100% no-repeat,
-		rgba(248, 250, 252, 0.96);
-	box-shadow: 0 -14rpx 32rpx rgba(15, 23, 42, 0.05);
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .chat-toolbar-actions {

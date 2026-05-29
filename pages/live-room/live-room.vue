@@ -187,7 +187,7 @@ function handleRank(payload) {
 	openActivityPopup({
 		popupType: ACTIVITY_POPUP_TYPES.ACTION,
 		title: `${payload?.label || '人气榜'}正在升温`,
-		desc: '当前协议统一收敛在 activityActionProtocol.js。这里先演示 pages://open 普通页面跳转，后续可直接替换为真实活动或榜单接口。',
+		desc: '当前协议统一收敛在 navigationActionProtocol.js。这里先演示 page://open 普通页面跳转，后续可直接替换为真实活动或榜单接口。',
 		confirmText: '查看榜单',
 		cancelText: '稍后再看',
 		actionUrl: buildActivityActionUrl('open', {
@@ -204,7 +204,7 @@ function handleLuckyBag(payload) {
 	openActivityPopup({
 		popupType: ACTIVITY_POPUP_TYPES.ACTION,
 		title: `${payload?.label || '福袋'}入口已接协议跳转`,
-		desc: '这里演示 pages://tab 协议：点击后会直接回到首页，并切到直播频道，适合承接直播首页、频道内子组件、活动分区等内部目标。',
+		desc: '这里演示 page://tab 协议：点击后会直接回到首页，并切到直播频道，适合承接直播首页、频道内子组件、活动分区等内部目标。',
 		confirmText: '回到直播频道',
 		cancelText: '留在房间',
 		actionUrl: buildActivityActionUrl('tab', {
@@ -309,7 +309,7 @@ function handleShare() {
 	openActivityPopup({
 		popupType: ACTIVITY_POPUP_TYPES.ACTION,
 		title: '推荐你去另一个直播间看看',
-		desc: '这里演示 pages://live-room 协议：可以直达指定房间，也方便后续从活动弹层、浮条、卡片直接跳转到特定直播间。',
+		desc: '这里演示 page://live-room 协议：可以直达指定房间，也方便后续从活动弹层、浮条、卡片直接跳转到特定直播间。',
 		confirmText: '打开新房间',
 		cancelText: '先不切换',
 		actionUrl: buildActivityActionUrl('live-room', {

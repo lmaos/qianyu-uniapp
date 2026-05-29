@@ -1,4 +1,8 @@
 import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
+import {
+	NAVIGATION_ACTION_ROUTE_TYPES,
+	buildNavigationActionUrl
+} from '@/components/common/navigation/navigationActionProtocol.js'
 
 const CONTACT_LIST = [
 	{
@@ -314,6 +318,112 @@ const CONVERSATION_LIST = [
 	}
 ]
 
+const NOTIFICATION_LIST = [
+	{
+		id: 'notification-like-luna',
+		category: '互动提醒',
+		avatarText: 'L',
+		avatarBackground: 'linear-gradient(135deg, #ff9db2 0%, #ffc8a9 100%)',
+		title: 'Luna 赞了你的动态',
+		summary: '《推荐瀑布流首屏稳定了》',
+		timeText: '刚刚',
+		unread: true,
+		actionUrl: buildNavigationActionUrl(NAVIGATION_ACTION_ROUTE_TYPES.OPEN, {
+			page: '/pages/user/note-detail',
+			noteId: 'dynamic-item-6',
+			title: '推荐瀑布流首屏稳定了'
+		}),
+		actionPayload: {
+			title: '动态详情'
+		}
+	},
+	{
+		id: 'notification-comment-iris',
+		category: '互动提醒',
+		avatarText: 'I',
+		avatarBackground: 'linear-gradient(135deg, #ffb68c 0%, #ffd8b8 100%)',
+		title: 'Iris 评论了你的视频作品',
+		summary: '“这个镜头节奏处理得很舒服。”',
+		timeText: '10分钟前',
+		unread: true,
+		actionUrl: buildNavigationActionUrl(NAVIGATION_ACTION_ROUTE_TYPES.OPEN, {
+			page: '/pages/user/video-detail',
+			videoId: 'dynamic-item-9',
+			title: '视频作品详情'
+		}),
+		actionPayload: {
+			title: '视频详情'
+		}
+	},
+	{
+		id: 'notification-live-home',
+		category: '系统通知',
+		avatarText: '直',
+		avatarBackground: 'linear-gradient(135deg, #7cb7ff 0%, #9fdbff 100%)',
+		title: '直播频道有新的活动入口',
+		summary: '点击可直接回到首页直播频道。',
+		timeText: '今天 19:20',
+		unread: true,
+		actionUrl: buildNavigationActionUrl(NAVIGATION_ACTION_ROUTE_TYPES.TAB, {
+			tab: 'home',
+			scene: 'live'
+		}),
+		actionPayload: {
+			title: '直播频道'
+		}
+	},
+	{
+		id: 'notification-room-open',
+		category: '开播提醒',
+		avatarText: '播',
+		avatarBackground: 'linear-gradient(135deg, #9b8cff 0%, #d2c3ff 100%)',
+		title: '夜语音乐现场正在开播',
+		summary: '点击直达对应直播间。',
+		timeText: '今天 18:06',
+		unread: false,
+		actionUrl: buildNavigationActionUrl(NAVIGATION_ACTION_ROUTE_TYPES.LIVE_ROOM, {
+			roomId: 'hot-room-2002',
+			anchorId: 'anchor-2002',
+			roomName: '夜语音乐现场'
+		}),
+		actionPayload: {
+			title: '直播间'
+		}
+	},
+	{
+		id: 'notification-product-sale',
+		category: '商城通知',
+		avatarText: '购',
+		avatarBackground: 'linear-gradient(135deg, #6bd3b1 0%, #9be7df 100%)',
+		title: '你关注的商品降价了',
+		summary: '轻商务氛围穿搭套餐今日有新的优惠。',
+		timeText: '昨天',
+		unread: false,
+		actionUrl: buildNavigationActionUrl(NAVIGATION_ACTION_ROUTE_TYPES.OPEN, {
+			page: '/pages/shop/product-detail',
+			productId: 'shop-product-1001',
+			skuId: 'shop-sku-default'
+		}),
+		actionPayload: {
+			title: '商品详情'
+		}
+	},
+	{
+		id: 'notification-service-update',
+		category: '系统通知',
+		avatarText: '系',
+		avatarBackground: 'linear-gradient(135deg, #f7c56d 0%, #ffe1a8 100%)',
+		title: '平台服务说明已更新',
+		summary: '通过内建 webview 查看最新的服务说明。',
+		timeText: '昨天',
+		unread: false,
+		actionUrl: 'https://example.com/',
+		actionPayload: {
+			title: '服务说明'
+		}
+	}
+]
+
 const CHAT_MAP = {
 	'conversation-luna': {
 		actionList: [
@@ -373,9 +483,9 @@ const CHAT_MAP = {
 export function buildMessagePageMock() {
 	return {
 		title: '消息',
-		messageBadge: {
-			label: '消息',
-			value: '6'
+		notificationBadge: {
+			label: '通知',
+			unreadCount: getMessageNotificationUnreadCount()
 		},
 		searchPlaceholder: '搜索联系人或聊天',
 		contactList: CONTACT_LIST.slice(0, 6).map((item) => ({ ...item })),
@@ -390,6 +500,17 @@ export function buildMessageContactListPageMock() {
 		title: '联系人',
 		searchPlaceholder: '搜索联系人',
 		contactList: CONTACT_LIST.map((item) => ({ ...item }))
+	}
+}
+
+export function buildMessageNotificationPageMock() {
+	return {
+		title: '通知',
+		helperText: '系统通知和互动提醒都会携带统一协议，点击后会走公共跳转分发。',
+		unreadCount: getMessageNotificationUnreadCount(),
+		notificationList: NOTIFICATION_LIST.map((item) => ({
+			...item
+		}))
 	}
 }
 
@@ -411,6 +532,10 @@ export function buildMessageChatUrl(conversationInfo = {}) {
 
 export function buildMessageContactListUrl() {
 	return '/pages/message/contact-list'
+}
+
+export function buildMessageNotificationUrl() {
+	return '/pages/message/notification'
 }
 
 export function buildMessageSearchUrl(query = '') {
@@ -475,6 +600,10 @@ function buildFallbackChatList(conversationInfo) {
 		{ id: `${conversationInfo.id}-other-1`, type: 'other', text: conversationInfo.preview },
 		{ id: `${conversationInfo.id}-self-1`, type: 'self', text: '收到，我这边继续处理。' }
 	]
+}
+
+function getMessageNotificationUnreadCount() {
+	return NOTIFICATION_LIST.filter((item) => item.unread).length
 }
 
 function normalizeRelationState(userInfo = {}) {

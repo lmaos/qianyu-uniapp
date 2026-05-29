@@ -600,8 +600,8 @@
               <tbody>
                 <tr><td>Mock 数据集中管理</td><td>每个业务域优先放在对应 *Mock.js，不把大块 mock 常量散落在页面里</td></tr>
                 <tr><td>路由参数构建</td><td>页面 URL 优先通过 builder/helper 生成，避免字符串硬拼</td></tr>
-                <tr><td>活动协议定义来源</td><td>actionUrl 协议唯一收敛到 components/common/activity/activityActionProtocol.js，统一维护 https://、http://、pages:// 规则与示例</td></tr>
-                <tr><td>活动协议分发</td><td>活动弹窗与活动入口跳转统一通过 dispatchActivityAction() 分发，不在多个页面重复写协议解析</td></tr>
+                <tr><td>公共跳转协议定义来源</td><td>actionUrl 协议统一收敛到 components/common/navigation/navigationActionProtocol.js，统一维护 https://、http://、page:// 与兼容 pages:// 的规则与示例</td></tr>
+                <tr><td>公共跳转协议分发</td><td>协议跳转统一通过 dispatchNavigationAction() 分发；活动弹窗继续通过 dispatchActivityAction() 兼容接入，不在多个页面重复写协议解析</td></tr>
                 <tr><td>外链承接页</td><td>外部活动链接统一进入 pages/web/web-view.vue，不在业务页各自分散实现 web-view 页</td></tr>
                 <tr><td>页面注册</td><td>所有新页面必须同步写入 pages.json</td></tr>
                 <tr><td>详情首屏加载</td><td>商城详情优先复用列表已带轻量数据完成首屏，再异步补齐完整详情</td></tr>
@@ -744,8 +744,8 @@
                 <tr><td>安全区与尺寸换算</td><td>composables/useSafeAreaMetrics.js</td><td>提供安全区、窗口尺寸、rpxToPx / pxToRpx、头部 / 底部预留计算</td></tr>
                 <tr><td>全局主题</td><td>composables/useAppTheme.js</td><td>提供浅色 / 深色主题配置与切换</td></tr>
                 <tr><td>SVG Data URI</td><td>composables/useSvgIcon.js</td><td>将 SVG 字符串转成可直接给 image 使用的资源</td></tr>
-                <tr><td>活动协议定义</td><td>components/common/activity/activityActionProtocol.js</td><td>统一维护活动弹窗 actionUrl 协议字段、类型与示例</td></tr>
-                <tr><td>活动协议分发</td><td>components/common/activity/activityActionRouter.js</td><td>统一解析 pages:// 与 http(s):// 并分发到页面、Tab、直播间、web-view</td></tr>
+                <tr><td>公共跳转协议定义</td><td>components/common/navigation/navigationActionProtocol.js</td><td>统一维护全局 actionUrl 协议字段、类型与示例，支持 page:// / http(s):// 并兼容旧 pages://</td></tr>
+                <tr><td>公共跳转协议分发</td><td>components/common/navigation/navigationActionRouter.js</td><td>统一解析 page://、兼容 pages:// 与 http(s)://，并分发到页面、Tab、直播间、web-view</td></tr>
                 <tr><td>商城流程 mock / builder</td><td>components/shop/common/shopFlowMock.js</td><td>统一维护商城搜索、店铺首页、订单详情、商家工作台、客服弹层上下文 mock 与 URL builder</td></tr>
               </tbody>
             </table>
@@ -788,7 +788,7 @@
                 <tr><td>UserSubPageLayout / UserSectionCard / userSubPageSurface</td><td>我的 / 资料类子页面骨架与表面层</td><td>统一浅色子页头部、内容区、底部区与卡片样式</td></tr>
                 <tr><td>UserDynamicList / UserWorkGrid</td><td>个人中心动态瀑布流与作品宫格</td><td>与推荐流保持一致的轻量内容卡片风格：媒体封面优先、无阴影、小圆角；动态列表避免封面叠加遮罩和大块统计胶囊；视频作品列表仅展示观看数且不使用背景条</td></tr>
                 <tr><td>userCenterMock</td><td>个人中心路由 builder 与核心 mock 数据源</td><td>个人中心与关联用户页优先复用它的 builder</td></tr>
-                <tr><td>messageMock</td><td>消息频道联系人、会话、私聊、搜索路由与 mock 数据源</td><td>消息页与相关跳转统一复用</td></tr>
+                <tr><td>messageMock</td><td>消息频道联系人、会话、私聊、通知列表、搜索路由与 mock 数据源</td><td>消息页、通知页与相关跳转统一复用</td></tr>
                 <tr><td>PlaymateLaunchSheet / playmateMock / playmateIcons</td><td>玩伴弹层、mock 数据与 SVG 图标来源</td><td>玩伴页与子流程优先统一复用</td></tr>
                 <tr><td>UserInfoCard</td><td>用户资料摘要卡</td><td>资料类页面与关系页面优先复用，不重复造头像 / 昵称 / 状态头卡</td></tr>
               </tbody>
