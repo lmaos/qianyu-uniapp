@@ -11,6 +11,7 @@
 			:lower-threshold="lowerThreshold"
 			:refresher-triggered="refresherTriggered"
 			:scroll-top="scrollTop"
+			:scroll-into-view="scrollIntoView"
 			:scroll-with-animation="scrollWithAnimation"
 			:style="scrollStyle"
 			@scroll="emit('scroll', $event)"
@@ -90,6 +91,10 @@ const props = defineProps({
 	scrollTop: {
 		type: Number,
 		default: 0
+	},
+	scrollIntoView: {
+		type: String,
+		default: ''
 	},
 	scrollWithAnimation: {
 		type: Boolean,

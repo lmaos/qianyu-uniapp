@@ -4,7 +4,7 @@
 		:content-tag="scrollable ? 'scroll-view' : 'view'"
 		:content-props="contentProps"
 		:content-style="resolvedContentStyle"
-		:content-top-offset-px="12"
+		:content-top-offset-px="contentTopOffsetPx"
 		:header-height-rpx="88"
 		:header-side-padding-rpx="24"
 		:header-background="USER_SUB_PAGE_HEADER_BACKGROUND"
@@ -83,6 +83,10 @@ const props = defineProps({
 	contentBottomPaddingRpx: {
 		type: Number,
 		default: 36
+	},
+	contentTopOffsetPx: {
+		type: Number,
+		default: 12
 	},
 	footerReserveRpx: {
 		type: Number,

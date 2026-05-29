@@ -17,6 +17,14 @@ function createLikeIcon(color) {
 	`)
 }
 
+function createLikeOutlineIcon(color) {
+	return createSvgDataUri(`
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+			<path d="M12 19.3 5.8 13.6a4.1 4.1 0 0 1 0-5.9 4.2 4.2 0 0 1 5.8 0l.4.5.4-.5a4.2 4.2 0 0 1 5.8 0 4.1 4.1 0 0 1 0 5.9L12 19.3Z" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+		</svg>
+	`)
+}
+
 function createCommentIcon(color) {
 	return createSvgDataUri(`
 		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
@@ -43,3 +51,5 @@ export const userViewStatDarkIconSvg = createViewIcon('#475467')
 export const userLikeStatDarkIconSvg = createLikeIcon('#475467')
 export const userCommentStatDarkIconSvg = createCommentIcon('#475467')
 export const userShareStatDarkIconSvg = createShareIcon('#475467')
+export const userLikeStatOutlineDarkIconSvg = createLikeOutlineIcon('#475467')
+export const userLikeStatActiveIconSvg = createLikeIcon('#fe2c55')

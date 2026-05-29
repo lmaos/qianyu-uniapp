@@ -88,7 +88,7 @@ const FOLLOW_SOURCE_LIST = Array.from({ length: 20 }, (_, index) => createRelati
 const FAN_SOURCE_LIST = Array.from({ length: 18 }, (_, index) => createRelationItem(index + 1, 'fans'))
 const ADD_FRIEND_SOURCE_LIST = Array.from({ length: 12 }, (_, index) => createAddFriendItem(index + 1))
 const ORDER_SOURCE_LIST = Array.from({ length: 15 }, (_, index) => createOrderItem(index + 1))
-const NOTE_COMMENT_SOURCE_LIST = Array.from({ length: 36 }, (_, index) => createCommentItem(index + 1))
+const NOTE_COMMENT_SOURCE_LIST = Array.from({ length: 18 }, (_, index) => createCommentThread(index + 1))
 
 export function getUserCenterMainMock(userId = DEFAULT_USER_ID) {
 	return {
@@ -324,7 +324,10 @@ export function getNoteDetailPageMock(noteId = '') {
 			  ]
 			: []
 	}
-	const commentList = NOTE_COMMENT_SOURCE_LIST.map((item) => ({ ...item }))
+	const commentSourceList = NOTE_COMMENT_SOURCE_LIST.map((item) => cloneCommentThread(item))
+	const commentCountValue = getCommentSourceTotalCount(commentSourceList)
+	const likeCountValue = parseCountText(noteInfo.likeCountText)
+	const watchCountValue = parseCountText(noteInfo.viewCountText)
 	return {
 		noteInfo,
 		noteId: noteInfo.id,
@@ -339,12 +342,15 @@ export function getNoteDetailPageMock(noteId = '') {
 		coverText: noteInfo.coverText,
 		title: noteInfo.title,
 		content: noteInfo.contentParagraphList.join('\n\n'),
-		watchCount: noteInfo.viewCountText,
-		likeCount: noteInfo.likeCountText,
-		commentCount: noteInfo.commentCountText,
-		commentSourceList: commentList.map((item) => ({ ...item })),
-		commentList,
-		pageSize: COMMENT_PAGE_SIZE
+		watchCountValue,
+		watchCount: formatCount(watchCountValue),
+		likeCountValue,
+		likeCount: formatCount(likeCountValue),
+		commentCountValue,
+		commentCount: formatCount(commentCountValue),
+		liked: false,
+		commentSourceList,
+		pageSize: 6
 	}
 }
 
@@ -537,7 +543,12 @@ function createOrderItem(index) {
 	}
 }
 
-function createCommentItem(index) {
+function createCommentThread(index) {
+	const replyCount = (index % 5) + (index % 2 === 0 ? 1 : 0)
+	const replySourceList = Array.from({ length: replyCount }, (_, replyIndex) =>
+		createCommentReplyItem(index, replyIndex + 1)
+	)
+
 	return {
 		id: `comment-item-${index}`,
 		nickname: `评论用户${index}`,
@@ -545,11 +556,69 @@ function createCommentItem(index) {
 		avatarBackground: THUMB_BACKGROUND_LIST[index % THUMB_BACKGROUND_LIST.length],
 		content: `这是评论占位内容 ${index}，后续可直接替换成真实评论接口返回字段。`,
 		timeText: `今天 ${9 + (index % 10)}:${index % 2 === 0 ? '12' : '48'}`,
-		likeCountText: formatCount(18 + index * 4)
+		likeCountValue: 18 + index * 4,
+		likeCountText: formatCount(18 + index * 4),
+		liked: index % 4 === 0,
+		replySourceList,
+		visibleReplyCount: 0,
+		repliesExpanded: false
 	}
 }
 
-function formatCount(value) {
+function createCommentReplyItem(parentIndex, replyIndex) {
+	const replySeed = parentIndex * 10 + replyIndex
+	return {
+		id: `comment-item-${parentIndex}-reply-${replyIndex}`,
+		nickname: `回复用户${replySeed}`,
+		avatarText: `${replySeed}`.slice(-1),
+		avatarBackground: THUMB_BACKGROUND_LIST[(parentIndex + replyIndex) % THUMB_BACKGROUND_LIST.length],
+		content: `这是回复占位内容 ${replySeed}，后续可直接接真实二级评论接口。`,
+		timeText: replyIndex % 2 === 0 ? '刚刚' : `今天 ${10 + (replyIndex % 6)}:${replyIndex % 2 === 0 ? '08' : '36'}`,
+		replyToNickname: replyIndex % 2 === 0 ? `评论用户${parentIndex}` : `回复用户${parentIndex * 10 + replyIndex - 1}`,
+		likeCountValue: 3 + replySeed,
+		likeCountText: formatCount(3 + replySeed),
+		liked: replyIndex % 3 === 0
+	}
+}
+
+function cloneCommentThread(item) {
+	return {
+		...item,
+		replySourceList: Array.isArray(item.replySourceList) ? item.replySourceList.map((reply) => ({ ...reply })) : []
+	}
+}
+
+function getCommentSourceTotalCount(commentSourceList = []) {
+	return commentSourceList.reduce((total, item) => {
+		const replyCount = Array.isArray(item.replySourceList) ? item.replySourceList.length : 0
+		return total + 1 + replyCount
+	}, 0)
+}
+
+export function parseCountText(value) {
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		return Math.max(0, Math.round(value))
+	}
+
+	const rawText = `${value || ''}`.trim().toLowerCase()
+	if (!rawText) {
+		return 0
+	}
+
+	const match = rawText.match(/^(\d+(?:\.\d+)?)(w)?$/)
+	if (!match) {
+		return Number(rawText) || 0
+	}
+
+	const baseValue = Number(match[1]) || 0
+	if (match[2] === 'w') {
+		return Math.round(baseValue * 10000)
+	}
+
+	return Math.round(baseValue)
+}
+
+export function formatCount(value) {
 	const count = Number(value) || 0
 	if (count >= 10000) {
 		return `${(count / 10000).toFixed(1).replace(/\.0$/, '')}w`
