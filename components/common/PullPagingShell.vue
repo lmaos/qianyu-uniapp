@@ -2,7 +2,7 @@
 	<view class="pull-paging-shell" :style="shellStyle">
 		<scroll-view
 			:class="['pull-paging-scroll', lightTheme ? 'pull-paging-scroll-light' : '']"
-			scroll-y
+			:scroll-y="scrollY"
 			enable-flex
 			show-scrollbar="false"
 			:refresher-enabled="refresherEnabled"
@@ -64,6 +64,10 @@ const props = defineProps({
 		default: false
 	},
 	refresherEnabled: {
+		type: Boolean,
+		default: true
+	},
+	scrollY: {
 		type: Boolean,
 		default: true
 	},

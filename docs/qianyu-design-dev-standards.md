@@ -77,7 +77,7 @@
 | 常用按钮高度 | `50rpx ~ 84rpx`，胶囊优先 |
 | 常用图标按钮尺寸 | `64rpx` 容器，`30rpx ~ 34rpx` 图标 |
 | 页面头部行高 | 通用子页头部 `88rpx` |
-| 首页二级导航高度 | `80rpx` |
+| 首页二级导航高度 | `74rpx` |
 | 卡片阴影 | 轻阴影，不用厚重投影；优先柔和扩散阴影 |
 | 性能型尺寸策略 | 性能敏感页面与组件优先使用固定值，避免高频自动计算样式 |
 
@@ -115,7 +115,7 @@
 | 规范 | 说明 | 参考来源 |
 | --- | --- | --- |
 | 全局主题统一由 composable 管理 | 使用 `useAppTheme()` 统一控制浅色/深色主题 | `composables/useAppTheme.js` |
-| Tab 场景切换驱动主题 | 首页进入直播切深色，其它内容默认浅色 | `pages/index/index.vue`, `pages/home/home.vue` |
+| Tab 场景切换驱动主题 | 首页进入直播切深色，其它首页内容默认浅色 | `pages/index/index.vue`, `pages/home/home.vue` |
 | 页面不要自行分裂主题规则 | 新页面若需接入主题，优先接入现有主题体系，不单独定义一套主题状态 | `useAppTheme.js` |
 | 首页浅色背景归属首页容器 | 首页浅色背景层定义在 `pages/home/home.vue`，不要下放到子组件导致背景跟随滚动 | `pages/home/home.vue` |
 
@@ -129,12 +129,13 @@
 | 启动性能 | 页面/容器层只保留首屏必需初始化，非关键补数与占位异步任务优先延后到首帧后执行 |
 | 隐藏场景要停止资源占用 | Home 场景组件需接收 `active`，隐藏时停止轮播、定时器、异步 mock | `pages/home/home.vue` |
 | 首页推荐流 | 推荐频道移动端保持双列瀑布流；H5 非手机端宽屏按容器宽度自适应 3~5 列。左右边距与商城频道保持一致；推荐内容直接起瀑布流，不额外插入“为你推荐”头部块。卡片以封面为主、信息保持极简，刷新、分页和切换状态由频道容器统一承接，卡片层只负责渲染与事件抛出 | `components/home/recommend/RecommendTab.vue`, `components/home/recommend/RecommendFeedMasonry.vue` |
+| 首页频道导航 | 首页当前只保留商城 / 直播 / 推荐三类频道；导航需保持单行、左右安全边距均衡，推荐频道右上保留发布入口。短视频模块暂不对外开放，后续重新设计前不得重新挂回首页主导航 | `pages/home/home.vue`, `components/home/HomeSubNavShell.vue` |
 
 ### 4.4 直播频道专项规范
 
 | 维度 | 规范 | 参考来源 |
 | --- | --- | --- |
-| 频道定位 | 直播频道是首页唯一主深色内容场景，优先突出内容流、热度和房间氛围 | `components/home/live/LiveTab.vue` |
+| 频道定位 | 直播频道是首页主深色内容场景之一，优先突出内容流、热度和房间氛围 | `components/home/live/LiveTab.vue` |
 | 视觉风格 | 使用深色渐变封面、亮色标签、榜单入口，避免浅色页面那种大面积玻璃卡片语义 | `components/home/live/LiveTab.vue` |
 | 首屏结构 | Banner → 分类栏 → 榜单入口 → 双列直播流，信息层级必须清晰 | `components/home/live/LiveTab.vue` |
 | 列表渲染 | 直播流使用虚拟列表思路，保证高密度内容渲染时稳定 | `components/home/live/LiveTab.vue` |
@@ -214,6 +215,7 @@
 | 启动链路 | 阻塞首屏的初始化、补数和 mock 任务优先拆到 `setTimeout` 等首帧后时机 | 在页面/组件创建阶段同步堆叠非关键工作 |
 | 三级导航 | 三级导航切换优先保持局部联动、锚点滚动和固定高度容器 | 切换时整页重排、整页回顶或重新拉全量数据 |
 | 首页推荐流 | 移动端保持双列瀑布流；H5 非手机端宽屏按固定列间距 + 最小卡宽自适应 3~5 列。分页、下拉刷新和隐藏态资源释放统一走首页频道协议 | 在卡片层直接接分页/刷新逻辑，或依赖高频宽度计算/整页重排导致滚动抖动 |
+| 首页频道导航 | 商城 / 直播 / 推荐三频道保持单行稳定切换，推荐右上保留发布入口 | 未确认稳定前重新挂出短视频入口，或让三频道出现换行、挤压和安全边距失衡 |
 | 组件职责 | 父层负责数据/状态/路由，子层负责渲染/事件 | 子组件里混合页面状态、路由、接口、副作用 |
 
 ### 5.5 AI自动化UI测试
@@ -329,11 +331,12 @@
 
 | 组件/表面层 | 文件 | 适用场景 | 使用说明 |
 | --- | --- | --- | --- |
-| HomeSubNavShell | `components/home/HomeSubNavShell.vue` | 首页二级频道导航 | 支持浅深主题、刷新提示、额外导航区 |
+| HomeSubNavShell | `components/home/HomeSubNavShell.vue` | 首页二级频道导航 | 支持浅深主题、刷新提示、透明覆盖模式、右上发布入口和额外导航区 |
 | LiveBanner | `components/home/live/elements/LiveBanner.vue` | 直播频道 Banner | 只处理展示、切换与点击事件，不接频道业务 |
 | LiveHotRankCard | `components/home/live/elements/LiveHotRankCard.vue` | 直播榜单入口卡 | 负责榜单入口展示，跳转由上层决定 |
 | LiveCardItem | `components/home/live/elements/LiveCardItem.vue` | 直播双列流卡片 | 负责直播卡片展示与点击抛出 |
 | RecommendTab / RecommendFeedMasonry / RecommendFeedCard | `components/home/recommend/*.vue` | 首页推荐瀑布流与推荐卡片（移动端双列，H5 宽屏自适应多列） | 推荐频道复用首页刷新/分页协议；左右边距与商城一致；封面区保持干净，不叠加底部暗色遮罩；卡片无阴影、小圆角、正文只保留标题/作者/点赞等必要信息 |
+| FullScreenVideoPanel | `components/common/video/FullScreenVideoPanel.vue` | 视频详情全屏视频舞台 | 服务于现有视频详情页的全屏舞台结构，右侧保留放大的互动按钮，左下保留作者/标题/简介/音乐信息 |
 | UserDynamicList / UserWorkGrid | `components/user-center/main/*.vue` | 个人中心动态瀑布流与作品宫格 | 与推荐流保持一致的轻量内容卡片风格：媒体封面优先、无阴影、小圆角；动态列表避免封面叠加遮罩和大块统计胶囊；视频作品列表仅展示观看数且不使用背景条 |
 | RoomIndex | `components/room/RoomIndex.vue` | 直播间整页 UI 组装 | 负责房间表现层，业务事件全部向页面层抛出 |
 | RoomChat / OnlinePanel / GiftPanel | `components/room/chat/*.vue`, `components/room/online/*.vue`, `components/room/gift/*.vue` | 直播间聊天、在线用户、礼物分层模块 | 属于房间内功能组件，不直接持有页面业务状态 |
@@ -446,7 +449,7 @@
 | 安全区与页面框架 | `useSafeAreaMetrics()` + 公共布局组件 |
 | 图标策略 | SVG 优先 |
 | 内容主色调 | 浅色粉白/蓝白渐变体系 + 局部品牌粉 |
-| 深色场景 | 直播专用 |
+| 深色场景 | 直播 / 视频详情 |
 
 ---
 

@@ -31,3 +31,9 @@ export const userSubPageBackIconSvg = createSvgDataUri(`
 		<path d="M14.5 5.5 8 12l6.5 6.5" stroke="#0f172a" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
 	</svg>
 `)
+
+export const userSubPageLightBackIconSvg = createSvgDataUri(`
+	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+		<path d="M14.5 5.5 8 12l6.5 6.5" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" />
+	</svg>
+`)

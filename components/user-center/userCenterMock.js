@@ -350,6 +350,20 @@ export function getNoteDetailPageMock(noteId = '') {
 
 export function getVideoDetailPageMock(workId = '') {
 	const targetWork = WORK_SOURCE_LIST.find((item) => item.id === workId) || WORK_SOURCE_LIST[0]
+	const workIndex = Math.max(
+		0,
+		WORK_SOURCE_LIST.findIndex((item) => item.id === targetWork.id)
+	)
+	const videoUrlList = [
+		'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+		'https://www.w3schools.com/html/mov_bbb.mp4'
+	]
+	const descList = [
+		'沉浸式视频详情页占位，后续替换真实视频资源、点赞评论与分享接口。',
+		'短视频详情先对齐全屏内容布局，后续可继续接真实播放内核与互动抽屉。',
+		'当前页面沿用统一 workId，方便首页推荐、个人中心和短视频频道共用详情路由。'
+	]
+	const musicList = ['原声 · 千隅内容推荐', '原声 · 今日记录', '原声 · 直播切片']
 	const workInfo = {
 		...targetWork,
 		authorName: PROFILE_INFO.nickname,
@@ -357,20 +371,29 @@ export function getVideoDetailPageMock(workId = '') {
 		authorAvatarBackground: PROFILE_INFO.avatarBackground,
 		title:
 			targetWork.title || '全屏视频作品标题占位，支持后续替换真实视频地址、互动数据与评论面板。',
-		shareCount: '1.3w'
+		shareCount: formatCount(860 + workIndex * 104)
 	}
 	return {
 		workInfo,
 		pageBackground: '#020617',
+		workId: workInfo.id,
 		authorInfo: {
 			userId: DEFAULT_USER_ID,
 			nickname: workInfo.authorName,
 			avatarText: workInfo.authorAvatarText,
 			avatarBackground: workInfo.authorAvatarBackground
 		},
+		authorUrl: buildPageUrl('/pages/user-profile/user-profile', {
+			userId: DEFAULT_USER_ID
+		}),
 		coverBackground: workInfo.coverBackground,
+		videoUrl: videoUrlList[workIndex % videoUrlList.length],
 		title: workInfo.title,
-		desc: '沉浸式视频详情页布局占位，后续替换真实视频资源、点赞评论与分享接口。',
+		desc: descList[workIndex % descList.length],
+		publishTimeText: workIndex < 4 ? '刚刚' : `${workIndex + 6} 分钟前`,
+		playCountText: workInfo.viewCountText,
+		shareCount: workInfo.shareCount,
+		musicText: musicList[workIndex % musicList.length],
 		likeCount: workInfo.likeCountText,
 		commentCount: workInfo.commentCountText
 	}

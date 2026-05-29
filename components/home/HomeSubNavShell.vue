@@ -4,6 +4,7 @@
 			:class="[
 				'sub-nav-panel',
 				lightTheme ? 'sub-nav-panel-light' : '',
+				transparentPanel ? 'sub-nav-panel-transparent' : '',
 				hasExtraNav ? 'sub-nav-panel-with-extra' : 'sub-nav-panel-compact'
 			]"
 			:style="panelStyle"
@@ -19,32 +20,47 @@
 			</view>
 
 			<view class="sub-nav-row" :class="refreshState === 'pulling' ? 'sub-nav-row-hidden' : ''" :style="subNavStyle">
-				<view
-					v-for="(item, index) in tabList"
-					:key="item.key"
-					:class="[
-						'sub-nav-item',
-						lightTheme && activeTab === item.key ? 'sub-nav-item-active-light' : ''
-					]"
-					:style="getSubNavItemStyle(index)"
-					@tap="emit('tab-change', item)"
-				>
+				<view class="sub-nav-tabs" :style="tabsStyle">
 					<view
-						v-if="refreshState === 'refreshing' && activeTab === item.key"
-						:class="['sub-nav-refresh-spinner', lightTheme ? 'sub-nav-refresh-spinner-light' : '']"
-					></view>
-					<template v-else>
-						<text
-							:class="[
-								'sub-nav-text',
-								activeTab === item.key ? 'sub-nav-text-active' : '',
-								lightTheme ? 'sub-nav-text-light' : '',
-								lightTheme && activeTab === item.key ? 'sub-nav-text-active-light' : ''
-							]"
-						>
-							{{ item.label }}
-						</text>
-					</template>
+						v-for="(item, index) in tabList"
+						:key="item.key"
+						:class="[
+							'sub-nav-item',
+							lightTheme && activeTab === item.key ? 'sub-nav-item-active-light' : ''
+						]"
+						:style="getSubNavItemStyle(index)"
+						@tap="emit('tab-change', item)"
+					>
+						<view
+							v-if="refreshState === 'refreshing' && activeTab === item.key"
+							:class="['sub-nav-refresh-spinner', lightTheme ? 'sub-nav-refresh-spinner-light' : '']"
+						></view>
+						<template v-else>
+							<text
+								:class="[
+									'sub-nav-text',
+									activeTab === item.key ? 'sub-nav-text-active' : '',
+									lightTheme ? 'sub-nav-text-light' : '',
+									lightTheme && activeTab === item.key ? 'sub-nav-text-active-light' : ''
+								]"
+							>
+								{{ item.label }}
+							</text>
+						</template>
+					</view>
+				</view>
+
+				<view
+					v-if="showPublishAction"
+					:class="[
+						'sub-nav-publish-button',
+						lightTheme ? 'sub-nav-publish-button-light' : '',
+						transparentPanel ? 'sub-nav-publish-button-transparent' : ''
+					]"
+					:style="publishButtonStyle"
+					@tap.stop="emit('publish-click')"
+				>
+					<image class="sub-nav-publish-icon" :src="resolvedPublishIcon" mode="aspectFit" />
 				</view>
 			</view>
 
@@ -57,6 +73,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { createSvgDataUri } from '@/composables/useSvgIcon.js'
 
 const props = defineProps({
 	tabList: {
@@ -68,6 +85,10 @@ const props = defineProps({
 		default: ''
 	},
 	lightTheme: {
+		type: Boolean,
+		default: false
+	},
+	transparentPanel: {
 		type: Boolean,
 		default: false
 	},
@@ -122,10 +143,18 @@ const props = defineProps({
 	extraListeners: {
 		type: Object,
 		default: () => ({})
+	},
+	showPublishAction: {
+		type: Boolean,
+		default: false
+	},
+	publishActionIcon: {
+		type: String,
+		default: ''
 	}
 })
 
-const emit = defineEmits(['tab-change'])
+const emit = defineEmits(['tab-change', 'publish-click'])
 
 const hasExtraNav = computed(() => {
 	return Boolean(props.extraComponent)
@@ -155,6 +184,13 @@ const subNavStyle = computed(() => {
 	}
 })
 
+const tabsStyle = computed(() => {
+	const sideReserveRpx = props.showPublishAction ? 88 : 0
+	return {
+		paddingRight: `${sideReserveRpx}rpx`
+	}
+})
+
 // 计算下拉刷新提示层的位移和透明度，让提示从顶部平缓滑入。
 const refreshCoverStyle = computed(() => {
 	const revealDistance = Math.max(1, props.refreshRevealDistancePx)
@@ -165,6 +201,32 @@ const refreshCoverStyle = computed(() => {
 		transform: `translateY(${offsetPx}px)`,
 		opacity: Math.min(1, props.refreshPullDistancePx / revealDistance)
 	}
+})
+
+const publishButtonStyle = computed(() => {
+	return {
+		right: `${props.navSidePaddingRpx}rpx`
+	}
+})
+
+const lightPublishIcon = createSvgDataUri(`
+	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+		<path d="M12 5.5v13M5.5 12h13" stroke="#475467" stroke-width="2.1" stroke-linecap="round" />
+	</svg>
+`)
+
+const darkPublishIcon = createSvgDataUri(`
+	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+		<path d="M12 5.5v13M5.5 12h13" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" />
+	</svg>
+`)
+
+const resolvedPublishIcon = computed(() => {
+	if (props.publishActionIcon) {
+		return props.publishActionIcon
+	}
+
+	return props.lightTheme ? lightPublishIcon : darkPublishIcon
 })
 
 // 控制二级导航项之间的横向间距。
@@ -225,15 +287,34 @@ function getSubNavItemStyle(index) {
 	box-shadow: 0 16rpx 34rpx rgba(255, 171, 191, 0.06);
 }
 
+.sub-nav-panel-transparent,
+.sub-nav-panel-light.sub-nav-panel-transparent,
+.sub-nav-panel-light.sub-nav-panel-transparent.sub-nav-panel-compact {
+	background: transparent;
+	border-bottom: none;
+	box-shadow: none;
+}
+
 /* 二级导航项所在行。 */
 .sub-nav-row {
 	position: relative;
 	display: flex;
 	align-items: center;
+	justify-content: flex-start;
 	width: 100%;
 	box-sizing: border-box;
 	transition: opacity 120ms ease;
 	z-index: 1;
+}
+
+.sub-nav-tabs {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: flex-start;
+	width: auto;
+	min-width: 0;
+	box-sizing: border-box;
 }
 
 /* 下拉刷新文案出现时，先隐藏原导航项。 */
@@ -246,7 +327,7 @@ function getSubNavItemStyle(index) {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	min-width: 112rpx;
+	min-width: 96rpx;
 }
 
 /* 浅色主题下的选中态二级导航胶囊。 */
@@ -259,8 +340,8 @@ function getSubNavItemStyle(index) {
 }
 
 .sub-nav-text {
-	font-size: 30rpx;
-	line-height: 42rpx;
+	font-size: 28rpx;
+	line-height: 40rpx;
 	color: rgba(255, 255, 255, 0.48);
 }
 
@@ -277,7 +358,7 @@ function getSubNavItemStyle(index) {
 	color: #fe2c55;
 	display: inline-block;
 	font-weight: 700;
-	transform: scale(1.12);
+	transform: scale(1.08);
 	transform-origin: center center;
 }
 
@@ -320,6 +401,36 @@ function getSubNavItemStyle(index) {
 .sub-nav-refresh-spinner-light {
 	border-color: rgba(17, 24, 39, 0.08);
 	border-top-color: #fe2c55;
+}
+
+.sub-nav-publish-button {
+	position: absolute;
+	top: 50%;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 56rpx;
+	height: 56rpx;
+	transform: translateY(-50%);
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1rpx solid rgba(255, 255, 255, 0.12);
+}
+
+.sub-nav-publish-button-light {
+	background: rgba(255, 255, 255, 0.78);
+	border-color: rgba(255, 255, 255, 0.88);
+}
+
+.sub-nav-publish-button-transparent {
+	background: rgba(15, 23, 42, 0.16);
+	border-color: rgba(255, 255, 255, 0.12);
+}
+
+.sub-nav-publish-icon {
+	width: 30rpx;
+	height: 30rpx;
 }
 
 .sub-nav-extra {

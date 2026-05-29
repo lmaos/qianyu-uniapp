@@ -19,19 +19,23 @@
 			:extra-component="activeExtraNavComponent"
 			:extra-props="activeExtraNavProps"
 			:extra-listeners="activeExtraNavListeners"
+			:show-publish-action="activeSubNav === 'recommend'"
 			@tab-change="handleSubNavClick"
+			@publish-click="handlePublishClick"
 		/>
 
 		<view :class="['content-shell', isLightScene ? 'content-shell-light' : '']" :style="contentShellStyle">
 			<PullPagingShell
 				:light-theme="isLightScene"
+				:scroll-y="parentScrollEnabled"
+				:refresher-enabled="parentRefresherEnabled"
 				refresher-background="transparent"
 				:lower-threshold="homeMock.lowerThresholdPx"
 				:refresher-triggered="refreshing"
 				:scroll-top="parentScrollTopValue"
 				:inner-style="contentInnerStyle"
 				:bottom-pull-state="bottomPullState"
-				:bottom-pull-visible="bottomPullVisible"
+				:bottom-pull-visible="bottomPullEnabled && bottomPullVisible"
 				:bottom-pull-slot-style="bottomPullSlotStyle"
 				@scroll="handleParentScroll"
 				@refresher-pulling="handleRefresherPulling"
@@ -67,6 +71,7 @@ import LiveTab from '@/components/home/live/LiveTab.vue'
 import RecommendTab from '@/components/home/recommend/RecommendTab.vue'
 import { buildMallHomeNavCategoryList } from '@/components/shop/category/shopCategoryMock.js'
 import { buildShopSearchUrl } from '@/components/shop/common/shopFlowMock.js'
+import { buildContentPublishUrl } from '@/components/user-center/contentPublishMock.js'
 
 const props = defineProps({
 	active: {
@@ -98,9 +103,9 @@ function rpxToPx(value) {
 }
 
 const homeMock = {
-	navHeightRpx: 80,
-	navSidePaddingRpx: 32,
-	navItemGapRpx: 56,
+	navHeightRpx: 74,
+	navSidePaddingRpx: 28,
+	navItemGapRpx: 36,
 	navSafeGapRpx: 24,
 	contentSidePaddingRpx: 32,
 	mallContentSidePaddingRpx: 16,
@@ -269,8 +274,33 @@ const activeContentSidePaddingRpx = computed(() => {
 		: homeMock.contentSidePaddingRpx
 })
 
+const activeContentBottomPaddingRpx = computed(() => {
+	return homeMock.contentBottomPaddingRpx
+})
+
+const parentScrollEnabled = computed(() => {
+	return true
+})
+
+const parentRefresherEnabled = computed(() => {
+	return true
+})
+
+const bottomPullEnabled = computed(() => {
+	return true
+})
+
 const activeChildScrollTopPx = computed(() => {
 	return Math.max(0, parentScrollTopPx.value - contentTopPaddingPx.value)
+})
+
+const activeSceneViewportHeightPx = computed(() => {
+	const bottomSlotPx =
+		bottomPullEnabled.value && bottomPullVisible.value ? rpxToPx(homeMock.bottomPullSlotHeightRpx) : 0
+	return Math.max(
+		0,
+		availableContentHeightPx - contentTopPaddingPx.value - rpxToPx(activeContentBottomPaddingRpx.value) - bottomSlotPx
+	)
 })
 
 const activeSceneRef = computed(() => {
@@ -310,7 +340,12 @@ const lightBackgroundStyle = computed(() => {
 })
 
 const shellPanelHeightRpx = computed(() => {
-	return navTopOffsetRpx + homeMock.navHeightRpx + activeExtraNavHeightRpx.value + activePanelBottomInsetRpx.value
+	return (
+		navTopOffsetRpx +
+		homeMock.navHeightRpx +
+		activeExtraNavHeightRpx.value +
+		activePanelBottomInsetRpx.value
+	)
 })
 
 const contentShellStyle = {
@@ -319,7 +354,8 @@ const contentShellStyle = {
 
 const contentInnerStyle = computed(() => {
 	const bottomPaddingRpx =
-		homeMock.contentBottomPaddingRpx + (bottomPullVisible.value ? homeMock.bottomPullSlotHeightRpx : 0)
+		activeContentBottomPaddingRpx.value +
+		(bottomPullEnabled.value && bottomPullVisible.value ? homeMock.bottomPullSlotHeightRpx : 0)
 
 	return {
 		paddingTop: `${contentTopPaddingRpx.value}rpx`,
@@ -332,7 +368,7 @@ const contentInnerStyle = computed(() => {
 
 const bottomPullSlotStyle = computed(() => {
 	return {
-		height: bottomPullVisible.value ? `${homeMock.bottomPullSlotHeightRpx}rpx` : '0rpx',
+		height: bottomPullEnabled.value && bottomPullVisible.value ? `${homeMock.bottomPullSlotHeightRpx}rpx` : '0rpx',
 		paddingLeft: `${activeContentSidePaddingRpx.value}rpx`,
 		paddingRight: `${activeContentSidePaddingRpx.value}rpx`,
 		background: 'transparent'
@@ -494,6 +530,19 @@ function handleShopCartClick() {
 	})
 }
 
+async function handlePublishClick() {
+	if (activeSubNav.value !== 'recommend') {
+		return
+	}
+
+	onHomePublishClick('recommend')
+	uni.navigateTo({
+		url: buildContentPublishUrl({
+			scene: 'recommend'
+		})
+	})
+}
+
 /**
  * 商城三级导航内容切换入口。
  * 后续如果别的二级频道也有三级导航，只需要复用这个模式：
@@ -527,11 +576,16 @@ function handleMallCategoryPageClick() {
 }
 
 function handleParentScroll(event) {
+	if (!parentScrollEnabled.value) {
+		parentScrollTopPx.value = 0
+		return
+	}
+
 	parentScrollTopPx.value = event.detail.scrollTop || 0
 }
 
 function handleRefresherPulling(event) {
-	if (!props.active || refreshing.value) {
+	if (!props.active || refreshing.value || !parentRefresherEnabled.value) {
 		return
 	}
 
@@ -548,16 +602,28 @@ function handleRefresherPulling(event) {
 }
 
 function handleRefresherRestore() {
+	if (!parentRefresherEnabled.value) {
+		return
+	}
+
 	if (!refreshing.value) {
 		resetRefreshHint()
 	}
 }
 
 function handleParentTouchStart() {
+	if (!bottomPullEnabled.value) {
+		return
+	}
+
 	parentTouching.value = true
 }
 
 function handleParentTouchEnd() {
+	if (!bottomPullEnabled.value) {
+		return
+	}
+
 	parentTouching.value = false
 	if (bottomPullPendingRelease.value) {
 		scheduleBottomPullCollapse(homeMock.bottomPullReleaseDelayMs, bottomPullRearmPending.value)
@@ -733,7 +799,7 @@ function resolveBottomPullFallbackDelay(delayMs) {
  * 3. 刷新完成后还原顶部导航提示
  */
 async function handleParentRefresh() {
-	if (!props.active || refreshing.value) {
+	if (!props.active || refreshing.value || !parentRefresherEnabled.value) {
 		return
 	}
 
@@ -767,7 +833,7 @@ async function handleParentRefresh() {
  * 4. 再决定底部提示条展示哪种状态
  */
 async function handleParentReachLower() {
-	if (!props.active || refreshing.value || bottomPullState.value === 'loading') {
+	if (!props.active || refreshing.value || bottomPullState.value === 'loading' || !bottomPullEnabled.value) {
 		return
 	}
 
@@ -813,6 +879,12 @@ function resetTransientState() {
  * 强制回到顶部时，先写入一个当前值再归零，避免同值 0 无法触发 UniApp scroll-view 更新。
  */
 function scrollActiveContentToTop() {
+	if (!parentScrollEnabled.value) {
+		parentScrollTopPx.value = 0
+		parentScrollTopValue.value = 0
+		return
+	}
+
 	clearScrollTopResetTimer()
 	const currentScrollTop = Math.max(1, Math.round(parentScrollTopPx.value || 0))
 	parentScrollTopValue.value = currentScrollTop
@@ -882,6 +954,11 @@ function onMallCategoryRepeat(category) {
 function onMallCategoryPageClick(payload) {
 	// TODO：替换商城分类详情页跳转前置逻辑
 	console.log('shop-category-page-click', payload.categoryId)
+}
+
+function onHomePublishClick(sceneKey) {
+	// TODO：替换首页发布入口逻辑
+	console.log('home-publish-click', sceneKey)
 }
 
 onBeforeUnmount(() => {

@@ -37,6 +37,7 @@ function createShareIcon(color) {
 export const userViewStatIconSvg = createViewIcon('#ffffff')
 export const userLikeStatIconSvg = createLikeIcon('#ffffff')
 export const userCommentStatIconSvg = createCommentIcon('#ffffff')
+export const userShareStatIconSvg = createShareIcon('#ffffff')
 
 export const userViewStatDarkIconSvg = createViewIcon('#475467')
 export const userLikeStatDarkIconSvg = createLikeIcon('#475467')
