@@ -9,7 +9,7 @@
 			@author-click="handleAuthorClick"
 		/>
 
-		<view class="recommend-footer">
+		<view v-if="footerText" class="recommend-footer">
 			<text class="recommend-footer-text">{{ footerText }}</text>
 		</view>
 	</view>
@@ -54,13 +54,18 @@ const renderList = computed(() => {
 	return rotatedSourceList.value.slice(0, currentPage.value * recommendFeedMock.pageSize)
 })
 
-const footerText = computed(() => {
-	if (loadingMore.value) {
-		return '正在加载更多推荐...'
-	}
+/**
+ * 推荐频道自己的尾部文案只保留“继续上滑”这种静态引导。
+ * 真正的“加载中 / 已到底 / 无更多内容”统一交给首页外层 PullPagingShell，
+ * 这样不会和通用触底提示条出现双份文案。
+ */
+const hasMoreItems = computed(() => {
+	return renderList.value.length < rotatedSourceList.value.length
+})
 
-	if (renderList.value.length >= rotatedSourceList.value.length) {
-		return '推荐内容已经到底啦'
+const footerText = computed(() => {
+	if (!hasMoreItems.value || loadingMore.value) {
+		return ''
 	}
 
 	return '继续上滑，查看更多推荐'
@@ -93,18 +98,17 @@ function handleParentReachLower() {
 		return Promise.resolve({ status: 'busy' })
 	}
 
+	// 已经到尾页时直接交给外层展示“无更多内容”，不再走一轮伪加载。
+	if (!hasMoreItems.value) {
+		return Promise.resolve({ status: 'no-more' })
+	}
+
 	loadingMore.value = true
 	onLoadMore()
 	return scheduleTask({
 		delay: recommendFeedMock.loadDelayMs,
 		cancelValue: { status: 'busy' },
 		run: (resolve) => {
-			if (renderList.value.length >= rotatedSourceList.value.length) {
-				loadingMore.value = false
-				resolve({ status: 'no-more' })
-				return
-			}
-
 			currentPage.value += 1
 			loadingMore.value = false
 			resolve({ status: 'loaded' })
@@ -122,6 +126,7 @@ function handleParentRefresh() {
 		delay: recommendFeedMock.refreshDelayMs,
 		cancelValue: undefined,
 		run: (resolve) => {
+			// 下拉刷新只重置推荐流的分页游标，不改动通用首页壳的滚动协议。
 			refreshCursor.value =
 				(refreshCursor.value + recommendFeedMock.refreshRotateStep) % Math.max(1, sourceList.length)
 			currentPage.value = 1
@@ -182,12 +187,12 @@ function onLoadMore() {
 
 function onRecommendItemClick(item) {
 	// TODO：替换推荐流卡片点击埋点或路由协议
-	console.log('recommend-item-click', item?.id)
+	console.log('recommend-item-click', item?.id , item?.detailUrl)
 }
 
 function onRecommendAuthorClick(item) {
 	// TODO：替换推荐流作者点击埋点或主页跳转协议
-	console.log('recommend-author-click', item?.id)
+	console.log('recommend-author-click', item?.id , item?.detailUrl)
 }
 
 defineExpose({

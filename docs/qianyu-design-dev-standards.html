@@ -777,7 +777,8 @@
                 <tr><td>HomeSubNavShell</td><td>首页二级频道导航</td><td>支持浅深主题、刷新提示、透明覆盖模式、右上发布入口和额外导航区</td></tr>
                 <tr><td>LiveBanner / LiveHotRankCard / LiveCardItem</td><td>直播频道 Banner、榜单入口、双列流卡片</td><td>只负责展示与点击抛出，不接频道业务</td></tr>
                 <tr><td>RecommendTab / RecommendFeedMasonry / RecommendFeedCard</td><td>首页推荐瀑布流与推荐卡片（移动端双列，H5 宽屏自适应多列）</td><td>推荐频道复用首页刷新 / 分页协议；左右边距与商城一致；封面区保持干净，不叠加底部暗色遮罩；卡片无阴影、小圆角、正文只保留标题 / 作者 / 点赞等必要信息</td></tr>
-                <tr><td>FullScreenVideoPanel</td><td>视频详情全屏视频舞台</td><td>服务于现有视频详情页的全屏舞台结构，右侧保留放大的互动按钮，左下保留作者 / 标题 / 简介 / 音乐信息</td></tr>
+                <tr><td>FullScreenVideoPanel</td><td>共享全屏视频舞台</td><td>只负责全屏视频渲染、右侧动作列、左下信息区与播放控制；对外提供播放 / 暂停 / 重播等操作方法，并抛出 ready / play / pause / ended / error / action 等事件，不承接频道分页或详情路由业务</td></tr>
+                <tr><td>ShortVideoTab</td><td>短视频频道三槽位滑动流</td><td>负责短视频频道的三槽位播放器复用、触顶下拉刷新、触底分页追加和当前活跃视频切换；分页与刷新状态留在频道容器层，不下沉到 FullScreenVideoPanel</td></tr>
                 <tr><td>RoomIndex</td><td>直播间整页 UI 组装</td><td>负责房间表现层，业务事件全部向页面层抛出</td></tr>
                 <tr><td>RoomChat / OnlinePanel / GiftPanel</td><td>直播间聊天、在线用户、礼物分层模块</td><td>房间内功能组件，不直接持有页面业务状态</td></tr>
                 <tr><td>web-view 活动承接页</td><td>http(s):// 活动外链</td><td>活动页统一从协议分发器进入，不单独散落多个 web-view 页面</td></tr>

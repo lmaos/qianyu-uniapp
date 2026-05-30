@@ -6,6 +6,8 @@ import {
 const DEFAULT_USER_ID = 'mine-self'
 const MAIN_PAGE_SIZE = 8
 const COMMENT_PAGE_SIZE = 10
+const NOTE_DETAIL_COMMENT_PAGE_SIZE = 8
+const NOTE_DETAIL_COMMENT_LOAD_DELAY_MS = 320
 
 const COVER_BACKGROUND_LIST = [
 	'linear-gradient(135deg, #fdf2f8 0%, #e0f2fe 100%)',
@@ -324,8 +326,13 @@ export function getNoteDetailPageMock(noteId = '') {
 			  ]
 			: []
 	}
-	const commentSourceList = NOTE_COMMENT_SOURCE_LIST.map((item) => cloneCommentThread(item))
-	const commentCountValue = getCommentSourceTotalCount(commentSourceList)
+	const fullCommentSourceList = getNoteDetailCommentSourceList(noteInfo.id)
+	const hasPagedComments = shouldUsePagedNoteDetailComments(noteInfo.id)
+	const commentPageSize = hasPagedComments ? NOTE_DETAIL_COMMENT_PAGE_SIZE : Math.max(1, fullCommentSourceList.length)
+	const initialCommentList = hasPagedComments
+		? fullCommentSourceList.slice(0, commentPageSize).map((item) => cloneCommentThread(item))
+		: fullCommentSourceList.map((item) => cloneCommentThread(item))
+	const commentCountValue = getCommentSourceTotalCount(fullCommentSourceList)
 	const likeCountValue = parseCountText(noteInfo.likeCountText)
 	const watchCountValue = parseCountText(noteInfo.viewCountText)
 	return {
@@ -349,9 +356,35 @@ export function getNoteDetailPageMock(noteId = '') {
 		commentCountValue,
 		commentCount: formatCount(commentCountValue),
 		liked: false,
-		commentSourceList,
-		pageSize: 6
+		commentSourceList: initialCommentList,
+		commentPageSize,
+		commentPage: 1,
+		hasNextCommentPage: hasPagedComments && initialCommentList.length < fullCommentSourceList.length,
+		commentLoadDelayMs: hasPagedComments ? NOTE_DETAIL_COMMENT_LOAD_DELAY_MS : 0,
+		pageSize: commentPageSize
 	}
+}
+
+export function loadNoteDetailCommentPageMock(noteId = '', page = 1, pageSize = NOTE_DETAIL_COMMENT_PAGE_SIZE) {
+	const fullCommentSourceList = getNoteDetailCommentSourceList(noteId)
+	const safePageSize = Math.max(1, Number(pageSize) || NOTE_DETAIL_COMMENT_PAGE_SIZE)
+	const safePage = Math.max(1, Number(page) || 1)
+	const startIndex = (safePage - 1) * safePageSize
+	const nextSourceList = fullCommentSourceList
+		.slice(startIndex, startIndex + safePageSize)
+		.map((item) => cloneCommentThread(item))
+
+	return new Promise((resolve) => {
+		setTimeout(() => {
+			resolve({
+				page: safePage,
+				pageSize: safePageSize,
+				list: nextSourceList,
+				hasMore: startIndex + safePageSize < fullCommentSourceList.length,
+				totalCount: getCommentSourceTotalCount(fullCommentSourceList)
+			})
+		}, shouldUsePagedNoteDetailComments(noteId) ? NOTE_DETAIL_COMMENT_LOAD_DELAY_MS : 0)
+	})
 }
 
 export function getVideoDetailPageMock(workId = '') {
@@ -377,7 +410,8 @@ export function getVideoDetailPageMock(workId = '') {
 		authorAvatarBackground: PROFILE_INFO.avatarBackground,
 		title:
 			targetWork.title || '全屏视频作品标题占位，支持后续替换真实视频地址、互动数据与评论面板。',
-		shareCount: formatCount(860 + workIndex * 104)
+		shareCount: formatCount(860 + workIndex * 104),
+		collectCount: formatCount(520 + workIndex * 68)
 	}
 	return {
 		workInfo,
@@ -399,9 +433,12 @@ export function getVideoDetailPageMock(workId = '') {
 		publishTimeText: workIndex < 4 ? '刚刚' : `${workIndex + 6} 分钟前`,
 		playCountText: workInfo.viewCountText,
 		shareCount: workInfo.shareCount,
+		collectCount: workInfo.collectCount,
 		musicText: musicList[workIndex % musicList.length],
 		likeCount: workInfo.likeCountText,
-		commentCount: workInfo.commentCountText
+		commentCount: workInfo.commentCountText,
+		liked: false,
+		collected: false
 	}
 }
 
@@ -563,6 +600,19 @@ function createCommentThread(index) {
 		visibleReplyCount: 0,
 		repliesExpanded: false
 	}
+}
+
+function getNoteDetailCommentSourceList(noteId = '') {
+	if (shouldUsePagedNoteDetailComments(noteId)) {
+		return NOTE_COMMENT_SOURCE_LIST.map((item) => cloneCommentThread(item))
+	}
+
+	return NOTE_COMMENT_SOURCE_LIST.slice(0, 5).map((item) => cloneCommentThread(item))
+}
+
+function shouldUsePagedNoteDetailComments(noteId = '') {
+	const normalizedNoteId = noteId || DYNAMIC_SOURCE_LIST[0]?.id || ''
+	return /^dynamic-item-\d+$/.test(normalizedNoteId)
 }
 
 function createCommentReplyItem(parentIndex, replyIndex) {

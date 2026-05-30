@@ -1,6 +1,7 @@
 <template>
 	<view class="video-detail-page" :style="pageStyle">
 		<FullScreenVideoPanel
+			ref="videoPanelRef"
 			:video="pageMock"
 			:height-px="windowHeightPx"
 			:safe-top-inset-rpx="safeTopInsetRpx"
@@ -8,28 +9,31 @@
 			:show-back="true"
 			:show-follow-button="true"
 			:show-play-hint="true"
-			:active-playback="playingVideo"
 			:playable="true"
 			:muted-playback="false"
 			:loop-playback="true"
 			@back="handleBack"
-			@toggle-playback="handleTogglePlayback"
-			@playback-change="handlePlaybackChange"
 			@author-click="handleAuthorClick"
 			@action="handleAction"
+			@play="handlePanelPlay"
+			@pause="handlePanelPause"
+			@ended="handlePanelEnded"
+			@error="handlePanelError"
 		/>
 	</view>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { computed, nextTick, ref } from 'vue'
+import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import FullScreenVideoPanel from '@/components/common/video/FullScreenVideoPanel.vue'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import { getVideoDetailPageMock } from '@/components/user-center/userCenterMock.js'
 
 const pageMock = ref(getVideoDetailPageMock())
-const playingVideo = ref(true)
+const videoPanelRef = ref(null)
+const shouldResumePlayback = ref(true)
+const suspendingPlayback = ref(false)
 const systemInfo = uni.getSystemInfoSync()
 const windowHeightPx = Math.max(1, systemInfo.windowHeight || systemInfo.screenHeight || 0)
 const { safeTopPx, safeBottomPx, pxToRpx } = useSafeAreaMetrics()
@@ -43,7 +47,31 @@ const pageStyle = computed(() => ({
 
 onLoad((options) => {
 	pageMock.value = getVideoDetailPageMock(options?.workId)
-	playingVideo.value = true
+	shouldResumePlayback.value = true
+	void nextTick(() => {
+		void videoPanelRef.value?.play?.()
+	})
+})
+
+onShow(() => {
+	suspendingPlayback.value = false
+	if (!shouldResumePlayback.value) {
+		return
+	}
+
+	void nextTick(() => {
+		void videoPanelRef.value?.play?.()
+	})
+})
+
+onHide(() => {
+	suspendingPlayback.value = true
+	videoPanelRef.value?.pause?.()
+})
+
+onUnload(() => {
+	suspendingPlayback.value = true
+	videoPanelRef.value?.pause?.()
 })
 
 function handleBack() {
@@ -75,12 +103,23 @@ function handleAction(payload) {
 	})
 }
 
-function handleTogglePlayback() {
-	playingVideo.value = !playingVideo.value
+function handlePanelPlay() {
+	shouldResumePlayback.value = true
 }
 
-function handlePlaybackChange(playing) {
-	playingVideo.value = Boolean(playing)
+function handlePanelPause() {
+	if (suspendingPlayback.value) {
+		return
+	}
+	shouldResumePlayback.value = false
+}
+
+function handlePanelEnded() {
+	shouldResumePlayback.value = false
+}
+
+function handlePanelError() {
+	shouldResumePlayback.value = false
 }
 
 function onAuthorClick(authorInfo) {
