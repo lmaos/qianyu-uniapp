@@ -108,8 +108,9 @@
 
 <script setup>
 import { computed, onUnmounted, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useLoginAgreement } from '@/composables/useLoginAgreement.js'
+import { redirectAfterLogin, resolveLoginRedirect, saveLoginInfo } from '@/composables/useLoginSession.js'
 
 const phoneLoginMock = {
 	tabs: [
@@ -118,12 +119,13 @@ const phoneLoginMock = {
 	],
 	submitButtonText: '登录',
 	mockTitle: 'Mock 验证数据',
-	mockText: '验证码：123456，密码账号：13800000000 / qianyu123。TODO：替换真实 API、登录态管理与异常提示。',
+	mockText: '验证码：123456，密码账号：13800000000 / qianyu123。TODO：替换真实 API 与异常提示。',
 	correctCode: '123456',
 	passwordAccount: {
 		phone: '13800000000',
 		password: 'qianyu123'
-	}
+	},
+	loginExpireMs: 7 * 24 * 60 * 60 * 1000
 }
 
 const activeTab = ref('code')
@@ -136,6 +138,7 @@ const passwordForm = ref({
 	phone: '',
 	password: ''
 })
+const redirectUrl = ref('')
 
 let countdownTimer = null
 
@@ -153,6 +156,10 @@ const codeButtonText = computed(() => {
 
 onShow(() => {
 	syncAgreementState()
+})
+
+onLoad((options) => {
+	redirectUrl.value = resolveLoginRedirect(options?.redirect)
 })
 
 function handleBackClick() {
@@ -230,11 +237,15 @@ function submitCodeLogin() {
 		phone: codeForm.value.phone,
 		code: codeForm.value.code
 	})
+	saveMockLoginInfo({
+		phone: codeForm.value.phone,
+		loginType: 'phone-code'
+	})
 	uni.showToast({
 		title: '登录成功',
 		icon: 'none'
 	})
-	redirectToIndex()
+	redirectAfterAuth()
 }
 
 function submitPasswordLogin() {
@@ -262,17 +273,24 @@ function submitPasswordLogin() {
 		phone: passwordForm.value.phone,
 		password: passwordForm.value.password
 	})
+	saveMockLoginInfo({
+		phone: passwordForm.value.phone,
+		loginType: 'phone-password'
+	})
 	uni.showToast({
 		title: '登录成功',
 		icon: 'none'
 	})
-	redirectToIndex()
+	redirectAfterAuth()
 }
 
-function redirectToIndex() {
+/**
+ * 登录成功后优先回到触发登录的业务页；如果没有 redirect，再回首页。
+ */
+function redirectAfterAuth() {
 	setTimeout(() => {
-		uni.reLaunch({
-			url: '/pages/index/index'
+		redirectAfterLogin({
+			redirect: redirectUrl.value
 		})
 	}, 800)
 }
@@ -302,6 +320,25 @@ function clearCountdown() {
 
 function isValidPhone(phone) {
 	return /^1\d{10}$/.test(phone)
+}
+
+/**
+ * 当前还是 mock 登录，这里先把登录结果统一映射到全局登录态。
+ * 后续替换真实登录接口时，直接把服务端返回的 token / 用户信息透传给 saveLoginInfo 即可。
+ */
+function saveMockLoginInfo({ phone, loginType }) {
+	const now = Date.now()
+	saveLoginInfo({
+		token: `mock-token-${phone}-${now}`,
+		expireMs: now + phoneLoginMock.loginExpireMs,
+		nickname: `千语用户${phone.slice(-4)}`,
+		userNo: `QY${phone.slice(-6)}`,
+		avatar: '',
+		liveAuth: true,
+		shopAuth: true,
+		phone,
+		loginType
+	})
 }
 
 function onBackClick() {

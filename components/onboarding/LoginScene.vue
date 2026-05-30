@@ -57,6 +57,12 @@
 <script setup>
 import { watch } from 'vue'
 import { useLoginAgreement } from '@/composables/useLoginAgreement.js'
+import {
+	LOGIN_REDIRECT_QUERY_KEY,
+	getLoginRedirectFromCurrentPage,
+	redirectAfterLogin,
+	saveLoginInfo
+} from '@/composables/useLoginSession.js'
 
 const props = defineProps({
 	active: {
@@ -103,8 +109,11 @@ async function handlePhoneLoginClick() {
 	}
 
 	onPhoneLogin()
+	const redirect = getLoginRedirectFromCurrentPage()
 	uni.navigateTo({
-		url: '/pages/login/phone-login'
+		url: redirect
+			? `/pages/login/phone-login?${LOGIN_REDIRECT_QUERY_KEY}=${encodeURIComponent(redirect)}`
+			: '/pages/login/phone-login'
 	})
 }
 
@@ -114,7 +123,7 @@ async function handleWechatLoginClick() {
 	}
 
 	onWechatLogin()
-	mockSocialLoginSuccess('微信登录成功')
+	mockSocialLoginSuccess('微信登录成功', 'wechat')
 }
 
 async function handleSocialLoginClick(item) {
@@ -124,33 +133,50 @@ async function handleSocialLoginClick(item) {
 
 	if (item.key === 'google') {
 		onGoogleLogin()
-		mockSocialLoginSuccess('Google 登录成功')
+		mockSocialLoginSuccess('Google 登录成功', 'google')
 		return
 	}
 
 	if (item.key === 'qq') {
 		onQqLogin()
-		mockSocialLoginSuccess('QQ 登录成功')
+		mockSocialLoginSuccess('QQ 登录成功', 'qq')
 		return
 	}
 
 	onWechatLogin()
-	mockSocialLoginSuccess('微信登录成功')
+	mockSocialLoginSuccess('微信登录成功', 'wechat-lite')
 }
 
 function handleAgreementLinkClick(type) {
 	openAgreementPage(type)
 }
 
-function mockSocialLoginSuccess(title) {
+/**
+ * mock 社交登录也走统一登录态和统一回跳逻辑，
+ * 这样后续替换微信 SDK / 第三方登录接口时，不需要再改页面流转协议。
+ */
+function mockSocialLoginSuccess(title, provider) {
+	const now = Date.now()
+	const redirect = getLoginRedirectFromCurrentPage()
+	saveLoginInfo({
+		token: `mock-${provider}-token-${now}`,
+		expireMs: now + 7 * 24 * 60 * 60 * 1000,
+		nickname: `${provider}用户`,
+		userNo: `QY${String(now).slice(-6)}`,
+		avatar: '',
+		liveAuth: true,
+		shopAuth: true,
+		loginType: provider
+	})
+
 	uni.showToast({
 		title,
 		icon: 'none'
 	})
 
 	setTimeout(() => {
-		uni.reLaunch({
-			url: '/pages/index/index'
+		redirectAfterLogin({
+			redirect
 		})
 	}, 800)
 }
