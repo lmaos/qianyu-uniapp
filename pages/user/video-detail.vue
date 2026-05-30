@@ -46,7 +46,7 @@ const pageStyle = computed(() => ({
 }))
 
 onLoad((options) => {
-	pageMock.value = getVideoDetailPageMock(options?.workId)
+	pageMock.value = getVideoDetailPageMock(options?.workId || options?.momentId || options?.videoId)
 	shouldResumePlayback.value = true
 	void nextTick(() => {
 		void videoPanelRef.value?.play?.()

@@ -2,12 +2,12 @@
 	<view class="video-panel" :style="panelStyle">
 		<view class="video-panel-stage" :style="stageStyle">
 			<video
-				v-if="resolvedVideoUrl"
+				v-if="shouldRenderVideo"
 				:id="videoElementId"
 				class="video-panel-player"
 				:src="resolvedVideoUrl"
 				:poster="resolvedPosterUrl"
-				object-fit="cover"
+				:object-fit="videoObjectFit"
 				:controls="false"
 				:show-play-btn="false"
 				:show-center-play-btn="false"
@@ -23,15 +23,43 @@
 				@error="handleVideoError"
 			/>
 			<!-- #ifdef APP-PLUS || MP-WEIXIN -->
+			<cover-view v-if="showCoverLayer" class="video-panel-cover-layer">
+				<cover-image v-if="resolvedPosterUrl" class="video-panel-cover-image" :src="resolvedPosterUrl"></cover-image>
+				<cover-view class="video-panel-cover-scrim"></cover-view>
+				<cover-view class="video-panel-cover-content">
+					<cover-view class="video-panel-cover-badge">{{ videoAspectHintText }}</cover-view>
+					<cover-view class="video-panel-cover-title">{{ videoValue.title || defaultTitle }}</cover-view>
+					<cover-view v-if="coverStatusText" class="video-panel-cover-pill">{{ coverStatusText }}</cover-view>
+				</cover-view>
+			</cover-view>
+			<!-- #endif -->
+			<!-- #ifndef APP-PLUS || MP-WEIXIN -->
+			<view v-if="showCoverLayer" class="video-panel-cover-layer">
+				<image v-if="resolvedPosterUrl" class="video-panel-cover-image" :src="resolvedPosterUrl" mode="aspectFill" />
+				<view class="video-panel-cover-scrim"></view>
+				<view class="video-panel-cover-content">
+					<text class="video-panel-cover-badge">{{ videoAspectHintText }}</text>
+					<text class="video-panel-cover-title">{{ videoValue.title || defaultTitle }}</text>
+					<text v-if="coverStatusText" class="video-panel-cover-pill">{{ coverStatusText }}</text>
+				</view>
+			</view>
+			<!-- #endif -->
+			<!-- #ifdef APP-PLUS || MP-WEIXIN -->
 			<cover-view class="video-panel-stage-mask" @tap="handlePanelTap"></cover-view>
 			<cover-view v-if="showPlayOverlay" class="video-panel-play-indicator" @tap="handlePanelTap">
 				<cover-view class="video-panel-play-hint">▶</cover-view>
+			</cover-view>
+			<cover-view v-if="showRuntimeLoadingPill" class="video-panel-state-pill">
+				<cover-view class="video-panel-state-pill-text">正在缓冲视频</cover-view>
 			</cover-view>
 			<!-- #endif -->
 			<!-- #ifndef APP-PLUS || MP-WEIXIN -->
 			<view class="video-panel-stage-mask" @tap="handlePanelTap"></view>
 			<view v-if="showPlayOverlay" class="video-panel-play-indicator" @tap="handlePanelTap">
 				<text class="video-panel-play-hint">▶</text>
+			</view>
+			<view v-if="showRuntimeLoadingPill" class="video-panel-state-pill">
+				<text class="video-panel-state-pill-text">正在缓冲视频</text>
 			</view>
 			<!-- #endif -->
 		</view>
@@ -80,6 +108,8 @@
 				<cover-view v-if="videoValue.playCountText" class="video-panel-meta-text">
 					{{ videoValue.playCountText }} 次播放
 				</cover-view>
+				<cover-view v-if="videoValue.durationText" class="video-panel-meta-text">{{ videoValue.durationText }}</cover-view>
+				<cover-view v-if="videoValue.country" class="video-panel-meta-text">{{ videoValue.country }}</cover-view>
 			</cover-view>
 
 			<cover-view class="video-panel-music-pill">
@@ -130,6 +160,8 @@
 			<view class="video-panel-meta-row">
 				<text class="video-panel-meta-text">{{ videoValue.publishTimeText || '刚刚' }}</text>
 				<text v-if="videoValue.playCountText" class="video-panel-meta-text">{{ videoValue.playCountText }} 次播放</text>
+				<text v-if="videoValue.durationText" class="video-panel-meta-text">{{ videoValue.durationText }}</text>
+				<text v-if="videoValue.country" class="video-panel-meta-text">{{ videoValue.country }}</text>
 			</view>
 
 			<view class="video-panel-music-pill">
@@ -224,6 +256,8 @@ const defaultTitle = '全屏视频内容标题占位'
 const defaultDesc = '后续替换真实视频资源、作者信息与互动数据。'
 
 const componentInstance = getCurrentInstance()
+const hasMountedVideo = ref(false)
+const hasStartedPlayback = ref(false)
 const internalPlaying = ref(false)
 const desiredPlaying = ref(Boolean(props.activePlayback))
 const playbackState = ref('idle')
@@ -247,10 +281,42 @@ const stageStyle = computed(() => ({
 
 const resolvedVideoUrl = computed(() => videoValue.value.videoUrl || '')
 const resolvedPosterUrl = computed(() => videoValue.value.posterUrl || videoValue.value.coverUrl || '')
+const resolvedVideoWidth = computed(() => Number(videoValue.value.videoWidth || videoValue.value.videoMeta?.width || 0))
+const resolvedVideoHeight = computed(() => Number(videoValue.value.videoHeight || videoValue.value.videoMeta?.height || 0))
+const videoAspectHintText = computed(() => {
+	if (resolvedVideoWidth.value > resolvedVideoHeight.value && resolvedVideoHeight.value > 0) {
+		return '横版内容 · 完整展示'
+	}
+	if (resolvedVideoWidth.value > 0 && resolvedVideoHeight.value > 0 && resolvedVideoWidth.value === resolvedVideoHeight.value) {
+		return '方版内容 · 居中展示'
+	}
+	return '竖版内容 · 沉浸浏览'
+})
+// 横版视频优先完整展示主体，避免整屏 cover 把关键信息裁掉。
+const videoObjectFit = computed(() => {
+	if (resolvedVideoWidth.value > resolvedVideoHeight.value && resolvedVideoHeight.value > 0) {
+		return 'contain'
+	}
+	return 'cover'
+})
 const videoElementId = computed(() => {
-	const targetId = videoValue.value.workId || videoValue.value.id || 'default'
+	const targetId =
+		videoValue.value.momentId || videoValue.value.videoId || videoValue.value.id || videoValue.value.workId || 'default'
 	return `full-screen-video-${targetId}`
 })
+const shouldRenderVideo = computed(() => Boolean(resolvedVideoUrl.value) && hasMountedVideo.value)
+// 首次进入卡片先展示封面层，等真正开始播放后再把封面交给视频画面。
+const showCoverLayer = computed(() => !hasStartedPlayback.value || playbackState.value === 'error')
+const coverStatusText = computed(() => {
+	if (playbackState.value === 'error') {
+		return '视频加载失败，点击重试'
+	}
+	if (desiredPlaying.value && !hasStartedPlayback.value) {
+		return '正在准备视频'
+	}
+	return videoValue.value.durationText ? `${videoValue.value.durationText} · 点击播放` : '点击播放'
+})
+const showRuntimeLoadingPill = computed(() => hasStartedPlayback.value && playbackState.value === 'loading')
 
 const backButtonStyle = computed(() => ({
 	top: `${props.safeTopInsetRpx + 16}rpx`
@@ -298,7 +364,7 @@ const actionList = computed(() => {
 	]
 })
 
-const showPlayOverlay = computed(() => props.showPlayHint && !internalPlaying.value)
+const showPlayOverlay = computed(() => props.showPlayHint && !internalPlaying.value && playbackState.value !== 'loading')
 
 watch(
 	() => props.activePlayback,
@@ -328,6 +394,8 @@ watch(
 )
 
 function resetPlaybackState(nextDesiredPlaying = false) {
+	hasMountedVideo.value = false
+	hasStartedPlayback.value = false
 	internalPlaying.value = false
 	desiredPlaying.value = nextDesiredPlaying
 	pendingCommand.value = ''
@@ -400,6 +468,7 @@ function issuePlaybackCommand(action) {
 
 function play() {
 	desiredPlaying.value = true
+	hasMountedVideo.value = true
 	return nextTick(() => issuePlaybackCommand('play'))
 }
 
@@ -475,6 +544,7 @@ function handleVideoPlay() {
 	pendingCommand.value = ''
 	const wasPlaying = internalPlaying.value
 	internalPlaying.value = true
+	hasStartedPlayback.value = true
 	setPlaybackState('playing')
 	if (!wasPlaying) {
 		emit('play', videoValue.value)
@@ -560,6 +630,83 @@ onBeforeUnmount(() => {
 	height: 100%;
 }
 
+.video-panel-cover-layer {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 1;
+}
+
+.video-panel-cover-image {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.video-panel-cover-scrim {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background:
+		linear-gradient(180deg, rgba(3, 7, 18, 0.16) 0%, rgba(3, 7, 18, 0.04) 22%, rgba(3, 7, 18, 0.02) 44%),
+		linear-gradient(180deg, rgba(3, 7, 18, 0.14) 48%, rgba(3, 7, 18, 0.68) 100%);
+}
+
+.video-panel-cover-content {
+	position: absolute;
+	right: 28rpx;
+	bottom: 144rpx;
+	left: 28rpx;
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.video-panel-cover-badge,
+.video-panel-cover-pill,
+.video-panel-state-pill {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 20rpx;
+	border-radius: 999rpx;
+	background: rgba(15, 23, 42, 0.42);
+	border: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.video-panel-cover-badge {
+	height: 46rpx;
+	font-size: 22rpx;
+	line-height: 30rpx;
+	color: rgba(255, 255, 255, 0.82);
+}
+
+.video-panel-cover-title {
+	margin-top: 20rpx;
+	font-size: 40rpx;
+	font-weight: 700;
+	line-height: 56rpx;
+	color: #ffffff;
+	white-space: pre-wrap;
+}
+
+.video-panel-cover-pill {
+	height: 48rpx;
+	margin-top: 16rpx;
+	font-size: 22rpx;
+	line-height: 30rpx;
+	color: rgba(255, 255, 255, 0.92);
+}
+
 .video-panel-stage-mask {
 	position: absolute;
 	top: 0;
@@ -569,6 +716,21 @@ onBeforeUnmount(() => {
 	background:
 		linear-gradient(180deg, rgba(3, 7, 18, 0.14) 0%, rgba(3, 7, 18, 0.04) 18%, rgba(3, 7, 18, 0) 36%),
 		linear-gradient(180deg, rgba(3, 7, 18, 0) 48%, rgba(3, 7, 18, 0.18) 70%, rgba(3, 7, 18, 0.78) 100%);
+}
+
+.video-panel-state-pill {
+	position: absolute;
+	left: 50%;
+	bottom: 260rpx;
+	z-index: 3;
+	height: 52rpx;
+	transform: translateX(-50%);
+}
+
+.video-panel-state-pill-text {
+	font-size: 22rpx;
+	line-height: 30rpx;
+	color: rgba(255, 255, 255, 0.92);
 }
 
 .video-panel-play-indicator {

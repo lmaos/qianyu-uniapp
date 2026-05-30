@@ -336,8 +336,8 @@
 | LiveHotRankCard | `components/home/live/elements/LiveHotRankCard.vue` | 直播榜单入口卡 | 负责榜单入口展示，跳转由上层决定 |
 | LiveCardItem | `components/home/live/elements/LiveCardItem.vue` | 直播双列流卡片 | 负责直播卡片展示与点击抛出 |
 | RecommendTab / RecommendFeedMasonry / RecommendFeedCard | `components/home/recommend/*.vue` | 首页推荐瀑布流与推荐卡片（移动端双列，H5 宽屏自适应多列） | 推荐频道复用首页刷新/分页协议；左右边距与商城一致；封面区保持干净，不叠加底部暗色遮罩；卡片无阴影、小圆角、正文只保留标题/作者/点赞等必要信息 |
-| FullScreenVideoPanel | `components/common/video/FullScreenVideoPanel.vue` | 共享全屏视频舞台 | 只负责全屏视频渲染、右侧动作列、左下信息区与播放控制；对外提供播放/暂停/重播等操作方法，并抛出 `ready / play / pause / ended / error / action` 等事件，不承接频道分页或详情路由业务 |
-| ShortVideoTab | `components/home/short-video/ShortVideoTab.vue` | 短视频频道三槽位滑动流 | 负责短视频频道的三槽位播放器复用、触顶下拉刷新、触底分页追加和当前活跃视频切换；分页与刷新状态留在频道容器层，不下沉到 `FullScreenVideoPanel` |
+| FullScreenVideoPanel | `components/common/video/FullScreenVideoPanel.vue` | 共享全屏视频舞台 | 只负责全屏视频渲染、封面优先展示、横竖版适配、右侧动作列、左下信息区与播放控制；对外提供播放/暂停/重播等操作方法，并抛出 `ready / play / pause / ended / error / action` 等事件，不承接频道分页或详情路由业务 |
+| ShortVideoTab | `components/home/short-video/ShortVideoTab.vue` | 短视频频道三槽位滑动流 | 负责短视频频道的三槽位播放器复用、触顶下拉刷新、触底分页追加、`MomentVo` 列表适配后的当前活跃视频切换；分页与刷新状态留在频道容器层，不下沉到 `FullScreenVideoPanel` |
 | UserDynamicList / UserWorkGrid | `components/user-center/main/*.vue` | 个人中心动态瀑布流与作品宫格 | 与推荐流保持一致的轻量内容卡片风格：媒体封面优先、无阴影、小圆角；动态列表避免封面叠加遮罩和大块统计胶囊；视频作品列表仅展示观看数且不使用背景条 |
 | RoomIndex | `components/room/RoomIndex.vue` | 直播间整页 UI 组装 | 负责房间表现层，业务事件全部向页面层抛出 |
 | RoomChat / OnlinePanel / GiftPanel | `components/room/chat/*.vue`, `components/room/online/*.vue`, `components/room/gift/*.vue` | 直播间聊天、在线用户、礼物分层模块 | 属于房间内功能组件，不直接持有页面业务状态 |
