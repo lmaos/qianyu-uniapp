@@ -269,25 +269,33 @@ const contentTopPaddingPx = computed(() => {
 })
 
 const activeContentSidePaddingRpx = computed(() => {
+	if (typeof activeSceneConfig.value.contentSidePaddingRpx === 'number') {
+		return activeSceneConfig.value.contentSidePaddingRpx
+	}
+
 	return ['mall', 'recommend'].includes(activeSubNav.value)
 		? homeMock.mallContentSidePaddingRpx
 		: homeMock.contentSidePaddingRpx
 })
 
 const activeContentBottomPaddingRpx = computed(() => {
+	if (typeof activeSceneConfig.value.contentBottomPaddingRpx === 'number') {
+		return activeSceneConfig.value.contentBottomPaddingRpx
+	}
+
 	return homeMock.contentBottomPaddingRpx
 })
 
 const parentScrollEnabled = computed(() => {
-	return true
+	return activeSceneConfig.value.useParentScrollShell !== false
 })
 
 const parentRefresherEnabled = computed(() => {
-	return true
+	return activeSceneConfig.value.useParentRefresher !== false
 })
 
 const bottomPullEnabled = computed(() => {
-	return true
+	return activeSceneConfig.value.useParentBottomPull !== false
 })
 
 const activeChildScrollTopPx = computed(() => {
@@ -880,6 +888,7 @@ function resetTransientState() {
  */
 function scrollActiveContentToTop() {
 	if (!parentScrollEnabled.value) {
+		activeSceneRef.value?.scrollToTop?.()
 		parentScrollTopPx.value = 0
 		parentScrollTopValue.value = 0
 		return

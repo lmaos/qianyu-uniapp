@@ -7,13 +7,6 @@ const CONTENT_PUBLISH_SCENE_MAP = {
 		submitLabel: '发布动态',
 		allowMultiImage: true,
 		maxImageCount: 9
-	},
-	'short-video': {
-		title: '发布作品',
-		placeholder: '给作品补一个标题，会更容易被看见',
-		submitLabel: '发布作品',
-		allowMultiImage: false,
-		maxImageCount: 1
 	}
 }
 
@@ -23,7 +16,7 @@ export function getContentPublishPageMock(scene = 'recommend') {
 
 export function buildContentPublishUrl({ scene = 'recommend', mediaList = [] } = {}) {
 	const query = {
-		scene
+		scene: 'recommend'
 	}
 
 	const mediaPayload = serializeContentPublishMediaList(mediaList)

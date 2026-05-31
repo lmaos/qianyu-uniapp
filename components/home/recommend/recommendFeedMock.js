@@ -28,7 +28,7 @@ const TITLE_TEMPLATE_LIST = [
 const AUTHOR_NAME_LIST = ['亿家日用百货', '逗咖萌主', '白金今天穿什么', '阿青轻生活', '周末散步计划', '奶油房间日记']
 const TOPIC_LIST = ['氛围感穿搭', '直播好物', '同城打卡', '约会灵感', '轻生活', '今日分享']
 const CITY_LIST = ['深圳', '广州', '杭州', '成都', '苏州', '上海']
-const CONTENT_TYPE_LIST = ['note', 'note', 'video', 'note', 'video', 'note']
+const CONTENT_TYPE_LIST = ['note', 'note', 'note', 'note', 'note', 'note']
 const RECOMMEND_COVER_HEIGHT_RPX = 468
 
 function formatCount(value) {
@@ -45,7 +45,7 @@ function createRecommendItem(index) {
 	const city = CITY_LIST[index % CITY_LIST.length]
 	const authorIndex = (index % 14) + 1
 	const itemId = `recommend-feed-${index}`
-	const coverLabel = contentType === 'video' ? '视频推荐' : '图文推荐'
+	const coverLabel = '图文推荐'
 
 	return {
 		id: itemId,
@@ -67,16 +67,10 @@ function createRecommendItem(index) {
 			nickname: `推荐作者${authorIndex}`,
 			avatar: AVATAR_BACKGROUND_LIST[index % AVATAR_BACKGROUND_LIST.length]
 		}),
-		detailUrl:
-			contentType === 'video'
-				? buildPageUrl('/pages/user/video-detail', {
-					workId: `work-item-${(index % 12) + 1}`,
-					userId: `recommend-author-${authorIndex}`
-				})
-				: buildPageUrl('/pages/user/note-detail', {
-					noteId: `dynamic-item-${(index % 12) + 1}`,
-					userId: `recommend-author-${authorIndex}`
-				})
+		detailUrl: buildPageUrl('/pages/user/note-detail', {
+			noteId: `dynamic-item-${(index % 12) + 1}`,
+			userId: `recommend-author-${authorIndex}`
+		})
 	}
 }
 

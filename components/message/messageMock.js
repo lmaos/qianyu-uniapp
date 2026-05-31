@@ -342,17 +342,17 @@ const NOTIFICATION_LIST = [
 		category: '互动提醒',
 		avatarText: 'I',
 		avatarBackground: 'linear-gradient(135deg, #ffb68c 0%, #ffd8b8 100%)',
-		title: 'Iris 评论了你的视频作品',
-		summary: '“这个镜头节奏处理得很舒服。”',
+		title: 'Iris 评论了你的一条动态',
+		summary: '“这个排版节奏处理得很舒服。”',
 		timeText: '10分钟前',
 		unread: true,
 		actionUrl: buildNavigationActionUrl(NAVIGATION_ACTION_ROUTE_TYPES.OPEN, {
-			page: '/pages/user/video-detail',
-			videoId: 'dynamic-item-9',
-			title: '视频作品详情'
+			page: '/pages/user/note-detail',
+			noteId: 'dynamic-item-6',
+			title: '动态详情'
 		}),
 		actionPayload: {
-			title: '视频详情'
+			title: '动态详情'
 		}
 	},
 	{

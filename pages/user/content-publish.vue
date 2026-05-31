@@ -123,7 +123,7 @@ const canSubmit = computed(() => {
 	return selectedMediaList.value.length > 0
 })
 const canAppendImage = computed(() => {
-	if (sceneKey.value === 'short-video' || hasVideo.value) {
+	if (hasVideo.value) {
 		return false
 	}
 
@@ -131,7 +131,7 @@ const canAppendImage = computed(() => {
 })
 const previewHintText = computed(() => {
 	if (!selectedMediaList.value.length) {
-		return sceneKey.value === 'short-video' ? '上传 1 个作品媒体' : '最多 9 张图片或 1 个视频'
+		return '最多 9 张图片或 1 个视频'
 	}
 
 	if (hasVideo.value) {
@@ -142,7 +142,7 @@ const previewHintText = computed(() => {
 })
 
 onLoad((options) => {
-	const nextSceneKey = options?.scene === 'short-video' ? 'short-video' : 'recommend'
+	const nextSceneKey = options?.scene === 'recommend' ? 'recommend' : 'recommend'
 	sceneKey.value = nextSceneKey
 	pageMock.value = getContentPublishPageMock(nextSceneKey)
 	selectedMediaList.value = parseContentPublishMediaList(options?.mediaPayload)
@@ -150,7 +150,7 @@ onLoad((options) => {
 
 async function handlePickImages() {
 	const remainCount = Math.max(1, pageMock.value.maxImageCount - selectedMediaList.value.length)
-	const targetCount = sceneKey.value === 'short-video' ? 1 : Math.min(remainCount, pageMock.value.maxImageCount)
+	const targetCount = Math.min(remainCount, pageMock.value.maxImageCount)
 	const result = await chooseImageAsync({
 		count: targetCount,
 		sourceType: ['album', 'camera']
@@ -171,11 +171,6 @@ async function handlePickImages() {
 		.filter(Boolean)
 
 	if (!imageList.length) {
-		return
-	}
-
-	if (sceneKey.value === 'short-video') {
-		selectedMediaList.value = imageList.slice(0, 1)
 		return
 	}
 

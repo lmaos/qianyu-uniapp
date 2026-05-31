@@ -23,33 +23,6 @@ const THUMB_BACKGROUND_LIST = [
 	'linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(16, 185, 129, 0.18) 100%)'
 ]
 
-const SHARED_VIDEO_MOCK_URL = 'https://wwwclmcat.oss-cn-beijing.aliyuncs.com/static/video/kaojingchongwu.mp4'
-const MOMENT_BASE_ID = 980000
-const MOMENT_VIDEO_TITLE_LIST = [
-	'把内容封面做干净一点，用户第一眼先看到作品主题。',
-	'短视频频道先对齐整屏浏览，再慢慢补评论和互动抽屉。',
-	'推荐流、个人中心、视频详情保持同一套作品数据协议。',
-	'先让列表首屏稳，再补真实接口和复杂互动逻辑。',
-	'把横版、方版和竖版视频都提前纳入适配范围。',
-	'播放器先保证 App 稳定，再继续补齐业务层交互。'
-]
-const MOMENT_VIDEO_DESC_LIST = [
-	'当前先用统一适配层补齐作者、互动与展示字段，未来替换真实接口时只改数据映射。',
-	'列表先显示封面，再在当前卡片真正开始播放时挂载视频，避免 App 首屏黑屏感。',
-	'横版视频优先完整展示主体，竖版视频继续保持沉浸式整屏浏览。',
-	'先把弱网 loading、错误占位和切换播放状态理顺，再接评论、点赞与分享业务。',
-	'当前 mock 用于验证 Android / iOS 的布局层级、滚动切换和动作栏触达面积。',
-	'详情页继续沿用统一 workId，保证推荐流和详情页的数据接力简单可替换。'
-]
-const MOMENT_VIDEO_MUSIC_LIST = ['原声 · 千隅推荐流', '原声 · 今日灵感', '原声 · 直播切片', '原声 · 内容精选']
-const MOMENT_VIDEO_DIMENSION_LIST = [
-	{ width: 1080, height: 1920 },
-	{ width: 720, height: 1280 },
-	{ width: 1920, height: 1080 },
-	{ width: 1080, height: 1080 }
-]
-const MOMENT_COUNTRY_LIST = ['中国', '中国', '日本', '新加坡']
-
 const LOCATION_TEXT = '广东省-深圳市-南山区'
 
 const PROFILE_INFO = {
@@ -77,8 +50,6 @@ const PROFILE_INFO = {
 		{ key: 'fans', label: '粉丝', value: '8.6w' }
 	]
 }
-
-const MOMENT_AUTHOR_SOURCE_LIST = Array.from({ length: 8 }, (_, index) => createMomentAuthorProfile(index + 1))
 
 const QUICK_ACTION_LIST = [
 	{ key: 'anchor-center', label: '主播中心', iconText: '播', path: '/pages/user/anchor-center' },
@@ -112,7 +83,6 @@ const ANCHOR_PERIOD_LIST = [
 
 const DYNAMIC_SOURCE_LIST = Array.from({ length: 22 }, (_, index) => createDynamicItem(index + 1))
 const WORK_SOURCE_LIST = Array.from({ length: 24 }, (_, index) => createWorkItem(index + 1))
-const SHORT_VIDEO_MOMENT_SOURCE_LIST = Array.from({ length: 30 }, (_, index) => createMomentVoMock(index + 1))
 const LIKE_SOURCE_LIST = DYNAMIC_SOURCE_LIST.slice(2, 12)
 const HISTORY_SOURCE_LIST = Array.from({ length: 12 }, (_, index) => createHistoryItem(index + 1))
 const VISITOR_SOURCE_LIST = Array.from({ length: 16 }, (_, index) => createVisitorItem(index + 1))
@@ -417,94 +387,6 @@ export function loadNoteDetailCommentPageMock(noteId = '', page = 1, pageSize = 
 	})
 }
 
-export function getShortVideoMomentResponseMock() {
-	return {
-		status: 0,
-		state: 'OK',
-		content: {
-			datas: SHORT_VIDEO_MOMENT_SOURCE_LIST.map((item) => cloneMomentVo(item))
-		}
-	}
-}
-
-// 短视频接口先对齐后端 MomentVo 结构，再在这里补齐前端展示字段，后续接真接口时只替换这层映射。
-export function adaptMomentVoToVideoCard(momentVo = {}) {
-	const resolvedMomentId = Number(momentVo?.momentId) || MOMENT_BASE_ID + 1
-	const workIndex = resolveMomentWorkIndex(resolvedMomentId)
-	const targetWork = WORK_SOURCE_LIST[workIndex] || WORK_SOURCE_LIST[0]
-	const videoContent = momentVo?.content?.video || {}
-	const authorInfo = resolveMomentAuthorProfile(momentVo?.authorId)
-	const likeCountValue = Number(momentVo?.likes) || parseCountText(targetWork?.likeCountText)
-	const commentCountValue = Number(momentVo?.comments) || parseCountText(targetWork?.commentCountText)
-	const collectCountValue = 460 + workIndex * 31
-	const shareCountValue = 280 + workIndex * 24
-	const createTimeValue = Number(momentVo?.createTime) || Date.now()
-	const workId = targetWork?.id || `work-item-${workIndex + 1}`
-
-	return {
-		id: `moment-video-${resolvedMomentId}`,
-		momentId: resolvedMomentId,
-		workId,
-		authorId: Number(momentVo?.authorId) || 0,
-		status: Number(momentVo?.status) || 0,
-		contentType: momentVo?.content?.type || 'video',
-		createTime: createTimeValue,
-		latitude: Number(momentVo?.latitude) || 0,
-		longitude: Number(momentVo?.longitude) || 0,
-		country: momentVo?.country || MOMENT_COUNTRY_LIST[workIndex % MOMENT_COUNTRY_LIST.length],
-		pageBackground: '#020617',
-		workInfo: {
-			...targetWork,
-			authorName: authorInfo.nickname,
-			authorAvatarText: authorInfo.avatarText,
-			authorAvatarBackground: authorInfo.avatarBackground,
-			shareCount: formatCount(shareCountValue),
-			collectCount: formatCount(collectCountValue)
-		},
-		authorInfo,
-		authorUrl: buildPageUrl('/pages/user-profile/user-profile', {
-			userId: authorInfo.userId
-		}),
-		detailUrl: buildPageUrl('/pages/user/video-detail', {
-			workId,
-			momentId: resolvedMomentId,
-			from: 'short-video'
-		}),
-		coverBackground: targetWork?.coverBackground || THUMB_BACKGROUND_LIST[workIndex % THUMB_BACKGROUND_LIST.length],
-		videoId: videoContent?.videoId || `mock-video-${resolvedMomentId}`,
-		videoUrl: videoContent?.videoUrl || SHARED_VIDEO_MOCK_URL,
-		coverUrl: videoContent?.coverUrl || '',
-		posterUrl: videoContent?.coverUrl || '',
-		videoWidth: Number(videoContent?.width) || 0,
-		videoHeight: Number(videoContent?.height) || 0,
-		duration: Number(videoContent?.duration) || 0,
-		durationText: formatDuration(Number(videoContent?.duration) || 0),
-		title: MOMENT_VIDEO_TITLE_LIST[workIndex % MOMENT_VIDEO_TITLE_LIST.length],
-		desc: MOMENT_VIDEO_DESC_LIST[workIndex % MOMENT_VIDEO_DESC_LIST.length],
-		publishTimeText: formatRecentTimeText(createTimeValue),
-		playCountText: targetWork?.viewCountText || formatCount(1200 + workIndex * 160),
-		shareCount: formatCount(shareCountValue),
-		collectCount: formatCount(collectCountValue),
-		musicText: MOMENT_VIDEO_MUSIC_LIST[workIndex % MOMENT_VIDEO_MUSIC_LIST.length],
-		likeCount: formatCount(likeCountValue),
-		commentCount: formatCount(commentCountValue),
-		liked: Boolean(momentVo?.hasLike),
-		collected: workIndex % 4 === 0,
-		rawMoment: cloneMomentVo(momentVo),
-		videoMeta: {
-			videoId: videoContent?.videoId || `mock-video-${resolvedMomentId}`,
-			width: Number(videoContent?.width) || 0,
-			height: Number(videoContent?.height) || 0,
-			duration: Number(videoContent?.duration) || 0
-		}
-	}
-}
-
-export function getVideoDetailPageMock(workToken = '') {
-	const targetMoment = resolveMomentVoByVideoToken(workToken)
-	return adaptMomentVoToVideoCard(targetMoment)
-}
-
 export function createMainTabPageState(sourceList = [], pageSize = MAIN_PAGE_SIZE, page = 1) {
 	return sourceList.slice(0, pageSize * page)
 }
@@ -527,27 +409,22 @@ export function buildPageUrl(path, query = {}) {
 }
 
 function createDynamicItem(index) {
-	const isVideo = index % 3 === 0
 	const hasMedia = index % 5 !== 0
 	const coverBackground = THUMB_BACKGROUND_LIST[index % THUMB_BACKGROUND_LIST.length]
-	const title = isVideo
-		? `视频动态第${index}条：记录今天直播间和电商联动的片段`
-		: `图文动态第${index}条：关于个人中心模块拆分与交互设计的日常记录`
+	const title = `图文动态第${index}条：关于个人中心模块拆分与交互设计的日常记录`
 	const itemId = `dynamic-item-${index}`
 
 	return {
 		id: itemId,
-		contentType: isVideo ? 'video' : 'note',
+		contentType: 'note',
 		title,
 		coverBackground,
-		coverText: isVideo ? '视频封面' : '图文封面',
+		coverText: '图文封面',
 		viewCountText: formatCount(1200 + index * 268),
 		likeCountText: formatCount(180 + index * 38),
 		commentCountText: formatCount(26 + index * 8),
 		hasMedia,
-		detailUrl: isVideo
-			? buildPageUrl('/pages/user/video-detail', { workId: `work-item-${(index % 12) + 1}`, userId: DEFAULT_USER_ID })
-			: buildPageUrl('/pages/user/note-detail', { noteId: itemId, userId: DEFAULT_USER_ID })
+		detailUrl: buildPageUrl('/pages/user/note-detail', { noteId: itemId, userId: DEFAULT_USER_ID })
 	}
 }
 
@@ -560,7 +437,7 @@ function createWorkItem(index) {
 		playCountText: formatCount(8600 + index * 286),
 		likeCountText: formatCount(920 + index * 36),
 		commentCountText: formatCount(72 + index * 6),
-		detailUrl: buildPageUrl('/pages/user/video-detail', { workId: `work-item-${index}`, userId: DEFAULT_USER_ID })
+		detailUrl: ''
 	}
 }
 
@@ -571,9 +448,7 @@ function createHistoryItem(index) {
 		title: isVideo ? `最近看过的视频作品 ${index}` : `最近浏览的图文动态 ${index}`,
 		typeLabel: isVideo ? '视频' : '图文',
 		timeText: `最近访问 · ${index}小时前`,
-		detailUrl: isVideo
-			? buildPageUrl('/pages/user/video-detail', { workId: `work-item-${index}`, userId: DEFAULT_USER_ID })
-			: buildPageUrl('/pages/user/note-detail', { noteId: `dynamic-item-${index}`, userId: DEFAULT_USER_ID })
+		detailUrl: isVideo ? '' : buildPageUrl('/pages/user/note-detail', { noteId: `dynamic-item-${index}`, userId: DEFAULT_USER_ID })
 	}
 }
 
@@ -738,115 +613,4 @@ export function formatCount(value) {
 	}
 
 	return `${count}`
-}
-
-function createMomentAuthorProfile(index) {
-	return {
-		userId: `moment-author-${index}`,
-		nickname: ['阿宁', '西柚', '阿泽', '元七', '小北', '安可', '阿禾', '晚风'][index - 1] || `作者${index}`,
-		avatarText: ['宁', '柚', '泽', '七', '北', '可', '禾', '晚'][index - 1] || `${index}`.slice(-1),
-		avatarBackground: THUMB_BACKGROUND_LIST[(index - 1) % THUMB_BACKGROUND_LIST.length]
-	}
-}
-
-function createMomentVoMock(index) {
-	const dimension = MOMENT_VIDEO_DIMENSION_LIST[(index - 1) % MOMENT_VIDEO_DIMENSION_LIST.length]
-	return {
-		momentId: MOMENT_BASE_ID + index,
-		authorId: ((index - 1) % MOMENT_AUTHOR_SOURCE_LIST.length) + 1,
-		content: {
-			type: 'video',
-			text: null,
-			image: null,
-			video: {
-				videoId: `moment-video-${index}`,
-				videoUrl: SHARED_VIDEO_MOCK_URL,
-				coverUrl: '',
-				width: dimension.width,
-				height: dimension.height,
-				duration: 18 + (index % 6) * 7
-			}
-		},
-		latitude: 22.53 + index * 0.0013,
-		longitude: 113.94 + index * 0.0017,
-		country: MOMENT_COUNTRY_LIST[(index - 1) % MOMENT_COUNTRY_LIST.length],
-		likes: 860 + index * 73,
-		comments: 68 + index * 9,
-		hasLike: index % 3 === 0,
-		status: 1,
-		createTime: Date.now() - index * 6 * 60 * 1000
-	}
-}
-
-function cloneMomentVo(momentVo = {}) {
-	return {
-		...momentVo,
-		content: momentVo.content
-			? {
-					...momentVo.content,
-					text: momentVo.content.text ? { ...momentVo.content.text } : null,
-					image: momentVo.content.image ? { ...momentVo.content.image } : null,
-					video: momentVo.content.video ? { ...momentVo.content.video } : null
-				}
-			: null
-	}
-}
-
-function resolveMomentAuthorProfile(authorId) {
-	const normalizedAuthorId = Number(authorId) || 1
-	return {
-		...MOMENT_AUTHOR_SOURCE_LIST[(normalizedAuthorId - 1) % MOMENT_AUTHOR_SOURCE_LIST.length]
-	}
-}
-
-function resolveMomentWorkIndex(momentId) {
-	if (!WORK_SOURCE_LIST.length) {
-		return 0
-	}
-
-	const normalizedMomentId = Number(momentId) || MOMENT_BASE_ID + 1
-	return Math.max(0, (normalizedMomentId - MOMENT_BASE_ID - 1) % WORK_SOURCE_LIST.length)
-}
-
-function resolveMomentVoByVideoToken(workToken = '') {
-	const rawToken = `${workToken || ''}`.trim()
-	if (!SHORT_VIDEO_MOMENT_SOURCE_LIST.length) {
-		return {}
-	}
-
-	if (/^\d+$/.test(rawToken)) {
-		return (
-			SHORT_VIDEO_MOMENT_SOURCE_LIST.find((item) => `${item.momentId}` === rawToken) ||
-			SHORT_VIDEO_MOMENT_SOURCE_LIST[0]
-		)
-	}
-
-	const workIndex = Math.max(
-		0,
-		WORK_SOURCE_LIST.findIndex((item) => item.id === rawToken)
-	)
-	return SHORT_VIDEO_MOMENT_SOURCE_LIST[workIndex] || SHORT_VIDEO_MOMENT_SOURCE_LIST[0]
-}
-
-function formatDuration(durationSeconds = 0) {
-	const safeDuration = Math.max(0, Number(durationSeconds) || 0)
-	const minutes = Math.floor(safeDuration / 60)
-	const seconds = safeDuration % 60
-	return `${minutes}:${`${seconds}`.padStart(2, '0')}`
-}
-
-function formatRecentTimeText(timestamp) {
-	const deltaMs = Math.max(0, Date.now() - (Number(timestamp) || Date.now()))
-	const deltaMinutes = Math.max(0, Math.floor(deltaMs / (60 * 1000)))
-	if (deltaMinutes < 1) {
-		return '刚刚'
-	}
-	if (deltaMinutes < 60) {
-		return `${deltaMinutes} 分钟前`
-	}
-	const deltaHours = Math.floor(deltaMinutes / 60)
-	if (deltaHours < 24) {
-		return `${deltaHours} 小时前`
-	}
-	return `${Math.floor(deltaHours / 24)} 天前`
 }

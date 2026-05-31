@@ -129,7 +129,7 @@
 | 启动性能 | 页面/容器层只保留首屏必需初始化，非关键补数与占位异步任务优先延后到首帧后执行 |
 | 隐藏场景要停止资源占用 | Home 场景组件需接收 `active`，隐藏时停止轮播、定时器、异步 mock | `pages/home/home.vue` |
 | 首页推荐流 | 推荐频道移动端保持双列瀑布流；H5 非手机端宽屏按容器宽度自适应 3~5 列。左右边距与商城频道保持一致；推荐内容直接起瀑布流，不额外插入“为你推荐”头部块。卡片以封面为主、信息保持极简，刷新、分页和切换状态由频道容器统一承接，卡片层只负责渲染与事件抛出 | `components/home/recommend/RecommendTab.vue`, `components/home/recommend/RecommendFeedMasonry.vue` |
-| 首页频道导航 | 首页当前只保留商城 / 直播 / 推荐三类频道；导航需保持单行、左右安全边距均衡，推荐频道右上保留发布入口。短视频模块暂不对外开放，后续重新设计前不得重新挂回首页主导航 | `pages/home/home.vue`, `components/home/HomeSubNavShell.vue` |
+| 首页频道导航 | 首页导航当前保留商城 / 直播 / 推荐三频道，必须仍然单行稳定切换；推荐频道右上保留发布入口，其他频道不挂视频 runtime 特殊场景 | `pages/home/home.vue`, `components/home/HomeSubNavShell.vue` |
 
 ### 4.4 直播频道专项规范
 
@@ -215,7 +215,7 @@
 | 启动链路 | 阻塞首屏的初始化、补数和 mock 任务优先拆到 `setTimeout` 等首帧后时机 | 在页面/组件创建阶段同步堆叠非关键工作 |
 | 三级导航 | 三级导航切换优先保持局部联动、锚点滚动和固定高度容器 | 切换时整页重排、整页回顶或重新拉全量数据 |
 | 首页推荐流 | 移动端保持双列瀑布流；H5 非手机端宽屏按固定列间距 + 最小卡宽自适应 3~5 列。分页、下拉刷新和隐藏态资源释放统一走首页频道协议 | 在卡片层直接接分页/刷新逻辑，或依赖高频宽度计算/整页重排导致滚动抖动 |
-| 首页频道导航 | 商城 / 直播 / 推荐三频道保持单行稳定切换，推荐右上保留发布入口 | 未确认稳定前重新挂出短视频入口，或让三频道出现换行、挤压和安全边距失衡 |
+| 首页频道导航 | 商城 / 直播 / 推荐 / 短视频四频道保持单行稳定切换；短视频需走独立视频场景，不复用普通滚动壳；推荐和短视频右上保留发布入口 | 把短视频重新塞回普通 `PullPagingShell` 内容流、让顶部导航出现换行 / 挤压，或让短视频切页继续依赖父级滚动容器 |
 | 组件职责 | 父层负责数据/状态/路由，子层负责渲染/事件 | 子组件里混合页面状态、路由、接口、副作用 |
 
 ### 5.5 AI自动化UI测试
@@ -336,8 +336,6 @@
 | LiveHotRankCard | `components/home/live/elements/LiveHotRankCard.vue` | 直播榜单入口卡 | 负责榜单入口展示，跳转由上层决定 |
 | LiveCardItem | `components/home/live/elements/LiveCardItem.vue` | 直播双列流卡片 | 负责直播卡片展示与点击抛出 |
 | RecommendTab / RecommendFeedMasonry / RecommendFeedCard | `components/home/recommend/*.vue` | 首页推荐瀑布流与推荐卡片（移动端双列，H5 宽屏自适应多列） | 推荐频道复用首页刷新/分页协议；左右边距与商城一致；封面区保持干净，不叠加底部暗色遮罩；卡片无阴影、小圆角、正文只保留标题/作者/点赞等必要信息 |
-| FullScreenVideoPanel | `components/common/video/FullScreenVideoPanel.vue` | 共享全屏视频舞台 | 只负责全屏视频渲染、封面优先展示、横竖版适配、右侧动作列、左下信息区与播放控制；对外提供播放/暂停/重播等操作方法，并抛出 `ready / play / pause / ended / error / action` 等事件，不承接频道分页或详情路由业务 |
-| ShortVideoTab | `components/home/short-video/ShortVideoTab.vue` | 短视频频道三槽位滑动流 | 负责短视频频道的三槽位播放器复用、触顶下拉刷新、触底分页追加、`MomentVo` 列表适配后的当前活跃视频切换；分页与刷新状态留在频道容器层，不下沉到 `FullScreenVideoPanel` |
 | UserDynamicList / UserWorkGrid | `components/user-center/main/*.vue` | 个人中心动态瀑布流与作品宫格 | 与推荐流保持一致的轻量内容卡片风格：媒体封面优先、无阴影、小圆角；动态列表避免封面叠加遮罩和大块统计胶囊；视频作品列表仅展示观看数且不使用背景条 |
 | RoomIndex | `components/room/RoomIndex.vue` | 直播间整页 UI 组装 | 负责房间表现层，业务事件全部向页面层抛出 |
 | RoomChat / OnlinePanel / GiftPanel | `components/room/chat/*.vue`, `components/room/online/*.vue`, `components/room/gift/*.vue` | 直播间聊天、在线用户、礼物分层模块 | 属于房间内功能组件，不直接持有页面业务状态 |

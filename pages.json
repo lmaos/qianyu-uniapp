@@ -309,14 +309,6 @@
 			}
 		},
 		{
-			"path": "pages/user/video-detail",
-			"style": {
-				"navigationStyle": "custom",
-				"backgroundColor": "#000000",
-				"disableScroll": true
-			}
-		},
-		{
 			"path": "pages/user/content-publish",
 			"style": {
 				"navigationStyle": "custom",
