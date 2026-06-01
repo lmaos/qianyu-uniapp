@@ -31,8 +31,8 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { resolveReturnUrl } from '@/components/home/navigationResolver'
 import {
-	buildVideoFeedReturnUrl,
 	normalizeVideoFeedRoute,
 	resolveVideoDetailItem
 } from '@/components/video/videoFeedConfig.js'
@@ -66,7 +66,7 @@ function handleBackTap() {
 	}
 
 	uni.reLaunch({
-		url: buildVideoFeedReturnUrl(routeState)
+		url: resolveReturnUrl(routeState)
 	})
 }
 </script>

@@ -89,14 +89,13 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { indexNavigationSharedConfig } from '@/components/home/indexNavigationShared.js'
+import { buildNavigationIndexRoute } from '@/components/common/navigation/navigationActionProtocol.js'
+import { resolveFeedNavigationSnapshot, VIDEO_FEED_HOME_NAV_KEY } from '@/components/home/navigationResolver'
 import {
-	buildVideoFeedBottomNavList,
-	buildVideoFeedTopNavList,
 	loadVideoFeedBootstrap,
-	normalizeVideoFeedRoute,
-	VIDEO_FEED_HOME_NAV_KEY
+	normalizeVideoFeedRoute
 } from '@/components/video/videoFeedConfig.js'
+import { NAV_CONFIG } from '@/components/home/indexNavigationConfig'
 
 const windowInfo = typeof uni.getWindowInfo === 'function' ? uni.getWindowInfo() : uni.getSystemInfoSync()
 const windowHeightPx = Number(windowInfo?.windowHeight || 0)
@@ -105,46 +104,42 @@ const safeAreaInsets = windowInfo?.safeAreaInsets || {}
 const safeTopPx = Number(safeAreaInsets?.top || 0)
 const safeBottomPx = Number(safeAreaInsets?.bottom || 0)
 
-const navLayout = ref(buildFallbackFeedLayout())
-const activeLevel1 = ref(indexNavigationSharedConfig.defaultLevel1)
-const activeLevel2 = ref(indexNavigationSharedConfig.home.defaultLevel2)
+const navSnapshot = ref(resolveFeedNavigationSnapshot())
+const activeLevel1 = ref(NAV_CONFIG.defaultLevel1)
+const activeLevel2 = ref(NAV_CONFIG.home.defaultLevel2)
 const activeIndex = ref(0)
 const feedItems = ref([])
 
 const topPanelBottomInsetPx = rpxToPx(20)
 
-const tabBarHeightPx = computed(() => rpxToPx(navLayout.value.tabBarHeightRpx))
-const topNavSafeGapPx = computed(() => rpxToPx(navLayout.value.navSafeGapRpx))
-const topNavHeightPx = computed(() => rpxToPx(navLayout.value.navHeightRpx))
-const topNavSidePaddingPx = computed(() => rpxToPx(navLayout.value.navSidePaddingRpx))
-const topNavItemGapPx = computed(() => rpxToPx(navLayout.value.navItemGapRpx))
+const navTokens = computed(() => navSnapshot.value.navTokens)
+const tabBarHeightPx = computed(() => rpxToPx(navTokens.value.tabBarHeightRpx))
+const topNavSafeGapPx = computed(() => rpxToPx(navTokens.value.navSafeGapRpx))
+const topNavHeightPx = computed(() => rpxToPx(navTokens.value.navHeightRpx))
+const topNavSidePaddingPx = computed(() => rpxToPx(navTokens.value.navSidePaddingRpx))
+const topNavItemGapPx = computed(() => rpxToPx(navTokens.value.navItemGapRpx))
 
 const topNavList = computed(() => {
-	const fallbackUrlMap = buildVideoFeedTopNavList().reduce((result, item) => {
-		result[item.key] = item.targetUrl
-		return result
-	}, {})
-
-	return navLayout.value.topNavList.map((item) => ({
+	return navSnapshot.value.topNavList.map((item) => ({
 		key: item.key,
 		label: item.label,
-		widthRpx: item.widthRpx,
-		targetUrl: item.key === VIDEO_FEED_HOME_NAV_KEY ? '' : fallbackUrlMap[item.key] || ''
+		targetUrl: item.key === VIDEO_FEED_HOME_NAV_KEY
+			? ''
+			: buildNavigationIndexRoute({ level1: 'home', level2: item.key })
 	}))
 })
 
 const bottomNavList = computed(() => {
-	const fallbackUrlMap = buildVideoFeedBottomNavList(activeLevel2.value).reduce((result, item) => {
-		result[item.key] = item.targetUrl
-		return result
-	}, {})
-
-	return navLayout.value.bottomTabList.map((item) => ({
+	return navSnapshot.value.bottomNavList.map((item) => ({
 		key: item.key,
 		label: item.label,
-		targetUrl: fallbackUrlMap[item.key] || ''
+		targetUrl: buildNavigationIndexRoute({
+			level1: item.key,
+			level2: item.key === 'home' ? activeLevel2.value : ''
+		})
 	}))
 })
+
 const activeTopNavKey = computed(() => VIDEO_FEED_HOME_NAV_KEY)
 
 const contentViewportHeightPx = computed(() => {
@@ -186,7 +181,7 @@ onLoad(async (options = {}) => {
 	const routeState = normalizeVideoFeedRoute(options)
 	activeLevel1.value = routeState.level1
 	activeLevel2.value = routeState.level2
-	navLayout.value = parseFeedLayout(options.layout, routeState.level2)
+	navSnapshot.value = resolveFeedNavigationSnapshot({ level2: routeState.level2 })
 
 	const result = await loadVideoFeedBootstrap(routeState)
 	feedItems.value = Array.isArray(result?.items) && result.items.length ? result.items : []
@@ -224,7 +219,7 @@ function handleBottomNavTap(item) {
 }
 
 function getTopNavItemStyle(item, index) {
-	const widthPx = rpxToPx(item?.widthRpx || (item?.key === VIDEO_FEED_HOME_NAV_KEY ? 120 : 96))
+	const widthPx = rpxToPx(item?.key === VIDEO_FEED_HOME_NAV_KEY ? 120 : 96)
 	if (index === topNavList.value.length - 1) {
 		return {
 			width: `${widthPx}px`,
@@ -238,68 +233,6 @@ function getTopNavItemStyle(item, index) {
 		height: `${topNavHeightPx.value}px`,
 		marginRight: `${topNavItemGapPx.value}px`
 	}
-}
-
-function parseFeedLayout(layoutPayload, currentLevel2 = indexNavigationSharedConfig.home.defaultLevel2) {
-	const fallbackLayout = buildFallbackFeedLayout(currentLevel2)
-	const rawLayoutPayload = `${layoutPayload || ''}`.trim()
-	if (!rawLayoutPayload) {
-		return fallbackLayout
-	}
-
-	try {
-		const parsedLayout = JSON.parse(rawLayoutPayload)
-		const topNavList = Array.isArray(parsedLayout?.topNavList) && parsedLayout.topNavList.length
-			? parsedLayout.topNavList.map((item) => ({
-					key: `${item?.key || ''}`.trim(),
-					label: `${item?.label || ''}`.trim(),
-					widthRpx: Number(item?.widthRpx || 0) || resolveFeedTopItemWidthRpx(item)
-				})).filter((item) => item.key && item.label)
-			: fallbackLayout.topNavList
-		const bottomTabList = Array.isArray(parsedLayout?.bottomTabList) && parsedLayout.bottomTabList.length
-			? parsedLayout.bottomTabList.map((item) => ({
-					key: `${item?.key || ''}`.trim(),
-					label: `${item?.label || ''}`.trim()
-				})).filter((item) => item.key && item.label)
-			: fallbackLayout.bottomTabList
-
-		return {
-			navHeightRpx: Number(parsedLayout?.navHeightRpx || 0) || fallbackLayout.navHeightRpx,
-			navSidePaddingRpx: Number(parsedLayout?.navSidePaddingRpx || 0) || fallbackLayout.navSidePaddingRpx,
-			navItemGapRpx: Number(parsedLayout?.navItemGapRpx || 0) || fallbackLayout.navItemGapRpx,
-			navSafeGapRpx: Number(parsedLayout?.navSafeGapRpx || 0) || fallbackLayout.navSafeGapRpx,
-			tabBarHeightRpx: Number(parsedLayout?.tabBarHeightRpx || 0) || fallbackLayout.tabBarHeightRpx,
-			topNavList: topNavList.length ? topNavList : fallbackLayout.topNavList,
-			bottomTabList: bottomTabList.length ? bottomTabList : fallbackLayout.bottomTabList
-		}
-	} catch (error) {
-		console.log('[video-feed] parse layout payload failed:', error)
-		return fallbackLayout
-	}
-}
-
-function buildFallbackFeedLayout(currentLevel2 = indexNavigationSharedConfig.home.defaultLevel2) {
-	return {
-		navHeightRpx: indexNavigationSharedConfig.home.navHeightRpx,
-		navSidePaddingRpx: indexNavigationSharedConfig.home.navSidePaddingRpx,
-		navItemGapRpx: indexNavigationSharedConfig.home.navItemGapRpx,
-		navSafeGapRpx: indexNavigationSharedConfig.home.navSafeGapRpx,
-		tabBarHeightRpx: indexNavigationSharedConfig.tabBarHeightRpx,
-		topNavList: buildVideoFeedTopNavList().map((item) => ({
-			key: item.key,
-			label: item.label,
-			widthRpx: resolveFeedTopItemWidthRpx(item)
-		})),
-		bottomTabList: buildVideoFeedBottomNavList(currentLevel2).map((item) => ({
-			key: item.key,
-			label: item.label
-		}))
-	}
-}
-
-function resolveFeedTopItemWidthRpx(item) {
-	const labelLength = Array.from(`${item?.label || ''}`).length || 2
-	return Math.max(96, labelLength * 32 + 24)
 }
 
 function rpxToPx(rpx) {

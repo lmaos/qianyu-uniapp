@@ -1,39 +1,41 @@
 <template>
 	<view class="page-shell" :style="pageShellStyle">
 		<view class="page-content">
-			<view v-show="activeTab === 'home'" class="home-shell">
-				<HomeSubNavShell
-					v-bind="homeNavBindings"
-					@tab-change="handleHomeSubNavChange"
-					@publish-click="handleHomePublishClick"
+			<view v-if="navState.isHome" class="home-shell">
+				<IndexSubNavBar
+					v-bind="resolvedSubNavProps"
+					@tab-change="onSubNavTab"
+					@publish-click="onPublishClick"
 				/>
-				<HomeShellContent
-					ref="homeShellRef"
-					:active="activeTab === 'home'"
-					:initial-scene="activeHomeScene"
-					:initial-content-key="activeHomeContentKey"
-					:viewport-height-px="contentViewportHeightPx"
-					:show-sub-nav="false"
-					@shell-state-change="handleHomeShellStateChange"
+				<IndexContentShell
+					ref="contentShellRef"
+					:scene-key="navState.activeLevel2"
+					:content-key="activeLevel3"
+					:scene-config-list="navState.homeSceneConfigList"
+					:viewport-height-px="viewportHeightPx"
+					:content-top-padding-rpx="contentTopPaddingRpx"
+					:safe-top-rpx="safeTopRpx"
+					@scroll-state="onScrollState"
 				/>
 			</view>
-			<template v-for="tab in nonHomeTabs" :key="tab.key">
+
+			<template v-for="tab in navState.otherTabs" :key="tab.key">
 				<component
-					:is="tab.hostComponent"
-					v-show="activeTab === tab.key"
-					v-bind="resolveLevel1HostProps(tab)"
+					:is="tab.component"
+					v-show="navState.activeLevel1 === tab.key"
+					v-bind="tab.props"
 				/>
 			</template>
 		</view>
 
 		<view class="tab-bar" :style="tabBarStyle">
 			<view
-				v-for="tab in tabList"
+				v-for="tab in navState.bottomNavList"
 				:key="tab.key"
-				:class="['tab-item', { active: activeTab === tab.key }]"
-				@tap="handleTabClick(tab.key)"
+				:class="['tab-item', { active: tab.active }]"
+				@tap="onTabClick(tab.key)"
 			>
-				<text class="tab-label" :style="getTabLabelStyle(tab.key)">{{ tab.label }}</text>
+				<text class="tab-label" :style="getTabLabelStyle(tab)">{{ tab.label }}</text>
 			</view>
 		</view>
 	</view>
@@ -42,26 +44,61 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import HomeSubNavShell from '@/components/home/HomeSubNavShell.vue'
-import HomeShellContent from '@/components/home/HomeShellContent.vue'
-import {
-	buildHomeVideoFeedUrl,
-	VIDEO_FEED_HOME_NAV_KEY,
-	VIDEO_FEED_HOME_NAV_LABEL
-} from '@/components/video/videoFeedConfig.js'
-import {
-	indexLevel1ConfigMap,
-	indexLevel1List,
-	indexNavigationConfig,
-	homeLevel2ConfigMap,
-	homeLevel2List
-} from '@/components/home/indexNavigationConfig'
+import IndexSubNavBar from '@/components/home/IndexSubNavBar.vue'
+import IndexContentShell from '@/components/home/IndexContentShell.vue'
+import { NAV_CONFIG } from '@/components/home/indexNavigationConfig'
+import { resolveNavigationState, resolveRouteAction } from '@/components/home/navigationResolver'
 import { buildMallHomeNavCategoryList } from '@/components/shop/category/shopCategoryMock.js'
+import { buildShopSearchUrl } from '@/components/shop/common/shopFlowMock.js'
+import { buildContentPublishUrl } from '@/components/user-center/contentPublishMock.js'
+
+// ── 设备信息 ──────────────────────────────────────────
 
 const systemInfo = uni.getSystemInfoSync()
 const safeTopPx = systemInfo.safeAreaInsets?.top || systemInfo.statusBarHeight || 0
 const screenWidth = systemInfo.screenWidth || 375
 const safeBottomPx = systemInfo.safeAreaInsets?.bottom || 0
+
+function pxToRpx(value) {
+	return Math.round((Number(value || 0) * 750) / screenWidth)
+}
+function rpxToPx(value) {
+	return Math.round((Number(value || 0) * screenWidth) / 750)
+}
+
+const safeTopRpx = pxToRpx(safeTopPx)
+
+// ── 导航状态 ──────────────────────────────────────────
+
+const activeLevel1 = ref(NAV_CONFIG.defaultLevel1)
+const activeLevel2 = ref(NAV_CONFIG.home.defaultLevel2)
+const activeLevel3 = ref('')
+const contentShellRef = ref(null)
+
+// ── 滚动状态（来自 IndexContentShell 发射）──────────────
+
+const subNavScrollState = ref({
+	refreshState: 'idle',
+	refreshPullText: '',
+	refreshPullDistancePx: 0,
+	refreshRevealDistancePx: 0
+})
+
+// ── 导航状态（解析器驱动）─────────────────────────────
+
+const navState = computed(() => resolveNavigationState({
+	level1: activeLevel1.value,
+	level2: activeLevel2.value,
+	level3: activeLevel3.value
+}))
+
+// ── 视图尺寸 ──────────────────────────────────────────
+
+const viewportHeightPx = computed(() => {
+	return Math.max(0, (systemInfo.windowHeight || 0) - rpxToPx(NAV_CONFIG.tabBarHeightRpx) - safeBottomPx)
+})
+
+// ── 主题 ──────────────────────────────────────────────
 
 const APP_THEME_MAP = {
 	dark: {
@@ -82,24 +119,10 @@ const APP_THEME_MAP = {
 	}
 }
 
-const tabList = indexLevel1List
-const nonHomeTabs = tabList.filter(item => item.key !== 'home' && item.hostComponent)
-const activeTab = ref(indexNavigationConfig.defaultLevel1)
-const activeHomeScene = ref(indexNavigationConfig.home.defaultLevel2)
-const activeHomeContentKey = ref(homeLevel2ConfigMap.mall.defaultLevel3 || '')
-const homeShellRef = ref(null)
-const syncedHomeNavBindings = ref(null)
-const pendingHomeSceneSync = ref('')
-
-const contentViewportHeightPx = computed(() => {
-	return Math.max(0, (systemInfo.windowHeight || 0) - rpxToPx(indexNavigationConfig.tabBarHeightRpx) - safeBottomPx)
-})
-
 const resolvedThemeConfig = computed(() => {
-	if (activeTab.value === 'home' && !activeHomeShellLightTheme.value) {
+	if (navState.value.isHome && navState.value.subNavConfig?.lightTheme === false) {
 		return APP_THEME_MAP.dark
 	}
-
 	return APP_THEME_MAP.light
 })
 
@@ -111,268 +134,189 @@ const tabBarStyle = computed(() => ({
 	background: resolvedThemeConfig.value.tabBarBackground,
 	borderTopColor: resolvedThemeConfig.value.tabBarBorderColor,
 	boxShadow: resolvedThemeConfig.value.tabBarShadow,
-	height: `${rpxToPx(indexNavigationConfig.tabBarHeightRpx) + safeBottomPx}px`,
+	height: `${rpxToPx(NAV_CONFIG.tabBarHeightRpx) + safeBottomPx}px`,
 	paddingBottom: `${safeBottomPx}px`
 }))
 
-const fallbackHomeNavBindings = computed(() => ({
-	tabList: homeLevel2List.map(item => ({
-		key: item.key,
-		label: item.label
-	})),
-	activeTab: activeHomeScene.value,
-	lightTheme: (homeLevel2ConfigMap[activeHomeScene.value] || homeLevel2ConfigMap[indexNavigationConfig.home.defaultLevel2]).theme === 'light',
-	safeTopOffsetRpx: pxToRpx(safeTopPx) + indexNavigationConfig.home.navSafeGapRpx,
-	navHeightRpx: indexNavigationConfig.home.navHeightRpx,
-	navSidePaddingRpx: indexNavigationConfig.home.navSidePaddingRpx,
-	navItemGapRpx: indexNavigationConfig.home.navItemGapRpx,
-	panelHeightRpx:
-		pxToRpx(safeTopPx) +
-		indexNavigationConfig.home.navSafeGapRpx +
-		indexNavigationConfig.home.navHeightRpx +
-		resolveFallbackExtraHeightRpx(activeHomeScene.value),
-	panelBottomInsetRpx: resolveFallbackExtraHeightRpx(activeHomeScene.value) > 0 ? 0 : 20,
-	refreshState: 'idle',
-	refreshPullText: `下拉刷新${(homeLevel2ConfigMap[activeHomeScene.value] || homeLevel2ConfigMap[indexNavigationConfig.home.defaultLevel2]).label}频道`,
-	refreshPullDistancePx: 0,
-	refreshRevealDistancePx: rpxToPx(indexNavigationConfig.home.navHeightRpx),
-	extraComponent: resolveFallbackExtraComponent(activeHomeScene.value),
-	extraProps: resolveFallbackExtraProps(activeHomeScene.value),
-	extraListeners: {},
-	showPublishAction: activeHomeScene.value === 'recommend'
-}))
-
-const homeNavBindings = computed(() => {
-	const resolvedBindings = syncedHomeNavBindings.value || fallbackHomeNavBindings.value
-	const tabList = Array.isArray(resolvedBindings?.tabList) ? resolvedBindings.tabList : []
-	if (tabList.some((item) => item?.key === VIDEO_FEED_HOME_NAV_KEY)) {
-		return resolvedBindings
-	}
-
+function getTabLabelStyle(tab) {
 	return {
-		...resolvedBindings,
-		tabList: tabList.concat({
-			key: VIDEO_FEED_HOME_NAV_KEY,
-			label: VIDEO_FEED_HOME_NAV_LABEL
-		})
-	}
-})
-
-const activeHomeShellLightTheme = computed(() => {
-	if (typeof syncedHomeNavBindings.value?.lightTheme === 'boolean') {
-		return syncedHomeNavBindings.value.lightTheme
-	}
-
-	return (homeLevel2ConfigMap[activeHomeScene.value] || homeLevel2ConfigMap[indexNavigationConfig.home.defaultLevel2]).theme === 'light'
-})
-
-onLoad(options => {
-	applyRouteTarget(options || {})
-})
-
-function handleTabClick(tabKey) {
-	if (tabKey === activeTab.value) {
-		if (tabKey === 'home') {
-			homeShellRef.value?.handleSubNavClick?.({
-				key: activeHomeScene.value,
-				label: homeLevel2ConfigMap[activeHomeScene.value]?.label || ''
-			})
-		}
-		return
-	}
-	if (tabKey !== 'home') {
-		pendingHomeSceneSync.value = ''
-	}
-	activeTab.value = tabKey
-}
-
-function handleHomeSubNavChange(navItem) {
-	if (!navItem?.key) {
-		return
-	}
-
-	if (navItem.key === VIDEO_FEED_HOME_NAV_KEY) {
-		uni.reLaunch({
-			url: buildHomeVideoFeedUrl({
-				level1: 'home',
-				level2: activeHomeScene.value,
-				layoutPayload: buildVideoFeedLayoutPayload()
-			})
-		})
-		return
-	}
-	pendingHomeSceneSync.value = normalizeLevel2Key(navItem.key)
-	homeShellRef.value?.handleSubNavClick?.(navItem)
-	activeHomeScene.value = normalizeLevel2Key(navItem.key)
-}
-
-function handleHomePublishClick() {
-	homeShellRef.value?.handlePublishClick?.()
-}
-
-function buildVideoFeedLayoutPayload() {
-	const resolvedTopNavList = Array.isArray(homeNavBindings.value?.tabList) ? homeNavBindings.value.tabList : []
-	const topNavList = resolvedTopNavList.some((item) => item?.key === VIDEO_FEED_HOME_NAV_KEY)
-		? resolvedTopNavList
-		: resolvedTopNavList.concat({
-				key: VIDEO_FEED_HOME_NAV_KEY,
-				label: VIDEO_FEED_HOME_NAV_LABEL
-			})
-	const positionedTopNavList = topNavList.reduce(
-		(result, item) => {
-			const widthRpx = resolveVideoFeedTopItemWidth(item)
-			result.items.push({
-				key: item.key,
-				label: item.label,
-				widthRpx,
-				leftRpx: result.cursorRpx
-			})
-			result.cursorRpx += widthRpx + indexNavigationConfig.home.navItemGapRpx
-			return result
-		},
-		{
-			items: [],
-			cursorRpx: 0
-		}
-	).items
-
-	return JSON.stringify({
-		navHeightRpx: indexNavigationConfig.home.navHeightRpx,
-		navSidePaddingRpx: indexNavigationConfig.home.navSidePaddingRpx,
-		navItemGapRpx: indexNavigationConfig.home.navItemGapRpx,
-		navSafeGapRpx: indexNavigationConfig.home.navSafeGapRpx,
-		tabBarHeightRpx: indexNavigationConfig.tabBarHeightRpx,
-		topNavList: positionedTopNavList,
-		bottomTabList: tabList.map((item) => ({
-			key: item.key,
-			label: item.label
-		}))
-	})
-}
-
-function resolveVideoFeedTopItemWidth(item) {
-	const labelLength = Array.from(`${item?.label || ''}`).length || 2
-	return Math.max(96, labelLength * 32 + 24)
-}
-
-function handleHomeShellStateChange(payload) {
-	if (!payload || typeof payload !== 'object') {
-		return
-	}
-
-	const payloadScene = normalizeLevel2Key(payload.activeScene)
-	if (pendingHomeSceneSync.value && payloadScene !== pendingHomeSceneSync.value) {
-		return
-	}
-
-	pendingHomeSceneSync.value = ''
-	syncedHomeNavBindings.value = payload.navBindings || null
-	activeHomeScene.value = payloadScene
-	activeHomeContentKey.value = normalizeLevel3Key(
-		payloadScene,
-		payload.activeContentKey
-	)
-}
-
-function applyRouteTarget(options = {}) {
-	const routeTarget = resolveRouteTarget(options)
-	activeTab.value = routeTarget.level1
-	syncedHomeNavBindings.value = null
-	pendingHomeSceneSync.value = routeTarget.level1 === 'home' ? routeTarget.level2 : ''
-	if (routeTarget.level1 !== 'home') {
-		return
-	}
-
-	activeHomeScene.value = routeTarget.level2
-	activeHomeContentKey.value = routeTarget.level3
-}
-
-function resolveRouteTarget(options = {}) {
-	const nextLevel1 = normalizeLevel1Key(options.level1 || options.tab)
-	if (nextLevel1 !== 'home') {
-		return {
-			level1: nextLevel1,
-			level2: '',
-			level3: ''
-		}
-	}
-
-	const nextLevel2 = normalizeLevel2Key(options.level2 || options.scene)
-	return {
-		level1: nextLevel1,
-		level2: nextLevel2,
-		level3: normalizeLevel3Key(nextLevel2, options.level3 || options.contentKey)
-	}
-}
-
-function normalizeLevel1Key(rawValue) {
-	if (!rawValue) {
-		return indexNavigationConfig.defaultLevel1
-	}
-
-	return indexLevel1ConfigMap[rawValue] ? rawValue : indexNavigationConfig.defaultLevel1
-}
-
-function resolveLevel1HostProps(tab) {
-	const baseProps = { ...(tab.hostProps || {}) }
-	if ('active' in baseProps) {
-		baseProps.active = activeTab.value === tab.key
-	}
-	return baseProps
-}
-
-function normalizeLevel2Key(rawValue) {
-	if (!rawValue) {
-		return indexNavigationConfig.home.defaultLevel2
-	}
-
-	return homeLevel2ConfigMap[rawValue] ? rawValue : indexNavigationConfig.home.defaultLevel2
-}
-
-function normalizeLevel3Key(level2Key, rawValue) {
-	if (level2Key !== 'mall') {
-		return ''
-	}
-
-	return `${rawValue || ''}`.trim() || homeLevel2ConfigMap.mall.defaultLevel3 || ''
-}
-
-function resolveFallbackExtraComponent(level2Key) {
-	return homeLevel2ConfigMap[level2Key]?.extraNavComponent || null
-}
-
-function resolveFallbackExtraHeightRpx(level2Key) {
-	return homeLevel2ConfigMap[level2Key]?.extraNavHeightRpx || 0
-}
-
-function resolveFallbackExtraProps(level2Key) {
-	if (level2Key !== 'mall') {
-		return {}
-	}
-
-	return {
-		searchPlaceholder: '搜索商品 / 店铺 / 品牌',
-		categoryList: buildMallHomeNavCategoryList(),
-		activeId: activeHomeContentKey.value
-	}
-}
-
-function getTabLabelStyle(tabKey) {
-	const isActive = activeTab.value === tabKey
-	return {
-		color: isActive
+		color: tab.active
 			? resolvedThemeConfig.value.tabBarActiveColor
 			: resolvedThemeConfig.value.tabBarTextColor,
-		fontWeight: isActive ? 600 : 400
+		fontWeight: tab.active ? 600 : 400
 	}
 }
 
-function pxToRpx(value) {
-	return Math.round((Number(value || 0) * 750) / screenWidth)
+// ── 内容区顶部内边距（避让固定导航栏）────────────────
+
+const activeSceneConfig = computed(() => {
+	if (!navState.value.isHome) { return null }
+	return navState.value.homeSceneConfigList.find(
+		s => s.key === navState.value.activeLevel2
+	) || null
+})
+
+const contentTopPaddingRpx = computed(() => {
+	if (!navState.value.isHome || !activeSceneConfig.value) { return 0 }
+	const scene = activeSceneConfig.value
+	const navTopOffsetRpx = safeTopRpx + NAV_CONFIG.home.navSafeGapRpx
+	const extraHeight = scene.extraNavHeightRpx || 0
+	const panelBottomInset = extraHeight > 0 ? 0 : (scene.theme === 'light' ? 20 : 0)
+	return navTopOffsetRpx + NAV_CONFIG.home.navHeightRpx + extraHeight + panelBottomInset + scene.contentGapRpx
+})
+
+// ── 子导航栏 props（合并解析器输出 + 布局值 + 滚动状态）─
+
+const resolvedSubNavProps = computed(() => {
+	const config = navState.value.subNavConfig
+	if (!config) { return {} }
+
+	const navTopOffsetRpx = safeTopRpx + NAV_CONFIG.home.navSafeGapRpx
+	const scroll = subNavScrollState.value
+
+	return {
+		tabList: config.tabList,
+		activeTab: config.activeTab,
+		lightTheme: config.lightTheme,
+		safeTopOffsetRpx: navTopOffsetRpx,
+		navHeightRpx: config.navHeightRpx,
+		navSidePaddingRpx: config.navSidePaddingRpx,
+		navItemGapRpx: config.navItemGapRpx,
+		panelHeightRpx: navTopOffsetRpx + config.navHeightRpx + config.extraNavHeightRpx,
+		panelBottomInsetRpx: config.extraNavHeightRpx > 0 ? 0 : (config.lightTheme ? 20 : 0),
+		// 滚动刷新态
+		refreshState: scroll.refreshState,
+		refreshPullText: scroll.refreshPullText,
+		refreshPullDistancePx: scroll.refreshPullDistancePx,
+		refreshRevealDistancePx: scroll.refreshRevealDistancePx,
+		// 扩展导航
+		extraComponent: config.extraComponent,
+		extraProps: resolveExtraProps(config),
+		extraListeners: mallExtraListeners.value,
+		showPublishAction: config.showPublishAction
+	}
+})
+
+// ── 商城扩展导航 Props & Listeners ─────────────────────
+
+function resolveExtraProps(config) {
+	if (!config.extraComponent) { return {} }
+	if (navState.value.activeLevel2 === 'mall') {
+		return {
+			searchPlaceholder: '搜索商品 / 店铺 / 品牌',
+			categoryList: buildMallHomeNavCategoryList(),
+			activeId: activeLevel3.value
+		}
+	}
+	return {}
 }
 
-function rpxToPx(value) {
-	return Math.round((Number(value || 0) * screenWidth) / 750)
+const mallExtraListeners = computed(() => {
+	if (navState.value.activeLevel2 !== 'mall') { return {} }
+	return {
+		'search-click': () => {
+			uni.navigateTo({
+				url: buildShopSearchUrl({ categoryId: activeLevel3.value })
+			})
+		},
+		'cart-click': () => {
+			uni.navigateTo({ url: '/pages/shop/cart' })
+		},
+		'category-change': (category) => {
+			if (category?.id) {
+				activeLevel3.value = category.id
+			}
+		},
+		'category-page-click': () => {
+			uni.navigateTo({
+				url: `/pages/shop/category-list?categoryId=${encodeURIComponent(activeLevel3.value)}`
+			})
+		}
+	}
+})
+
+// ── 页面加载 ──────────────────────────────────────────
+
+onLoad(options => {
+	const targetLevel1 = normalizeRouteLevel1(options)
+	const targetLevel2 = normalizeRouteLevel2(targetLevel1, options)
+	const targetLevel3 = normalizeRouteLevel3(targetLevel2, options)
+
+	activeLevel1.value = targetLevel1
+	activeLevel2.value = targetLevel2
+	activeLevel3.value = targetLevel3
+})
+
+function normalizeRouteLevel1(options) {
+	const raw = `${options?.level1 || options?.tab || ''}`.trim()
+	if (raw && NAV_CONFIG.tabs.some(t => t.key === raw)) { return raw }
+	return NAV_CONFIG.defaultLevel1
+}
+
+function normalizeRouteLevel2(level1, options) {
+	if (level1 !== 'home') { return '' }
+	const raw = `${options?.level2 || options?.scene || ''}`.trim()
+	if (raw) {
+		const homeTab = NAV_CONFIG.tabs.find(t => t.key === 'home')
+		const match = homeTab?.subNavs?.find(s => s.key === raw && s.componentKey)
+		if (match) { return raw }
+	}
+	return NAV_CONFIG.home.defaultLevel2
+}
+
+function normalizeRouteLevel3(level2, options) {
+	if (level2 !== 'mall') { return '' }
+	const raw = `${options?.level3 || options?.contentKey || ''}`.trim()
+	if (raw) { return raw }
+	const homeTab = NAV_CONFIG.tabs.find(t => t.key === 'home')
+	const mallEntry = homeTab?.subNavs?.find(s => s.key === 'mall')
+	return (mallEntry && mallEntry.defaultLevel3) || ''
+}
+
+// ── 路由动作执行 ──────────────────────────────────────
+
+function executeNavigationAction(action) {
+	switch (action.type) {
+		case 'switch-level1':
+			activeLevel1.value = action.level1
+			if (action.level2 !== undefined) {
+				activeLevel2.value = action.level2
+			}
+			break
+		case 'switch-scene':
+			activeLevel2.value = action.level2
+			break
+		case 'reLaunch':
+			uni.reLaunch({ url: action.url })
+			break
+		case 'noop':
+			if (action.log) { console.log(action.log) }
+			break
+	}
+}
+
+function onTabClick(tabKey) {
+	executeNavigationAction(resolveRouteAction(tabKey, navState.value))
+}
+
+function onSubNavTab(navItem) {
+	if (!navItem?.key) { return }
+	executeNavigationAction(resolveRouteAction(navItem.key, navState.value))
+}
+
+// ── 内容壳事件 ────────────────────────────────────────
+
+function onScrollState(scrollState) {
+	if (scrollState) {
+		subNavScrollState.value = { ...subNavScrollState.value, ...scrollState }
+	}
+}
+
+
+function onPublishClick() {
+	uni.navigateTo({
+		url: buildContentPublishUrl({ scene: navState.value.activeLevel2 })
+	})
 }
 </script>
 

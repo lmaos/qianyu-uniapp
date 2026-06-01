@@ -1,22 +1,12 @@
-import {
-	buildNavigationIndexRoute,
-	buildNavigationTargetUrl
-} from '@/components/common/navigation/navigationActionProtocol.js'
-import {
-	homeLevel2UiList,
-	homeLevel2UiMap,
-	indexLevel1UiList,
-	indexLevel1UiMap,
-	indexNavigationSharedConfig
-} from '@/components/home/indexNavigationShared.js'
+import { buildNavigationIndexRoute, buildNavigationTargetUrl } from '@/components/common/navigation/navigationActionProtocol.js'
+import { NAV_CONFIG, VIDEO_FEED_HOME_NAV_KEY, VIDEO_FEED_HOME_NAV_LABEL } from '@/components/home/indexNavigationConfig'
 
 export const VIDEO_FEED_PAGE_PATH = '/pages/video/feed'
 export const VIDEO_WORKS_PAGE_PATH = '/pages/video/works'
 export const VIDEO_DETAIL_PAGE_PATH = '/pages/video/detail'
 export const VIDEO_FEED_SOURCE_URL = 'https://www.clmcat.com/static/video/kaojingchongwu.mp4'
 export const VIDEO_FEED_WORKS_OWNER = 'mine'
-export const VIDEO_FEED_HOME_NAV_KEY = 'video'
-export const VIDEO_FEED_HOME_NAV_LABEL = '短视频'
+export { VIDEO_FEED_HOME_NAV_KEY, VIDEO_FEED_HOME_NAV_LABEL }
 
 const VIDEO_FEED_POSTER_POOL = [
 	'/static/images/home/live-banner-1.jpg',
@@ -140,22 +130,6 @@ export function buildVideoFeedPageUrl({
 	})
 }
 
-export function buildHomeVideoFeedUrl({
-	level1 = 'home',
-	level2 = 'recommend',
-	level3 = '',
-	videoId = '',
-	layoutPayload = ''
-} = {}) {
-	return buildNavigationTargetUrl(VIDEO_FEED_PAGE_PATH, {
-		level1,
-		level2,
-		level3,
-		videoId,
-		layout: layoutPayload
-	})
-}
-
 export function buildVideoDetailPageUrl({
 	level1 = 'home',
 	level2 = 'recommend',
@@ -263,48 +237,6 @@ export function buildVideoFeedSceneLabel(routeState = {}) {
 	}
 }
 
-export function buildVideoFeedReturnUrl(routeState = {}) {
-	if (routeState.mode === VIDEO_FEED_MODE.MY_WORKS) {
-		return buildNavigationIndexRoute({
-			level1: 'mine'
-		})
-	}
-
-	return buildNavigationIndexRoute({
-		level1: routeState.level1 || 'home',
-		level2: (routeState.level1 || 'home') === 'home' ? routeState.level2 || 'recommend' : ''
-	})
-}
-
-export function buildVideoFeedTopNavList() {
-	return [
-		...homeLevel2UiList.map((item) => ({
-			key: item.key,
-			label: item.label,
-			targetUrl: buildNavigationIndexRoute({
-				level1: 'home',
-				level2: item.key
-			})
-		})),
-		{
-			key: VIDEO_FEED_HOME_NAV_KEY,
-			label: VIDEO_FEED_HOME_NAV_LABEL,
-			targetUrl: ''
-		}
-	]
-}
-
-export function buildVideoFeedBottomNavList(homeLevel2 = indexNavigationSharedConfig.home.defaultLevel2) {
-	return indexLevel1UiList.map((item) => ({
-		key: item.key,
-		label: item.label,
-		targetUrl: buildNavigationIndexRoute({
-			level1: item.key,
-			level2: item.key === 'home' ? normalizeLevel2(homeLevel2) : ''
-		})
-	}))
-}
-
 export async function loadVideoFeedBootstrap(routeState = {}) {
 	const normalizedRoute = normalizeVideoFeedRoute(routeState)
 	const items = resolveRouteItems(normalizedRoute)
@@ -398,12 +330,16 @@ function normalizeSource(source = '', mode = VIDEO_FEED_MODE.HOME_FEED) {
 
 function normalizeLevel1(level1 = '') {
 	const normalizedLevel1 = `${level1 || ''}`.trim()
-	return indexLevel1UiMap[normalizedLevel1] ? normalizedLevel1 : indexNavigationSharedConfig.defaultLevel1
+	return NAV_CONFIG.tabs.some(t => t.key === normalizedLevel1) ? normalizedLevel1 : NAV_CONFIG.defaultLevel1
 }
 
 function normalizeLevel2(level2 = '') {
 	const normalizedLevel2 = `${level2 || ''}`.trim()
-	return homeLevel2UiMap[normalizedLevel2] ? normalizedLevel2 : indexNavigationSharedConfig.home.defaultLevel2
+	if (!normalizedLevel2) { return NAV_CONFIG.home.defaultLevel2 }
+	const homeTab = NAV_CONFIG.tabs.find(t => t.key === 'home')
+	if (!homeTab || !Array.isArray(homeTab.subNavs)) { return NAV_CONFIG.home.defaultLevel2 }
+	const match = homeTab.subNavs.find(s => s.key === normalizedLevel2 && s.componentKey)
+	return match ? normalizedLevel2 : NAV_CONFIG.home.defaultLevel2
 }
 
 function resolveRouteItems(routeState = {}) {
