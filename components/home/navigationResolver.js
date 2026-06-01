@@ -106,6 +106,7 @@ export function resolveNavigationState({ level1, level2, level3 } = {}) {
 					: null
 				return {
 					key: s.key,
+					label: s.label,
 					component: resolveComponent(s.componentKey),
 					theme: s.theme || 'dark',
 					contentGapRpx: s.contentGapRpx != null ? s.contentGapRpx : 36,

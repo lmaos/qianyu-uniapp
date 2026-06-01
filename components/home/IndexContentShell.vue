@@ -289,7 +289,7 @@ let reachLowerRequestId = 0
 const navRowHeightPx = rpxToPx(homeMock.navHeightRpx)
 
 const refreshPullText = computed(() => {
-	return `下拉刷新${activeSceneConfig.value?.key || '推荐'}频道`
+	return `下拉刷新${activeSceneConfig.value?.label || '推荐'}频道`
 })
 
 const activeSceneRef = computed(() => {
