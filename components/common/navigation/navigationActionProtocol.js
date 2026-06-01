@@ -18,11 +18,15 @@ export const NAVIGATION_ACTION_PROTOCOL_REFERENCE = Object.freeze({
 		},
 		{
 			label: '根Tab',
-			actionUrl: 'page://tab?tab=home'
+			actionUrl: 'page://tab?level1=home'
 		},
 		{
 			label: '首页子场景',
-			actionUrl: 'page://tab?tab=home&scene=live'
+			actionUrl: 'page://tab?level1=home&level2=live'
+		},
+		{
+			label: '首页三级导航',
+			actionUrl: 'page://tab?level1=home&level2=mall&level3=type-1'
 		},
 		{
 			label: '直播间',
@@ -58,10 +62,18 @@ export function buildNavigationWebViewUrl({ url = '', title = '' } = {}) {
 	})
 }
 
-export function buildNavigationIndexRoute({ tab = 'home', scene = '' } = {}) {
+export function buildNavigationIndexRoute({
+	tab = 'home',
+	scene = '',
+	contentKey = '',
+	level1 = '',
+	level2 = '',
+	level3 = ''
+} = {}) {
 	return buildNavigationTargetUrl(NAVIGATION_ACTION_PROTOCOL_REFERENCE.indexPagePath, {
-		tab,
-		scene
+		level1: `${level1 || tab || 'home'}`.trim() || 'home',
+		level2: `${level2 || scene || ''}`.trim(),
+		level3: `${level3 || contentKey || ''}`.trim()
 	})
 }
 

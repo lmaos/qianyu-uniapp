@@ -117,6 +117,7 @@
 </script>
 
 <style>
+	/* #ifndef APP-NVUE */
 	page,
 	html,
 	body,
@@ -154,4 +155,5 @@
 	button::after {
 		border: 0;
 	}
+	/* #endif */
 </style>

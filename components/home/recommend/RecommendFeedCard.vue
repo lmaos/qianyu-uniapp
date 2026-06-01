@@ -1,6 +1,15 @@
 <template>
 	<view class="recommend-card" @tap="emit('click', item)">
-		<view class="recommend-cover" :style="{ height: `${uniformCoverHeightRpx}rpx`, background: item.coverBackground }"></view>
+		<view class="recommend-cover" :style="{ height: `${uniformCoverHeightRpx}rpx`, background: item.coverBackground }">
+			<view v-if="item.contentType === 'video'" class="recommend-video-badge">
+				<text class="recommend-video-badge-text">短视频</text>
+			</view>
+
+			<view v-if="item.contentType === 'video'" class="recommend-video-play">
+				<text class="recommend-video-play-icon">▶</text>
+				<text class="recommend-video-play-text">{{ item.playCountText }}</text>
+			</view>
+		</view>
 
 		<view class="recommend-body">
 			<text class="recommend-title">{{ item.title }}</text>
@@ -44,6 +53,43 @@ const uniformCoverHeightRpx = 468
 .recommend-cover {
 	position: relative;
 	border-radius: 16rpx;
+}
+
+.recommend-video-badge {
+	position: absolute;
+	left: 16rpx;
+	top: 16rpx;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8rpx 14rpx;
+	border-radius: 999rpx;
+	background: rgba(15, 23, 42, 0.42);
+}
+
+.recommend-video-badge-text {
+	font-size: 20rpx;
+	line-height: 28rpx;
+	color: #ffffff;
+}
+
+.recommend-video-play {
+	position: absolute;
+	left: 16rpx;
+	bottom: 16rpx;
+	display: inline-flex;
+	align-items: center;
+	gap: 8rpx;
+	padding: 10rpx 14rpx;
+	border-radius: 999rpx;
+	background: rgba(15, 23, 42, 0.36);
+}
+
+.recommend-video-play-icon,
+.recommend-video-play-text {
+	font-size: 22rpx;
+	line-height: 30rpx;
+	color: #ffffff;
 }
 
 .recommend-body {

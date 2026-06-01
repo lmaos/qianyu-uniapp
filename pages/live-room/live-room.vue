@@ -208,8 +208,8 @@ function handleLuckyBag(payload) {
 		confirmText: '回到直播频道',
 		cancelText: '留在房间',
 		actionUrl: buildActivityActionUrl('tab', {
-			tab: 'home',
-			scene: 'live'
+			level1: 'home',
+			level2: 'live'
 		}),
 		actionPayload: {
 			title: '直播频道'

@@ -1,0 +1,482 @@
+<template>
+	<view class="video-feed-page" :style="pageStyle">
+		<view class="video-feed-content" :style="contentViewportStyle">
+			<swiper
+				class="video-feed-swiper"
+				:style="contentViewportStyle"
+				vertical
+				:current="activeIndex"
+				@change="handleSwiperChange"
+			>
+				<swiper-item
+					v-for="item in feedItems"
+					:key="item.id"
+					class="video-feed-swiper-item"
+					:style="contentViewportStyle"
+				>
+					<view class="video-feed-track" :style="contentViewportStyle">
+						<image
+							v-if="item.poster"
+							class="video-feed-track-poster"
+							:style="contentViewportStyle"
+							:src="item.poster"
+							mode="aspectFill"
+						></image>
+						<view class="video-feed-track-mask"></view>
+						<view class="video-feed-track-copy">
+							<view class="video-feed-track-badge-row">
+								<text class="video-feed-track-badge">短视频基础页</text>
+							</view>
+							<text class="video-feed-track-title">{{ item.title }}</text>
+							<text class="video-feed-track-desc">{{ item.desc || '这里先只保留视频切换区域容器，后续你可以自己接 video。' }}</text>
+						</view>
+					</view>
+				</swiper-item>
+			</swiper>
+
+			<view class="video-feed-top-shell" :style="topShellStyle">
+				<image
+					class="video-feed-top-shell-image"
+					src="/static/images/home/home-subnav-dark.png"
+					mode="scaleToFill"
+				></image>
+				<view class="video-feed-top-shell-mask"></view>
+				<view class="video-feed-top-panel" :style="topPanelStyle">
+					<view class="video-feed-top-row" :style="topRowStyle">
+						<view
+							v-for="(item, index) in topNavList"
+							:key="item.key"
+							class="video-feed-top-item"
+							:style="getTopNavItemStyle(item, index)"
+							@tap="handleTopNavTap(item)"
+						>
+							<text
+								:lines="1"
+								:class="[
+									'video-feed-top-text',
+									activeTopNavKey === item.key ? 'video-feed-top-text-active' : ''
+								]"
+							>
+								{{ item.label }}
+							</text>
+						</view>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<view class="video-feed-tab-shell" :style="tabShellStyle">
+			<view
+				v-for="item in bottomNavList"
+				:key="item.key"
+				class="video-feed-tab-item"
+				@tap="handleBottomNavTap(item)"
+			>
+				<text
+					:lines="1"
+					:class="[
+						'video-feed-tab-text',
+						activeLevel1 === item.key ? 'video-feed-tab-text-active' : ''
+					]"
+				>
+					{{ item.label }}
+				</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup>
+import { computed, ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { indexNavigationSharedConfig } from '@/components/home/indexNavigationShared.js'
+import {
+	buildVideoFeedBottomNavList,
+	buildVideoFeedTopNavList,
+	loadVideoFeedBootstrap,
+	normalizeVideoFeedRoute,
+	VIDEO_FEED_HOME_NAV_KEY
+} from '@/components/video/videoFeedConfig.js'
+
+const windowInfo = typeof uni.getWindowInfo === 'function' ? uni.getWindowInfo() : uni.getSystemInfoSync()
+const windowHeightPx = Number(windowInfo?.windowHeight || 0)
+const windowWidthPx = Number(windowInfo?.windowWidth || 375)
+const safeAreaInsets = windowInfo?.safeAreaInsets || {}
+const safeTopPx = Number(safeAreaInsets?.top || 0)
+const safeBottomPx = Number(safeAreaInsets?.bottom || 0)
+
+const navLayout = ref(buildFallbackFeedLayout())
+const activeLevel1 = ref(indexNavigationSharedConfig.defaultLevel1)
+const activeLevel2 = ref(indexNavigationSharedConfig.home.defaultLevel2)
+const activeIndex = ref(0)
+const feedItems = ref([])
+
+const topPanelBottomInsetPx = rpxToPx(20)
+
+const tabBarHeightPx = computed(() => rpxToPx(navLayout.value.tabBarHeightRpx))
+const topNavSafeGapPx = computed(() => rpxToPx(navLayout.value.navSafeGapRpx))
+const topNavHeightPx = computed(() => rpxToPx(navLayout.value.navHeightRpx))
+const topNavSidePaddingPx = computed(() => rpxToPx(navLayout.value.navSidePaddingRpx))
+const topNavItemGapPx = computed(() => rpxToPx(navLayout.value.navItemGapRpx))
+
+const topNavList = computed(() => {
+	const fallbackUrlMap = buildVideoFeedTopNavList().reduce((result, item) => {
+		result[item.key] = item.targetUrl
+		return result
+	}, {})
+
+	return navLayout.value.topNavList.map((item) => ({
+		key: item.key,
+		label: item.label,
+		widthRpx: item.widthRpx,
+		targetUrl: item.key === VIDEO_FEED_HOME_NAV_KEY ? '' : fallbackUrlMap[item.key] || ''
+	}))
+})
+
+const bottomNavList = computed(() => {
+	const fallbackUrlMap = buildVideoFeedBottomNavList(activeLevel2.value).reduce((result, item) => {
+		result[item.key] = item.targetUrl
+		return result
+	}, {})
+
+	return navLayout.value.bottomTabList.map((item) => ({
+		key: item.key,
+		label: item.label,
+		targetUrl: fallbackUrlMap[item.key] || ''
+	}))
+})
+const activeTopNavKey = computed(() => VIDEO_FEED_HOME_NAV_KEY)
+
+const contentViewportHeightPx = computed(() => {
+	return Math.max(0, windowHeightPx - tabBarHeightPx.value - safeBottomPx)
+})
+
+const pageStyle = computed(() => ({
+	height: `${windowHeightPx}px`
+}))
+
+const contentViewportStyle = computed(() => ({
+	width: `${windowWidthPx}px`,
+	height: `${contentViewportHeightPx.value}px`
+}))
+
+const topShellStyle = computed(() => ({
+	height: `${safeTopPx + topNavSafeGapPx.value + topNavHeightPx.value + topPanelBottomInsetPx}px`
+}))
+
+const topPanelStyle = computed(() => ({
+	width: `${windowWidthPx}px`,
+	paddingTop: `${safeTopPx + topNavSafeGapPx.value}px`,
+	paddingRight: `${topNavSidePaddingPx.value}px`,
+	paddingBottom: `${topPanelBottomInsetPx}px`,
+	paddingLeft: `${topNavSidePaddingPx.value}px`
+}))
+
+const topRowStyle = computed(() => ({
+	width: `${Math.max(0, windowWidthPx - topNavSidePaddingPx.value * 2)}px`,
+	height: `${topNavHeightPx.value}px`
+}))
+
+const tabShellStyle = computed(() => ({
+	height: `${tabBarHeightPx.value + safeBottomPx}px`,
+	paddingBottom: `${safeBottomPx}px`
+}))
+
+onLoad(async (options = {}) => {
+	const routeState = normalizeVideoFeedRoute(options)
+	activeLevel1.value = routeState.level1
+	activeLevel2.value = routeState.level2
+	navLayout.value = parseFeedLayout(options.layout, routeState.level2)
+
+	const result = await loadVideoFeedBootstrap(routeState)
+	feedItems.value = Array.isArray(result?.items) && result.items.length ? result.items : []
+	activeIndex.value = 0
+})
+
+function handleSwiperChange(event) {
+	const nextIndex = Number(event?.detail?.current || 0)
+	activeIndex.value = nextIndex >= 0 ? nextIndex : 0
+}
+
+function handleTopNavTap(item) {
+	if (!item?.targetUrl || item.key === VIDEO_FEED_HOME_NAV_KEY) {
+		return
+	}
+
+	uni.reLaunch({
+		url: item.targetUrl
+	})
+}
+
+function handleBottomNavTap(item) {
+	if (!item?.targetUrl) {
+		return
+	}
+
+	if (item.key === activeLevel1.value) {
+		console.log('[video-feed] ignore current root tab click:', item.key)
+		return
+	}
+
+	uni.reLaunch({
+		url: item.targetUrl
+	})
+}
+
+function getTopNavItemStyle(item, index) {
+	const widthPx = rpxToPx(item?.widthRpx || (item?.key === VIDEO_FEED_HOME_NAV_KEY ? 120 : 96))
+	if (index === topNavList.value.length - 1) {
+		return {
+			width: `${widthPx}px`,
+			height: `${topNavHeightPx.value}px`,
+			marginRight: '0px'
+		}
+	}
+
+	return {
+		width: `${widthPx}px`,
+		height: `${topNavHeightPx.value}px`,
+		marginRight: `${topNavItemGapPx.value}px`
+	}
+}
+
+function parseFeedLayout(layoutPayload, currentLevel2 = indexNavigationSharedConfig.home.defaultLevel2) {
+	const fallbackLayout = buildFallbackFeedLayout(currentLevel2)
+	const rawLayoutPayload = `${layoutPayload || ''}`.trim()
+	if (!rawLayoutPayload) {
+		return fallbackLayout
+	}
+
+	try {
+		const parsedLayout = JSON.parse(rawLayoutPayload)
+		const topNavList = Array.isArray(parsedLayout?.topNavList) && parsedLayout.topNavList.length
+			? parsedLayout.topNavList.map((item) => ({
+					key: `${item?.key || ''}`.trim(),
+					label: `${item?.label || ''}`.trim(),
+					widthRpx: Number(item?.widthRpx || 0) || resolveFeedTopItemWidthRpx(item)
+				})).filter((item) => item.key && item.label)
+			: fallbackLayout.topNavList
+		const bottomTabList = Array.isArray(parsedLayout?.bottomTabList) && parsedLayout.bottomTabList.length
+			? parsedLayout.bottomTabList.map((item) => ({
+					key: `${item?.key || ''}`.trim(),
+					label: `${item?.label || ''}`.trim()
+				})).filter((item) => item.key && item.label)
+			: fallbackLayout.bottomTabList
+
+		return {
+			navHeightRpx: Number(parsedLayout?.navHeightRpx || 0) || fallbackLayout.navHeightRpx,
+			navSidePaddingRpx: Number(parsedLayout?.navSidePaddingRpx || 0) || fallbackLayout.navSidePaddingRpx,
+			navItemGapRpx: Number(parsedLayout?.navItemGapRpx || 0) || fallbackLayout.navItemGapRpx,
+			navSafeGapRpx: Number(parsedLayout?.navSafeGapRpx || 0) || fallbackLayout.navSafeGapRpx,
+			tabBarHeightRpx: Number(parsedLayout?.tabBarHeightRpx || 0) || fallbackLayout.tabBarHeightRpx,
+			topNavList: topNavList.length ? topNavList : fallbackLayout.topNavList,
+			bottomTabList: bottomTabList.length ? bottomTabList : fallbackLayout.bottomTabList
+		}
+	} catch (error) {
+		console.log('[video-feed] parse layout payload failed:', error)
+		return fallbackLayout
+	}
+}
+
+function buildFallbackFeedLayout(currentLevel2 = indexNavigationSharedConfig.home.defaultLevel2) {
+	return {
+		navHeightRpx: indexNavigationSharedConfig.home.navHeightRpx,
+		navSidePaddingRpx: indexNavigationSharedConfig.home.navSidePaddingRpx,
+		navItemGapRpx: indexNavigationSharedConfig.home.navItemGapRpx,
+		navSafeGapRpx: indexNavigationSharedConfig.home.navSafeGapRpx,
+		tabBarHeightRpx: indexNavigationSharedConfig.tabBarHeightRpx,
+		topNavList: buildVideoFeedTopNavList().map((item) => ({
+			key: item.key,
+			label: item.label,
+			widthRpx: resolveFeedTopItemWidthRpx(item)
+		})),
+		bottomTabList: buildVideoFeedBottomNavList(currentLevel2).map((item) => ({
+			key: item.key,
+			label: item.label
+		}))
+	}
+}
+
+function resolveFeedTopItemWidthRpx(item) {
+	const labelLength = Array.from(`${item?.label || ''}`).length || 2
+	return Math.max(96, labelLength * 32 + 24)
+}
+
+function rpxToPx(rpx) {
+	return (Number(rpx || 0) * windowWidthPx) / 750
+}
+</script>
+
+<style scoped>
+.video-feed-page {
+	position: relative;
+	flex: 1;
+	background-color: #000000;
+}
+
+.video-feed-content {
+	position: relative;
+	overflow: hidden;
+	background-color: #000000;
+}
+
+.video-feed-swiper,
+.video-feed-swiper-item,
+.video-feed-track {
+	position: relative;
+}
+
+.video-feed-track {
+	overflow: hidden;
+	background-color: #000000;
+}
+
+.video-feed-track-poster {
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+.video-feed-track-mask {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background-color: rgba(0, 0, 0, 0.42);
+}
+
+.video-feed-track-copy {
+	position: absolute;
+	right: 32rpx;
+	bottom: 160rpx;
+	left: 32rpx;
+	display: flex;
+	flex-direction: column;
+}
+
+.video-feed-track-badge-row {
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-start;
+}
+
+.video-feed-track-badge {
+	padding: 10rpx 20rpx;
+	border-radius: 999rpx;
+	background-color: rgba(255, 255, 255, 0.14);
+	font-size: 22rpx;
+	color: rgba(255, 255, 255, 0.82);
+}
+
+.video-feed-track-title {
+	margin-top: 24rpx;
+	font-size: 42rpx;
+	font-weight: 600;
+	line-height: 1.35;
+	color: #ffffff;
+}
+
+.video-feed-track-desc {
+	margin-top: 18rpx;
+	font-size: 26rpx;
+	line-height: 1.7;
+	color: rgba(255, 255, 255, 0.72);
+}
+
+.video-feed-top-shell {
+	position: absolute;
+	top: 0;
+	right: 0;
+	left: 0;
+	z-index: 20;
+	overflow: hidden;
+	border-bottom-width: 1rpx;
+	border-bottom-style: solid;
+	border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.video-feed-top-shell-image,
+.video-feed-top-shell-mask {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+}
+
+.video-feed-top-shell-mask {
+	background-color: rgba(10, 10, 10, 0.56);
+}
+
+.video-feed-top-panel {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+
+.video-feed-top-row {
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	width: 100%;
+	height: 74rpx;
+}
+
+.video-feed-top-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	height: 74rpx;
+}
+
+.video-feed-top-text {
+	font-size: 28rpx;
+	line-height: 40rpx;
+	color: rgba(255, 255, 255, 0.48);
+}
+
+.video-feed-top-text-active {
+	color: #ffffff;
+	font-weight: 600;
+}
+
+.video-feed-tab-shell {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 20;
+	display: flex;
+	flex-direction: row;
+	align-items: stretch;
+	border-top-width: 1px;
+	border-top-style: solid;
+	border-top-color: rgba(255, 255, 255, 0.12);
+	background-color: #000000;
+}
+
+.video-feed-tab-item {
+	display: flex;
+	flex: 1;
+	flex-direction: row;
+	align-items: flex-start;
+	justify-content: center;
+	height: 88rpx;
+	padding-top: 25rpx;
+}
+
+.video-feed-tab-text {
+	font-size: 26rpx;
+	line-height: 36rpx;
+	color: rgba(255, 255, 255, 0.48);
+}
+
+.video-feed-tab-text-active {
+	color: #ffffff;
+	font-weight: 600;
+}
+</style>

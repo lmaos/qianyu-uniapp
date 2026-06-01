@@ -27,11 +27,15 @@ export const ACTIVITY_ACTION_PROTOCOL_REFERENCE = Object.freeze({
 		},
 		{
 			label: '根Tab',
-			actionUrl: 'page://tab?tab=home'
+			actionUrl: 'page://tab?level1=home'
 		},
 		{
 			label: '首页子场景',
-			actionUrl: 'page://tab?tab=home&scene=live'
+			actionUrl: 'page://tab?level1=home&level2=live'
+		},
+		{
+			label: '首页三级导航',
+			actionUrl: 'page://tab?level1=home&level2=mall&level3=type-1'
 		},
 		{
 			label: '直播间',
@@ -49,8 +53,15 @@ export function buildActivityWebViewUrl({ url = '', title = '' } = {}) {
 	return buildNavigationWebViewUrl({ url, title })
 }
 
-export function buildActivityIndexRoute({ tab = 'home', scene = '' } = {}) {
-	return buildNavigationIndexRoute({ tab, scene })
+export function buildActivityIndexRoute({
+	tab = 'home',
+	scene = '',
+	contentKey = '',
+	level1 = '',
+	level2 = '',
+	level3 = ''
+} = {}) {
+	return buildNavigationIndexRoute({ tab, scene, contentKey, level1, level2, level3 })
 }
 
 export function parseActivityActionUrl(actionUrl = '') {

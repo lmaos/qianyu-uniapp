@@ -2,6 +2,10 @@ import {
 	resolveUserCenterActionIcon,
 	resolveUserCenterMinimalIcon
 } from '@/components/user-center/main/userCenterIcons.js'
+import {
+	buildVideoDetailPageUrl,
+	buildVideoWorksPageUrl
+} from '@/components/video/videoFeedConfig.js'
 
 const DEFAULT_USER_ID = 'mine-self'
 const MAIN_PAGE_SIZE = 8
@@ -409,22 +413,34 @@ export function buildPageUrl(path, query = {}) {
 }
 
 function createDynamicItem(index) {
-	const hasMedia = index % 5 !== 0
-	const coverBackground = THUMB_BACKGROUND_LIST[index % THUMB_BACKGROUND_LIST.length]
-	const title = `图文动态第${index}条：关于个人中心模块拆分与交互设计的日常记录`
+	const isVideo = index % 4 === 0
+	const hasMedia = isVideo || index % 5 !== 0
+	const coverBackground = isVideo
+		? 'linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(31, 41, 55, 0.92) 100%)'
+		: THUMB_BACKGROUND_LIST[index % THUMB_BACKGROUND_LIST.length]
+	const title = isVideo
+		? `视频动态第${index}条：从个人中心进入 feed.nvue 的详情查看`
+		: `图文动态第${index}条：关于个人中心模块拆分与交互设计的日常记录`
 	const itemId = `dynamic-item-${index}`
 
 	return {
 		id: itemId,
-		contentType: 'note',
+		contentType: isVideo ? 'video' : 'note',
 		title,
 		coverBackground,
-		coverText: '图文封面',
+		coverText: isVideo ? '视频封面' : '图文封面',
 		viewCountText: formatCount(1200 + index * 268),
 		likeCountText: formatCount(180 + index * 38),
 		commentCountText: formatCount(26 + index * 8),
 		hasMedia,
-		detailUrl: buildPageUrl('/pages/user/note-detail', { noteId: itemId, userId: DEFAULT_USER_ID })
+		detailUrl: isVideo
+			? buildVideoDetailPageUrl({
+					level1: 'mine',
+					level2: 'recommend',
+					source: 'user-dynamic-detail',
+					videoId: `user-dynamic-video-${((index - 1) % 8) + 1}`
+				})
+			: buildPageUrl('/pages/user/note-detail', { noteId: itemId, userId: DEFAULT_USER_ID })
 	}
 }
 
@@ -437,7 +453,10 @@ function createWorkItem(index) {
 		playCountText: formatCount(8600 + index * 286),
 		likeCountText: formatCount(920 + index * 36),
 		commentCountText: formatCount(72 + index * 6),
-		detailUrl: ''
+		detailUrl: buildVideoWorksPageUrl({
+			level1: 'mine',
+			videoId: `work-video-${index}`
+		})
 	}
 }
 
@@ -448,7 +467,14 @@ function createHistoryItem(index) {
 		title: isVideo ? `最近看过的视频作品 ${index}` : `最近浏览的图文动态 ${index}`,
 		typeLabel: isVideo ? '视频' : '图文',
 		timeText: `最近访问 · ${index}小时前`,
-		detailUrl: isVideo ? '' : buildPageUrl('/pages/user/note-detail', { noteId: `dynamic-item-${index}`, userId: DEFAULT_USER_ID })
+		detailUrl: isVideo
+			? buildVideoDetailPageUrl({
+					level1: 'mine',
+					level2: 'recommend',
+					source: 'history-detail',
+					videoId: `history-video-${((index - 1) % 6) + 1}`
+				})
+			: buildPageUrl('/pages/user/note-detail', { noteId: `dynamic-item-${index}`, userId: DEFAULT_USER_ID })
 	}
 }
 

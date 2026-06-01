@@ -1,3 +1,4 @@
+import { buildVideoDetailPageUrl } from '@/components/video/videoFeedConfig.js'
 import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
 
 const COVER_BACKGROUND_LIST = [
@@ -28,7 +29,12 @@ const TITLE_TEMPLATE_LIST = [
 const AUTHOR_NAME_LIST = ['亿家日用百货', '逗咖萌主', '白金今天穿什么', '阿青轻生活', '周末散步计划', '奶油房间日记']
 const TOPIC_LIST = ['氛围感穿搭', '直播好物', '同城打卡', '约会灵感', '轻生活', '今日分享']
 const CITY_LIST = ['深圳', '广州', '杭州', '成都', '苏州', '上海']
-const CONTENT_TYPE_LIST = ['note', 'note', 'note', 'note', 'note', 'note']
+const VIDEO_TITLE_TEMPLATE_LIST = [
+	'用同一条宠物视频先跑通 nvue 全屏滑轨和上下切换',
+	'短视频原型页先验证播放器、滑轨和导航浮层是否稳定',
+	'先做最小 nvue 视频页，后续再按需求叠加互动层'
+]
+const CONTENT_TYPE_LIST = ['note', 'note', 'video', 'note', 'note', 'video']
 const RECOMMEND_COVER_HEIGHT_RPX = 468
 
 function formatCount(value) {
@@ -45,18 +51,25 @@ function createRecommendItem(index) {
 	const city = CITY_LIST[index % CITY_LIST.length]
 	const authorIndex = (index % 14) + 1
 	const itemId = `recommend-feed-${index}`
-	const coverLabel = '图文推荐'
+	const isVideo = contentType === 'video'
+	const coverLabel = isVideo ? '短视频' : '图文推荐'
+	const videoFeedId = `recommend-detail-video-${((index - 1) % 8) + 1}`
 
 	return {
 		id: itemId,
 		contentType,
-		title: TITLE_TEMPLATE_LIST[index % TITLE_TEMPLATE_LIST.length],
+		title: isVideo
+			? VIDEO_TITLE_TEMPLATE_LIST[index % VIDEO_TITLE_TEMPLATE_LIST.length]
+			: TITLE_TEMPLATE_LIST[index % TITLE_TEMPLATE_LIST.length],
 		coverHeightRpx: RECOMMEND_COVER_HEIGHT_RPX,
-		coverBackground: COVER_BACKGROUND_LIST[index % COVER_BACKGROUND_LIST.length],
+		coverBackground: isVideo
+			? 'linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(31, 41, 55, 0.92) 100%)'
+			: COVER_BACKGROUND_LIST[index % COVER_BACKGROUND_LIST.length],
 		coverLabel,
 		coverText: topic,
 		topicText: `#${topic}`,
 		cityText: `${city}精选`,
+		playCountText: isVideo ? formatCount(9600 + index * 83) : '',
 		likeCountText: formatCount(680 + index * 41),
 		commentCountText: formatCount(92 + index * 7),
 		authorName: AUTHOR_NAME_LIST[index % AUTHOR_NAME_LIST.length],
@@ -67,10 +80,16 @@ function createRecommendItem(index) {
 			nickname: `推荐作者${authorIndex}`,
 			avatar: AVATAR_BACKGROUND_LIST[index % AVATAR_BACKGROUND_LIST.length]
 		}),
-		detailUrl: buildPageUrl('/pages/user/note-detail', {
-			noteId: `dynamic-item-${(index % 12) + 1}`,
-			userId: `recommend-author-${authorIndex}`
-		})
+		detailUrl: isVideo
+			? buildVideoDetailPageUrl({
+					level1: 'home',
+					level2: 'recommend',
+					videoId: videoFeedId
+				})
+			: buildPageUrl('/pages/user/note-detail', {
+					noteId: `dynamic-item-${(index % 12) + 1}`,
+					userId: `recommend-author-${authorIndex}`
+				})
 	}
 }
 

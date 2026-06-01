@@ -39,13 +39,6 @@
 			}
 		},
 		{
-			"path": "pages/home/home",
-			"style": {
-				"navigationStyle": "custom",
-				"backgroundColor": "#f8fafc"
-			}
-		},
-		{
 			"path": "pages/friend/friend",
 			"style": {
 				"navigationStyle": "custom",
@@ -124,6 +117,36 @@
 				"app-plus": {
 					"bounce": "none"
 				}
+			}
+		},
+		{
+			"path": "pages/video/feed",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#000000",
+				"disableScroll": true,
+				"app-plus": {
+					"bounce": "none",
+					"popGesture": "none"
+				}
+			}
+		},
+		{
+			"path": "pages/video/works",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#000000",
+				"disableScroll": true,
+				"app-plus": {
+					"bounce": "none"
+				}
+			}
+		},
+		{
+			"path": "pages/video/detail",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#000000"
 			}
 		},
 		{

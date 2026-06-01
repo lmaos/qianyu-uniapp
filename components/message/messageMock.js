@@ -356,6 +356,26 @@ const NOTIFICATION_LIST = [
 		}
 	},
 	{
+		id: 'notification-video-detail',
+		category: '互动提醒',
+		avatarText: '视',
+		avatarBackground: 'linear-gradient(135deg, #7de0bf 0%, #53c5da 100%)',
+		title: '你关注的视频动态有新回应',
+		summary: '点击进入短视频详情页查看当前作品。',
+		timeText: '今天 20:16',
+		unread: true,
+		actionUrl: buildNavigationActionUrl(NAVIGATION_ACTION_ROUTE_TYPES.OPEN, {
+			page: '/pages/video/detail',
+			level1: 'message',
+			level2: 'recommend',
+			source: 'notification-detail',
+			videoId: 'notification-video-1'
+		}),
+		actionPayload: {
+			title: '视频详情'
+		}
+	},
+	{
 		id: 'notification-live-home',
 		category: '系统通知',
 		avatarText: '直',
@@ -365,8 +385,8 @@ const NOTIFICATION_LIST = [
 		timeText: '今天 19:20',
 		unread: true,
 		actionUrl: buildNavigationActionUrl(NAVIGATION_ACTION_ROUTE_TYPES.TAB, {
-			tab: 'home',
-			scene: 'live'
+			level1: 'home',
+			level2: 'live'
 		}),
 		actionPayload: {
 			title: '直播频道'

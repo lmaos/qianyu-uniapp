@@ -44,9 +44,10 @@
 
 | 模块 | 主题 | 风格说明 | 参考来源 |
 | --- | --- | --- | --- |
-| 首页-商城/推荐 | 浅色 | 粉白/蓝白渐变背景，顶部静态图像化子导航，内容卡片轻盈 | `pages/home/home.vue` |
+| 首页-商城/推荐 | 浅色 | 粉白/蓝白渐变背景，顶部静态图像化子导航，内容卡片轻盈 | `pages/index/index.vue`, `components/home/indexNavigationConfig.js`, `components/home/HomeShellContent.vue` |
 | 首页-直播 | 深色 | 黑色沉浸式、强内容导向、榜单与分类并存、突出房间内容流 | `composables/useAppTheme.js`, `components/home/live/LiveTab.vue` |
 | 直播间 | 深色 | 全屏沉浸、顶部信息悬浮、底部输入与礼物浮层、强调实时互动氛围 | `pages/live-room/live-room.vue`, `components/room/RoomIndex.vue` |
+| 短视频滑轨原型 | 深色 | 当前拆分为三个基础入口页：`pages/video/feed.nvue` 保留首页短视频导航壳与切换区域，`pages/video/works.nvue` 保留作品切换壳，`pages/video/detail.vue` 仅保留返回按钮与 video 基础布局 | `pages/video/feed.nvue`, `pages/video/works.nvue`, `pages/video/detail.vue`, `components/video/videoFeedConfig.js` |
 | 玩伴/小窝 | 浅色 | 粉蓝年轻化、轻社交、轻陪伴、轻反馈、轻流光 | `pages/friend/friend.vue`, `components/friend/playmateMock.js` |
 | 个人中心/资料页 | 浅色 | 内容记录型、层级清晰、统一子页面表面层 | `components/user-center/common/userSubPageSurface.js` |
 | 商城子页面 | 浅色 | 更偏商品导购，头部按钮与工具图标保持统一 SVG 与柔和渐变 | `components/shop/common/shopSurface.js` |
@@ -87,7 +88,7 @@
 | --- | --- | --- |
 | 全局重置来源 | 全局基础背景、文字和按钮 reset 由 `App.vue` 统一提供 | `App.vue` |
 | 全局主题来源 | 全局浅/深主题颜色由 `useAppTheme.js` 统一管理 | `composables/useAppTheme.js` |
-| 首页浅色背景归属 | 首页浅色背景层统一归 `pages/home/home.vue` 管理，不放子组件内部 | `pages/home/home.vue` |
+| 首页浅色背景归属 | 首页浅色背景与顶部导航壳统一由 `pages/index/index.vue` 协调，内容背景层继续由 `components/home/HomeShellContent.vue` 承接，不下放到子组件内部 | `pages/index/index.vue`, `components/home/HomeShellContent.vue` |
 | 商城表面层来源 | 商城子页背景、头部背景、头部图标来源于 `shopSurface.js` | `components/shop/common/shopSurface.js` |
 | 个人中心表面层来源 | 个人中心子页背景、卡片背景、返回图标来源于 `userSubPageSurface.js` | `components/user-center/common/userSubPageSurface.js` |
 | 频道局部背景 | 私聊页、玩伴页、直播卡面等允许有业务域局部渐变，但不能脱离项目总风格 | `pages/message/chat.vue`, `pages/friend/friend.vue`, `components/home/live/LiveTab.vue` |
@@ -115,21 +116,21 @@
 | 规范 | 说明 | 参考来源 |
 | --- | --- | --- |
 | 全局主题统一由 composable 管理 | 使用 `useAppTheme()` 统一控制浅色/深色主题 | `composables/useAppTheme.js` |
-| Tab 场景切换驱动主题 | 首页进入直播切深色，其它首页内容默认浅色 | `pages/index/index.vue`, `pages/home/home.vue` |
+| Tab 场景切换驱动主题 | 首页进入直播切深色，其它首页内容默认浅色；`pages/index/index.vue` 统一解析一级/二级/三级入口并驱动顶部导航，`components/home/HomeShellContent.vue` 承接内容刷新与分页状态机 | `pages/index/index.vue`, `components/home/HomeShellContent.vue` |
 | 页面不要自行分裂主题规则 | 新页面若需接入主题，优先接入现有主题体系，不单独定义一套主题状态 | `useAppTheme.js` |
-| 首页浅色背景归属首页容器 | 首页浅色背景层定义在 `pages/home/home.vue`，不要下放到子组件导致背景跟随滚动 | `pages/home/home.vue` |
+| 首页浅色背景归属首页容器 | 首页浅色背景层与顶部导航保持首页容器统一控制，不要下放到子组件导致背景跟随滚动 | `pages/index/index.vue`, `components/home/HomeShellContent.vue` |
 
 ### 4.3 页面结构原则
 
 | 规范 | 说明 |
 | --- | --- |
-| 根 Tab 页面只做容器，不堆业务逻辑 | `pages/index/index.vue` 负责 tab 切换与主题联动 |
+| 根 Tab 页面负责一级导航和入口解析 | `pages/index/index.vue` 负责一级 tab、`level1/level2/level3` 入口解析、顶部二级/三级导航和主题联动；同时兼容旧参数 `tab/scene/contentKey`，既可直接打开 `/pages/index/index?...`，也可经 `page://tab` / `pages://tab` 协议回到首页壳；一级 tab 宿主与首页二级/三级导航配置统一维护在 `components/home/indexNavigationConfig.js`，`components/home/HomeShellContent.vue` 仅承接首页内容刷新与分页壳 |
 | 页面负责状态与路由 | 页面/容器层负责解析参数、主题、滚动、刷新、分页、导航 |
 | 业务展示组件只负责渲染与事件抛出 | 列表卡片、头部条、工具条等组件不直接绑定真实业务 API |
 | 启动性能 | 页面/容器层只保留首屏必需初始化，非关键补数与占位异步任务优先延后到首帧后执行 |
-| 隐藏场景要停止资源占用 | Home 场景组件需接收 `active`，隐藏时停止轮播、定时器、异步 mock | `pages/home/home.vue` |
+| 隐藏场景要停止资源占用 | Home 场景组件需接收 `active`，隐藏时停止轮播、定时器、异步 mock | `components/home/HomeShellContent.vue` |
 | 首页推荐流 | 推荐频道移动端保持双列瀑布流；H5 非手机端宽屏按容器宽度自适应 3~5 列。左右边距与商城频道保持一致；推荐内容直接起瀑布流，不额外插入“为你推荐”头部块。卡片以封面为主、信息保持极简，刷新、分页和切换状态由频道容器统一承接，卡片层只负责渲染与事件抛出 | `components/home/recommend/RecommendTab.vue`, `components/home/recommend/RecommendFeedMasonry.vue` |
-| 首页频道导航 | 首页导航当前保留商城 / 直播 / 推荐三频道，必须仍然单行稳定切换；推荐频道右上保留发布入口，其他频道不挂视频 runtime 特殊场景 | `pages/home/home.vue`, `components/home/HomeSubNavShell.vue` |
+| 首页频道导航 | 首页导航当前保留商城 / 直播 / 推荐三频道，必须仍然单行稳定切换；一级入口统一用 `level1/level2/level3` 解析到对应场景，并兼容旧 `tab/scene/contentKey` 别名；一级 tab 宿主与首页导航配置集中在 `components/home/indexNavigationConfig.js`，推荐频道右上保留发布入口 | `pages/index/index.vue`, `components/home/indexNavigationConfig.js`, `components/home/HomeShellContent.vue`, `components/home/HomeSubNavShell.vue` |
 
 ### 4.4 直播频道专项规范
 
@@ -139,7 +140,7 @@
 | 视觉风格 | 使用深色渐变封面、亮色标签、榜单入口，避免浅色页面那种大面积玻璃卡片语义 | `components/home/live/LiveTab.vue` |
 | 首屏结构 | Banner → 分类栏 → 榜单入口 → 双列直播流，信息层级必须清晰 | `components/home/live/LiveTab.vue` |
 | 列表渲染 | 直播流使用虚拟列表思路，保证高密度内容渲染时稳定 | `components/home/live/LiveTab.vue` |
-| 频道切换 | 直播组件必须受 `active` 控制；隐藏后停止轮播、滚动参与和异步任务 | `components/home/live/LiveTab.vue`, `pages/home/home.vue` |
+| 频道切换 | 直播组件必须受 `active` 控制；隐藏后停止轮播、滚动参与和异步任务 | `components/home/live/LiveTab.vue`, `components/home/HomeShellContent.vue` |
 | 房间体验 | 直播间必须保持全屏沉浸，顶部信息、榜单、福袋、活动、在线用户、聊天、礼物都以浮层方式组织 | `pages/live-room/live-room.vue`, `components/room/RoomIndex.vue` |
 | 交互规范 | 关注、榜单、福袋、活动、聊天输入、礼物发送、分享等全部保留占位回调，不在展示层接真实服务 | `pages/live-room/live-room.vue` |
 | 组件边界 | `pages/live-room/live-room.vue` 负责参数与业务回调；`RoomIndex.vue` 负责房间 UI 组装；礼物/聊天/在线用户等子组件只负责渲染与 emit | `pages/live-room/live-room.vue`, `components/room/RoomIndex.vue` |
@@ -200,7 +201,7 @@
 | 详情首屏加载 | 商城详情优先复用列表已带轻量数据完成首屏，再异步补齐完整详情 | `pages/shop/product-detail.vue`, `components/shop/common/shopFlowMock.js` |
 | 推荐流数据组织 | 首页推荐流优先由域内 mock/helper 统一输出卡片数据、详情 URL 和分页基线，不把推荐 mock 散落到页面与卡片组件 | `components/home/recommend/recommendFeedMock.js` |
 | API 替换接口位 | 当前统一保留 mock-first / callback-first，不直接把真实接口写死在展示组件中 | 多处 `TODO：替换...` |
-| 资源释放 | 轮播、刷新、分页、定时器都要支持在隐藏/离开时停止 | `pages/home/home.vue`, `components/home/live/LiveTab.vue` |
+| 资源释放 | 轮播、刷新、分页、定时器都要支持在隐藏/离开时停止 | `components/home/HomeShellContent.vue`, `components/home/live/LiveTab.vue` |
 | 频道级 builder | 消息、个人中心、玩伴、直播榜单等频道优先提供 builder/mock helper，再由页面消费 | `components/message/messageMock.js`, `components/user-center/userCenterMock.js`, `components/friend/playmateMock.js`, `components/home/live/liveRankMock.js` |
 
 ### 5.4 业务实现约束
@@ -215,7 +216,7 @@
 | 启动链路 | 阻塞首屏的初始化、补数和 mock 任务优先拆到 `setTimeout` 等首帧后时机 | 在页面/组件创建阶段同步堆叠非关键工作 |
 | 三级导航 | 三级导航切换优先保持局部联动、锚点滚动和固定高度容器 | 切换时整页重排、整页回顶或重新拉全量数据 |
 | 首页推荐流 | 移动端保持双列瀑布流；H5 非手机端宽屏按固定列间距 + 最小卡宽自适应 3~5 列。分页、下拉刷新和隐藏态资源释放统一走首页频道协议 | 在卡片层直接接分页/刷新逻辑，或依赖高频宽度计算/整页重排导致滚动抖动 |
-| 首页频道导航 | 商城 / 直播 / 推荐 / 短视频四频道保持单行稳定切换；短视频需走独立视频场景，不复用普通滚动壳；推荐和短视频右上保留发布入口 | 把短视频重新塞回普通 `PullPagingShell` 内容流、让顶部导航出现换行 / 挤压，或让短视频切页继续依赖父级滚动容器 |
+| 首页频道导航 | 商城 / 直播 / 推荐三频道保持单行稳定切换；商城三级导航与推荐发布入口继续保留，首页入口统一经 `level1/level2/level3` 映射，不直接写死组件名 | 把首页三级入口重新写回直接组件引用、让顶部导航出现换行 / 挤压，或让隐藏频道继续占用轮播 / 刷新资源 |
 | 组件职责 | 父层负责数据/状态/路由，子层负责渲染/事件 | 子组件里混合页面状态、路由、接口、副作用 |
 
 ### 5.5 AI自动化UI测试
@@ -271,6 +272,7 @@
 | `pages/message/` | 消息频道页面，如消息首页、联系人、搜索、私聊 |
 | `pages/live/` | 直播榜单等直播辅助页面 |
 | `pages/live-room/` | 直播间主页面 |
+| `pages/video/` | 视频相关独立入口页目录：短视频 feed 壳、作品 `nvue` 壳、视频详情基础页 |
 | `pages/shop/` | 商城子页面，如分类、搜索、店铺首页、详情、购物车、订单、商家工作台等 |
 | `pages/mine/` | 我的主页面 |
 | `pages/user/` | 个人中心子页面集合 |
@@ -299,8 +301,8 @@
 | --- | --- | --- |
 | 导航栏方式 | 页面默认使用 `navigationStyle: custom` | `pages.json` |
 | 页面背景色 | 浅色页默认 `#f8fafc`，直播/沉浸页按深色背景单独设置 | `pages.json` |
-| 禁止页面滚动 | 欢迎页、登录页、直播间、部分沉浸页可显式 `disableScroll: true` | `pages.json` |
-| App 端 bounce | 直播间等沉浸场景允许单独关闭 bounce | `pages.json` |
+| 禁止页面滚动 | 欢迎页、登录页、直播间、短视频滑轨页、部分沉浸页可显式 `disableScroll: true` | `pages.json` |
+| App 端 bounce | 直播间、短视频滑轨页等沉浸场景允许单独关闭 bounce | `pages.json` |
 
 ### 6.1 Composables / 工具能力
 
@@ -311,6 +313,7 @@
 | SVG Data URI | `composables/useSvgIcon.js` | 将 SVG 字符串转成可直接给 `image` 使用的资源 | 新 SVG 图标优先走统一生成方式 |
 | 公共跳转协议定义 | `components/common/navigation/navigationActionProtocol.js` | 统一维护全局 `actionUrl` 协议字段、类型与示例，支持 `page://` / `http(s)://` 并兼容旧 `pages://` | 新增协议跳转时优先补这里，不要先在页面硬编码 |
 | 公共跳转协议分发 | `components/common/navigation/navigationActionRouter.js` | 统一解析 `page://`、兼容 `pages://` 与 `http(s)://`，并分发到页面、Tab、直播间、web-view | 页面层消费分发器，展示组件只 emit `action` |
+| 短视频页入口配置 / builder | `components/video/videoFeedConfig.js` | 统一维护三个视频入口页的 URL builder、基础 mock 数据，以及回跳到 `index.vue?level1&level2` 的导航目标 | 页面先保持基础壳结构；后续扩展真实视频逻辑时，继续优先复用这里的 builder 和基础数据 |
 | 商城流程 mock / builder | `components/shop/common/shopFlowMock.js` | 统一维护商城搜索、店铺首页、订单详情、商家工作台、客服弹层上下文 mock 与 URL builder | 新增商城子流程时优先扩展这里，不在页面里散落 route builder |
 
 ### 6.2 通用布局组件
@@ -458,12 +461,13 @@
 2. `main.js`
 3. `pages.json`
 4. `pages/index/index.vue`
-5. `pages/home/home.vue`
-6. `components/common/SafeTopArea.vue`
-7. `components/common/SafeBottomArea.vue`
-8. `components/common/FullScreenPageLayout.vue`
-9. `components/common/RefreshTopStackLayout.vue`
-10. `components/common/PullPagingShell.vue`
+5. `components/home/indexNavigationConfig.js`
+6. `components/home/HomeShellContent.vue`
+7. `components/common/SafeTopArea.vue`
+8. `components/common/SafeBottomArea.vue`
+9. `components/common/FullScreenPageLayout.vue`
+10. `components/common/RefreshTopStackLayout.vue`
+11. `components/common/PullPagingShell.vue`
 11. `components/shop/common/shopSurface.js`
 12. `components/shop/common/ShopSubPageHeader.vue`
 13. `components/shop/common/ShopHeaderIconButton.vue`

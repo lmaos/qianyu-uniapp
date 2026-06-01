@@ -1,0 +1,222 @@
+<template>
+	<view class="video-works-page" :style="pageStyle">
+		<view class="video-works-content" :style="contentViewportStyle">
+			<swiper
+				class="video-works-swiper"
+				:style="contentViewportStyle"
+				vertical
+				:current="activeIndex"
+				@change="handleSwiperChange"
+			>
+				<swiper-item
+					v-for="item in worksItems"
+					:key="item.id"
+					class="video-works-swiper-item"
+					:style="contentViewportStyle"
+				>
+					<view class="video-works-track" :style="contentViewportStyle">
+						<image
+							v-if="item.poster"
+							class="video-works-track-poster"
+							:style="contentViewportStyle"
+							:src="item.poster"
+							mode="aspectFill"
+						></image>
+						<view class="video-works-track-mask"></view>
+						<view class="video-works-track-copy">
+							<view class="video-works-track-badge-row">
+								<text class="video-works-track-badge">作品基础页</text>
+							</view>
+							<text class="video-works-track-title">{{ item.title }}</text>
+							<text class="video-works-track-desc">{{ item.desc || '这里先只保留作品切换区域容器。' }}</text>
+						</view>
+					</view>
+				</swiper-item>
+			</swiper>
+
+			<view class="video-works-back-shell" :style="backShellStyle">
+				<view class="video-works-back-button" @tap="handleBackTap">
+					<text class="video-works-back-icon">&#60;</text>
+					<text class="video-works-back-text">返回</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup>
+import { computed, reactive, ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import {
+	buildVideoFeedReturnUrl,
+	getVideoWorksList,
+	normalizeVideoFeedRoute
+} from '@/components/video/videoFeedConfig.js'
+
+const windowInfo = typeof uni.getWindowInfo === 'function' ? uni.getWindowInfo() : uni.getSystemInfoSync()
+const windowHeightPx = Number(windowInfo?.windowHeight || 0)
+const windowWidthPx = Number(windowInfo?.windowWidth || 375)
+const safeAreaInsets = windowInfo?.safeAreaInsets || {}
+const safeTopPx = Number(safeAreaInsets?.top || 0)
+
+const activeIndex = ref(0)
+const worksItems = ref([])
+const routeState = reactive(normalizeVideoFeedRoute({ mode: 'my-works' }))
+
+const pageStyle = computed(() => ({
+	height: `${windowHeightPx}px`
+}))
+
+const contentViewportStyle = computed(() => ({
+	width: `${windowWidthPx}px`,
+	height: `${windowHeightPx}px`
+}))
+
+const backShellStyle = computed(() => ({
+	top: `${safeTopPx + rpxToPx(16)}px`,
+	left: `${rpxToPx(24)}px`
+}))
+
+onLoad((options = {}) => {
+	const nextRoute = normalizeVideoFeedRoute({
+		...options,
+		mode: 'my-works'
+	})
+
+	Object.assign(routeState, nextRoute)
+
+	const sourceList = getVideoWorksList(routeState.ownerId)
+	worksItems.value = sourceList
+
+	const matchedIndex = sourceList.findIndex((item) => item.id === routeState.videoId)
+	activeIndex.value = matchedIndex >= 0 ? matchedIndex : 0
+})
+
+function handleSwiperChange(event) {
+	const nextIndex = Number(event?.detail?.current || 0)
+	activeIndex.value = nextIndex >= 0 ? nextIndex : 0
+}
+
+function handleBackTap() {
+	const pageStack = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+	if (Array.isArray(pageStack) && pageStack.length > 1) {
+		uni.navigateBack({
+			delta: 1
+		})
+		return
+	}
+
+	uni.reLaunch({
+		url: buildVideoFeedReturnUrl(routeState)
+	})
+}
+
+function rpxToPx(rpx) {
+	return (Number(rpx || 0) * windowWidthPx) / 750
+}
+</script>
+
+<style scoped>
+.video-works-page {
+	position: relative;
+	flex: 1;
+	background-color: #000000;
+}
+
+.video-works-content {
+	position: relative;
+	overflow: hidden;
+	background-color: #000000;
+}
+
+.video-works-swiper,
+.video-works-swiper-item,
+.video-works-track {
+	position: relative;
+}
+
+.video-works-track {
+	overflow: hidden;
+	background-color: #000000;
+}
+
+.video-works-track-poster {
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+.video-works-track-mask {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background-color: rgba(0, 0, 0, 0.42);
+}
+
+.video-works-track-copy {
+	position: absolute;
+	right: 32rpx;
+	bottom: 120rpx;
+	left: 32rpx;
+	display: flex;
+	flex-direction: column;
+}
+
+.video-works-track-badge-row {
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-start;
+}
+
+.video-works-track-badge {
+	padding: 10rpx 20rpx;
+	border-radius: 999rpx;
+	background-color: rgba(255, 255, 255, 0.14);
+	font-size: 22rpx;
+	color: rgba(255, 255, 255, 0.82);
+}
+
+.video-works-track-title {
+	margin-top: 24rpx;
+	font-size: 42rpx;
+	font-weight: 600;
+	line-height: 1.35;
+	color: #ffffff;
+}
+
+.video-works-track-desc {
+	margin-top: 18rpx;
+	font-size: 26rpx;
+	line-height: 1.7;
+	color: rgba(255, 255, 255, 0.72);
+}
+
+.video-works-back-shell {
+	position: absolute;
+	z-index: 20;
+}
+
+.video-works-back-button {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	height: 64rpx;
+	padding: 0 24rpx;
+	border-radius: 999rpx;
+	background-color: rgba(15, 23, 42, 0.46);
+}
+
+.video-works-back-icon,
+.video-works-back-text {
+	font-size: 26rpx;
+	line-height: 1;
+	color: #ffffff;
+}
+
+.video-works-back-text {
+	margin-left: 8rpx;
+}
+</style>

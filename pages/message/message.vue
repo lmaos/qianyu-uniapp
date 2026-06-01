@@ -166,6 +166,13 @@ import {
 	buildMessageUserProfileUrl
 } from '@/components/message/messageMock.js'
 
+const props = defineProps({
+	active: {
+		type: Boolean,
+		default: true
+	}
+})
+
 const im = useIm()
 const pageMock = buildMessagePageMock()
 const notificationUnreadCount = Number(pageMock.notificationBadge?.unreadCount || 0)
@@ -226,7 +233,22 @@ let swipeBaseOffsetX = 0
 let swipeLockedAxis = ''
 
 let _convUpdatedOff = null // onConversationUpdated 取消监听函数
-const pageVisible = ref(false)
+const pageShown = ref(false)
+const messageActive = ref(false)
+const pageVisible = computed(() => pageShown.value && props.active)
+
+const messageListener = {
+	register() {
+		console.log('[message.vue] listener register')
+	},
+	leave() {
+		console.log('[message.vue] listener leave')
+	},
+	onMessage(body) {
+		console.log('[message.vue] listener onMessage: convId=', body?.conversationId)
+		loadConversationList()
+	}
+}
 
 // ===== 会话数据转换 =====
 
@@ -305,39 +327,56 @@ function refreshFromSource() {
 
 // ===== 生命周期 =====
 
-onShow(async () => {
-	pageVisible.value = true
-	// 绑定页面 listener（收到消息时刷新会话列表）
-	const listener = {
-		register() { console.log('[message.vue] listener register') },
-		leave() { console.log('[message.vue] listener leave') },
-		onMessage(body) {
-			console.log('[message.vue] listener onMessage: convId=', body?.conversationId)
-			loadConversationList()
-		},
+async function activateMessagePage() {
+	if (messageActive.value) {
+		return
 	}
-	im.bindListener(listener)
 
-	// 监听会话变更事件
+	messageActive.value = true
+	im.bindListener(messageListener)
 	_convUpdatedOff = im.onConversationUpdated(() => {
 		console.log('[message.vue] CONVERSATION_UPDATED')
 		loadConversationList()
 	})
-
-	// 加载会话列表
 	await loadConversationList()
-})
+}
 
-onHide(() => {
-	pageVisible.value = false
-	im.unbindListener({
-		leave() { console.log('[message.vue] listener unbind') },
-	})
+function deactivateMessagePage() {
+	if (!messageActive.value) {
+		return
+	}
+
+	messageActive.value = false
+	im.unbindListener(messageListener)
 	if (_convUpdatedOff) {
 		_convUpdatedOff()
 		_convUpdatedOff = null
 	}
+}
+
+onShow(() => {
+	pageShown.value = true
 })
+
+onHide(() => {
+	pageShown.value = false
+})
+
+watch(
+	pageVisible,
+	(value) => {
+		if (value) {
+			activateMessagePage()
+			return
+		}
+
+		deactivateMessagePage()
+		resetTransientState()
+	},
+	{
+		immediate: true
+	}
+)
 
 watch(
 	() => im.isReady.value,
@@ -807,9 +846,27 @@ function ensureMinimumLoadingTime(startAt, minimumDurationMs) {
 	})
 }
 
+function resetTransientState() {
+	closeSwipe()
+	clearRefreshHintResetTimer()
+	clearBottomPullTimers()
+	refreshing.value = false
+	loadingMore.value = false
+	refreshHintState.value = 'idle'
+	refreshPullDistancePx.value = 0
+	refreshCoverTransitionMs.value = 0
+	bottomPullVisible.value = false
+	bottomPullState.value = 'idle'
+	deletingConversationId.value = ''
+	refreshPullTracking = false
+	refreshRequestId += 1
+	reachLowerRequestId += 1
+}
+
 // ===== 清理 =====
 
 onBeforeUnmount(() => {
+	deactivateMessagePage()
 	clearRefreshHintResetTimer()
 	clearBottomPullTimers()
 	refreshing.value = false

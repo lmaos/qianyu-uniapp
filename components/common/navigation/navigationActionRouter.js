@@ -61,8 +61,9 @@ export function dispatchNavigationAction(actionUrl, actionPayload = null) {
 	if (resolvedAction.routeType === NAVIGATION_ACTION_ROUTE_TYPES.TAB) {
 		uni.reLaunch({
 			url: buildNavigationIndexRoute({
-				tab: mergedQuery.tab || 'home',
-				scene: mergedQuery.scene || ''
+				level1: mergedQuery.level1 || mergedQuery.tab || 'home',
+				level2: mergedQuery.level2 || mergedQuery.scene || '',
+				level3: mergedQuery.level3 || mergedQuery.contentKey || ''
 			})
 		})
 		return {
