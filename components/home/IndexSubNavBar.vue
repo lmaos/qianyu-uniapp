@@ -72,102 +72,95 @@
 </template>
 
 <script setup>
+// ════════════════════════════════════════════════════════════
+// IndexSubNavBar.vue — 首页二级导航栏组件
+// ════════════════════════════════════════════════════════════
+//
+// 职责：渲染首页顶部固定定位的二级导航行 + 扩展导航区（如商城分类）。
+//       同时展示下拉刷新过程中的覆盖层提示。
+//
+// 数据来源：所有 props 由 index.vue 的 resolvedSubNavProps computed 提供，
+//          该 computed 合并了 navigationResolver 的输出 + 布局值 + 滚动状态。
+//
+// 组件结构（从上到下）：
+//   1. 下拉刷新覆盖层（refreshState === 'pulling' 时显示）
+//   2. 子导航标签行（如 商城 | 直播 | 推荐 | 短视频）
+//   3. 发布按钮（showPublishAction 为 true 时，在右侧）
+//   4. 扩展导航区（extraComponent，如商城的三级分类搜索/购物车）
+//
+// 【未来改什么】
+//   - 导航项样式修改 → 改 .sub-nav-text / .sub-nav-text-active 的 CSS。
+//   - 新增导航交互（如下划线动画、徽标）→ 在 tabList item 追加字段，
+//     模板中渲染，index.vue 的 resolvedSubNavProps 透传。
+//   - 更换发布按钮图标 → 改 lightPublishIcon / darkPublishIcon 的 SVG。
+//   - 导航栏滚动吸顶效果 → 增加 sticky / transform 逻辑，
+//     需要 index.vue 配合传递滚动偏移量。
+
 import { computed } from 'vue'
 import { createSvgDataUri } from '@/composables/useSvgIcon.js'
 
+// ── Props 说明 ─────────────────────────────────────────────
+//
+// 以下是 index.vue 从 navigationResolver 和布局计算中获取后传入的所有 prop。
+// 不应从本组件内部调用 resolver — props 是从 index.vue 单向传入的。
+//
 const props = defineProps({
+	// ── 子导航项列表 ──
+	// 每一项：{ key, label, active }，由 resolver 的 subNavTabList 生成
 	tabList: {
 		type: Array,
 		default: () => []
 	},
+	// ── 当前激活的子导航 key ──
 	activeTab: {
 		type: String,
 		default: ''
 	},
-	lightTheme: {
-		type: Boolean,
-		default: false
-	},
-	transparentPanel: {
-		type: Boolean,
-		default: false
-	},
-	safeTopOffsetRpx: {
-		type: Number,
-		default: 0
-	},
-	navHeightRpx: {
-		type: Number,
-		default: 80
-	},
-	navSidePaddingRpx: {
-		type: Number,
-		default: 32
-	},
-	navItemGapRpx: {
-		type: Number,
-		default: 56
-	},
-	panelHeightRpx: {
-		type: Number,
-		default: 0
-	},
-	panelBottomInsetRpx: {
-		type: Number,
-		default: 0
-	},
-	refreshState: {
-		type: String,
-		default: 'idle'
-	},
-	refreshPullText: {
-		type: String,
-		default: ''
-	},
-	refreshPullDistancePx: {
-		type: Number,
-		default: 0
-	},
-	refreshRevealDistancePx: {
-		type: Number,
-		default: 1
-	},
-	extraComponent: {
-		type: [Object, Function],
-		default: null
-	},
-	extraProps: {
-		type: Object,
-		default: () => ({})
-	},
-	extraListeners: {
-		type: Object,
-		default: () => ({})
-	},
-	showPublishAction: {
-		type: Boolean,
-		default: false
-	},
-	publishActionIcon: {
-		type: String,
-		default: ''
-	}
+	// ── 主题控制 ──
+	lightTheme: { type: Boolean, default: false },        // true=浅色, false=深色
+	transparentPanel: { type: Boolean, default: false },   // 是否透明背景（目前未用）
+
+	// ── 布局定位 ──
+	safeTopOffsetRpx: { type: Number, default: 0 },        // 安全区顶部偏移
+	navHeightRpx: { type: Number, default: 80 },           // 导航行高度
+	navSidePaddingRpx: { type: Number, default: 32 },      // 左右内边距
+	navItemGapRpx: { type: Number, default: 56 },          // 导航项间距
+	panelHeightRpx: { type: Number, default: 0 },          // 整个面板高度
+	panelBottomInsetRpx: { type: Number, default: 0 },     // 底部额外内边距
+
+	// ── 下拉刷新态 ──
+	refreshState: { type: String, default: 'idle' },       // idle | pulling | refreshing
+	refreshPullText: { type: String, default: '' },        // 刷新文案（如"下拉刷新商城频道"）
+	refreshPullDistancePx: { type: Number, default: 0 },   // 已拉出的距离 px
+	refreshRevealDistancePx: { type: Number, default: 1 }, // 触发显示的距离阈值 px
+
+	// ── 扩展导航插槽 ──
+	extraComponent: { type: [Object, Function], default: null },  // 动态组件（如 ShopSubNavExtra）
+	extraProps: { type: Object, default: () => ({}) },           // 传给 extra 组件的 props
+	extraListeners: { type: Object, default: () => ({}) },       // 传给 extra 组件的事件
+
+	// ── 发布按钮 ──
+	showPublishAction: { type: Boolean, default: false },
+	publishActionIcon: { type: String, default: '' }       // 自定义图标 SVG Data URI
 })
 
 const emit = defineEmits(['tab-change', 'publish-click'])
 
+// ── 计算属性 ──────────────────────────────────────────────
+
+/** 是否有扩展组件（如商城三级导航） */
 const hasExtraNav = computed(() => {
 	return Boolean(props.extraComponent)
 })
 
-// 计算整个顶部导航壳层高度，供父层内容区预留空间。
+/** 整个顶部导航壳层高度，供父层内容区预留空间（面板本身固定定位）。 */
 const shellStyle = computed(() => {
 	return {
 		height: `${props.panelHeightRpx}rpx`
 	}
 })
 
-// 计算导航壳层顶部安全区内边距。
+/** 导航面板顶部安全区 + 底部圆角内边距。lightTheme 有额外底部留白。 */
 const panelStyle = computed(() => {
 	return {
 		paddingTop: `${props.safeTopOffsetRpx}rpx`,
@@ -175,7 +168,7 @@ const panelStyle = computed(() => {
 	}
 })
 
-// 计算二级导航行的高度与左右间距。
+/** 二级导航行的高度与左右间距。 */
 const subNavStyle = computed(() => {
 	return {
 		height: `${props.navHeightRpx}rpx`,
@@ -184,6 +177,10 @@ const subNavStyle = computed(() => {
 	}
 })
 
+/**
+ * 导航标签区域样式。
+ * 当 showPublishAction 为 true 时，右侧预留发布按钮空间（88rpx）。
+ */
 const tabsStyle = computed(() => {
 	const sideReserveRpx = props.showPublishAction ? 88 : 0
 	return {
@@ -191,7 +188,11 @@ const tabsStyle = computed(() => {
 	}
 })
 
-// 计算下拉刷新提示层的位移和透明度，让提示从顶部平缓滑入。
+/**
+ * 下拉刷新提示覆盖层的位置和动画。
+ * 逻辑：覆盖层从顶部以 translateY 负偏移滑入，
+ * 同时 opacity 从 0 → 1 渐变，pullDistance 达到 revealDistance 时完全显示。
+ */
 const refreshCoverStyle = computed(() => {
 	const revealDistance = Math.max(1, props.refreshRevealDistancePx)
 	const offsetPx = Math.min(0, props.refreshPullDistancePx - revealDistance)
@@ -209,18 +210,23 @@ const publishButtonStyle = computed(() => {
 	}
 })
 
+// ── 发布按钮图标 ──────────────────────────────────────────
+
+/** 浅色主题的加号 SVG 图标（灰黑色） */
 const lightPublishIcon = createSvgDataUri(`
 	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
 		<path d="M12 5.5v13M5.5 12h13" stroke="#475467" stroke-width="2.1" stroke-linecap="round" />
 	</svg>
 `)
 
+/** 深色主题的加号 SVG 图标（白色） */
 const darkPublishIcon = createSvgDataUri(`
 	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
 		<path d="M12 5.5v13M5.5 12h13" stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" />
 	</svg>
 `)
 
+/** 最终使用的图标：优先使用自定义 icon，否则按当前主题选择 */
 const resolvedPublishIcon = computed(() => {
 	if (props.publishActionIcon) {
 		return props.publishActionIcon
@@ -229,7 +235,12 @@ const resolvedPublishIcon = computed(() => {
 	return props.lightTheme ? lightPublishIcon : darkPublishIcon
 })
 
-// 控制二级导航项之间的横向间距。
+// ── 方法 ──────────────────────────────────────────────────
+
+/**
+ * 获取子导航项的样式（主要是间距）。
+ * 最后一项不设右边距，其余项按 navItemGapRpx 设 marginRight。
+ */
 function getSubNavItemStyle(index) {
 	if (index === props.tabList.length - 1) {
 		return undefined

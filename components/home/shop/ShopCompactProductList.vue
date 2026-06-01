@@ -95,7 +95,7 @@ function formatPrice(value) {
 
 .shop-compact-price-row {
 	display: flex;
-	align-items: baseline;
+	align-items: flex-start;
 	justify-content: center;
 	margin-top: 6rpx;
 	color: #d94f7b;

@@ -227,7 +227,7 @@ function formatPrice(value) {
 
 .shop-product-price-main {
 	display: flex;
-	align-items: baseline;
+	align-items: flex-start;
 	flex-wrap: wrap;
 }
 

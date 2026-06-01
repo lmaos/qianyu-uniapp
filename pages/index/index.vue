@@ -42,17 +42,42 @@
 </template>
 
 <script setup>
+// ════════════════════════════════════════════════════════════
+// index.vue — 应用主入口页面
+// ════════════════════════════════════════════════════════════
+//
+// 职责：
+//   1. 路由解析（从 onLoad options 提取 level1/level2/level3）
+//   2. 导航状态管理（通过 resolver 驱动，维护 activeLevel1/2/3 ref）
+//   3. 主题控制（按当前场景切换深色/浅色主题）
+//   4. 布局计算（安全区、导航栏高度、内容区 padding）
+//   5. 动作分发（点击 Tab / 子导航 -> resolver -> 执行动作）
+//
+// 数据流：
+//   onLoad -> normalizeLevel1/2/3 -> 设置 ref
+//   refs -> resolveNavigationState() -> navState computed
+//   navState -> 模板渲染（IndexSubNavBar / IndexContentShell / 其他 Tab）
+//   用户点击 -> resolveRouteAction() -> executeNavigationAction()
+//
+// 【未来改什么】
+//   - 新增底部 Tab -> 只需改 indexNavigationConfig.js，这里自动适配
+//   - 新增导航行为（如点击 Tab 时滚动到顶部）-> 在 executeNavigationAction 追加逻辑
+//   - 修改主题色 -> 改 APP_THEME_MAP 中的色值
+//   - 新增场景专属主题 -> 在 resolvedThemeConfig 追加条件分支
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import IndexSubNavBar from '@/components/home/IndexSubNavBar.vue'
 import IndexContentShell from '@/components/home/IndexContentShell.vue'
+// -- 导航配置 + 解析器 ---------------------------------
 import { NAV_CONFIG } from '@/components/home/indexNavigationConfig'
 import { resolveNavigationState, resolveRouteAction } from '@/components/home/navigationResolver'
+// -- 商城 Mock 数据（后续可替换为真实 API） ---------------
 import { buildMallHomeNavCategoryList } from '@/components/shop/category/shopCategoryMock.js'
 import { buildShopSearchUrl } from '@/components/shop/common/shopFlowMock.js'
 import { buildContentPublishUrl } from '@/components/user-center/contentPublishMock.js'
 
 // ── 设备信息 ──────────────────────────────────────────
+// 获取设备信息用于响应式布局。pxToRpx/rpxToPx 转换工具。safeBottomPx 用于 Tab 栏避开系统导航条。
 
 const systemInfo = uni.getSystemInfoSync()
 const safeTopPx = systemInfo.safeAreaInsets?.top || systemInfo.statusBarHeight || 0
@@ -69,6 +94,7 @@ function rpxToPx(value) {
 const safeTopRpx = pxToRpx(safeTopPx)
 
 // ── 导航状态 ──────────────────────────────────────────
+// activeLevel1/2/3：由 resolver 消费的三个路由层级 ref，驱动所有导航决策。
 
 const activeLevel1 = ref(NAV_CONFIG.defaultLevel1)
 const activeLevel2 = ref(NAV_CONFIG.home.defaultLevel2)
@@ -76,6 +102,7 @@ const activeLevel3 = ref('')
 const contentShellRef = ref(null)
 
 // ── 滚动状态（来自 IndexContentShell 发射）──────────────
+// 从 IndexContentShell 同步下拉刷新状态到 IndexSubNavBar，通过 emit -> computed -> props 传递。
 
 const subNavScrollState = ref({
 	refreshState: 'idle',
@@ -85,6 +112,7 @@ const subNavScrollState = ref({
 })
 
 // ── 导航状态（解析器驱动）─────────────────────────────
+// 核心：所有导航事实由 resolveNavigationState 纯函数产出。index.vue 只维护三个 ref。
 
 const navState = computed(() => resolveNavigationState({
 	level1: activeLevel1.value,
@@ -93,12 +121,14 @@ const navState = computed(() => resolveNavigationState({
 }))
 
 // ── 视图尺寸 ──────────────────────────────────────────
+// 内容区高度 = 窗口高度 - Tab 栏高度 - 底部安全区，传给 IndexContentShell。
 
 const viewportHeightPx = computed(() => {
 	return Math.max(0, (systemInfo.windowHeight || 0) - rpxToPx(NAV_CONFIG.tabBarHeightRpx) - safeBottomPx)
 })
 
 // ── 主题 ──────────────────────────────────────────────
+// APP_THEME_MAP 定义深色/浅色两套配色。首页按场景 theme 自动切换。
 
 const APP_THEME_MAP = {
 	dark: {
@@ -138,6 +168,7 @@ const tabBarStyle = computed(() => ({
 	paddingBottom: `${safeBottomPx}px`
 }))
 
+	/** 计算底部 Tab 文字样式（高亮色 + 字重） */
 function getTabLabelStyle(tab) {
 	return {
 		color: tab.active
@@ -148,7 +179,9 @@ function getTabLabelStyle(tab) {
 }
 
 // ── 内容区顶部内边距（避让固定导航栏）────────────────
+// 导航栏总高 = safeTop + navSafeGap + navHeight + extraNavHeight + panelBottomInset + contentGap panelBottomInset=20 固定（无 extraNav 时），不区分主题。若调整某场景间距，改其 contentGapRpx。
 
+	/** 当前场景配置（用于计算 contentTopPadding） */
 const activeSceneConfig = computed(() => {
 	if (!navState.value.isHome) { return null }
 	return navState.value.homeSceneConfigList.find(
@@ -161,11 +194,12 @@ const contentTopPaddingRpx = computed(() => {
 	const scene = activeSceneConfig.value
 	const navTopOffsetRpx = safeTopRpx + NAV_CONFIG.home.navSafeGapRpx
 	const extraHeight = scene.extraNavHeightRpx || 0
-	const panelBottomInset = extraHeight > 0 ? 0 : (scene.theme === 'light' ? 20 : 0)
+	const panelBottomInset = extraHeight > 0 ? 0 : 20
 	return navTopOffsetRpx + NAV_CONFIG.home.navHeightRpx + extraHeight + panelBottomInset + scene.contentGapRpx
 })
 
 // ── 子导航栏 props（合并解析器输出 + 布局值 + 滚动状态）─
+// 将 subNavConfig + 滚动状态 + 扩展监听器合并后一次性传入 IndexSubNavBar。
 
 const resolvedSubNavProps = computed(() => {
 	const config = navState.value.subNavConfig
@@ -183,7 +217,7 @@ const resolvedSubNavProps = computed(() => {
 		navSidePaddingRpx: config.navSidePaddingRpx,
 		navItemGapRpx: config.navItemGapRpx,
 		panelHeightRpx: navTopOffsetRpx + config.navHeightRpx + config.extraNavHeightRpx,
-		panelBottomInsetRpx: config.extraNavHeightRpx > 0 ? 0 : (config.lightTheme ? 20 : 0),
+		panelBottomInsetRpx: config.extraNavHeightRpx > 0 ? 0 : 20,
 		// 滚动刷新态
 		refreshState: scroll.refreshState,
 		refreshPullText: scroll.refreshPullText,
@@ -198,7 +232,9 @@ const resolvedSubNavProps = computed(() => {
 })
 
 // ── 商城扩展导航 Props & Listeners ─────────────────────
+// 商城导航事件：search-click/cart-click/category-change/category-page-click
 
+	/** 按场景生成扩展导航（ShopSubNavExtra）需要的 props */
 function resolveExtraProps(config) {
 	if (!config.extraComponent) { return {} }
 	if (navState.value.activeLevel2 === 'mall') {
@@ -211,6 +247,7 @@ function resolveExtraProps(config) {
 	return {}
 }
 
+	/** 商城扩展导航监听器集合（仅在 mall 场景下有效） */
 const mallExtraListeners = computed(() => {
 	if (navState.value.activeLevel2 !== 'mall') { return {} }
 	return {
@@ -236,6 +273,7 @@ const mallExtraListeners = computed(() => {
 })
 
 // ── 页面加载 ──────────────────────────────────────────
+// onLoad 解析 URL -> normalize -> 设置 ref。校验失败时 fallback 到默认值。
 
 onLoad(options => {
 	const targetLevel1 = normalizeRouteLevel1(options)
@@ -247,12 +285,14 @@ onLoad(options => {
 	activeLevel3.value = targetLevel3
 })
 
+	/** 规范化一级导航：校验合法性，非法则 fallback 到 home */
 function normalizeRouteLevel1(options) {
 	const raw = `${options?.level1 || options?.tab || ''}`.trim()
 	if (raw && NAV_CONFIG.tabs.some(t => t.key === raw)) { return raw }
 	return NAV_CONFIG.defaultLevel1
 }
 
+	/** 规范化二级导航：仅在首页且匹配 componentKey 子导航时生效 */
 function normalizeRouteLevel2(level1, options) {
 	if (level1 !== 'home') { return '' }
 	const raw = `${options?.level2 || options?.scene || ''}`.trim()
@@ -264,6 +304,7 @@ function normalizeRouteLevel2(level1, options) {
 	return NAV_CONFIG.home.defaultLevel2
 }
 
+	/** 规范化三级导航：仅 mall 场景生效，取 URL 参数或 defaultLevel3 */
 function normalizeRouteLevel3(level2, options) {
 	if (level2 !== 'mall') { return '' }
 	const raw = `${options?.level3 || options?.contentKey || ''}`.trim()
@@ -274,7 +315,9 @@ function normalizeRouteLevel3(level2, options) {
 }
 
 // ── 路由动作执行 ──────────────────────────────────────
+// 四种 action.type：switch-level1 / switch-scene / reLaunch / noop。
 
+	/** 执行导航动作：根据 action.type 分派到对应处理逻辑 */
 function executeNavigationAction(action) {
 	switch (action.type) {
 		case 'switch-level1':
@@ -295,17 +338,21 @@ function executeNavigationAction(action) {
 	}
 }
 
+	/** 底部 Tab 点击处理：通过 resolver 判断动作类型后执行 */
 function onTabClick(tabKey) {
 	executeNavigationAction(resolveRouteAction(tabKey, navState.value))
 }
 
+	/** 二级导航点击处理（由 IndexSubNavBar @tab-change 触发） */
 function onSubNavTab(navItem) {
 	if (!navItem?.key) { return }
 	executeNavigationAction(resolveRouteAction(navItem.key, navState.value))
 }
 
 // ── 内容壳事件 ────────────────────────────────────────
+// onScrollState 接收 IndexContentShell 的发射，驱动 IndexSubNavBar 的刷新视觉。
 
+	/** 接收 IndexContentShell 的滚动状态，更新 subNavScrollState */
 function onScrollState(scrollState) {
 	if (scrollState) {
 		subNavScrollState.value = { ...subNavScrollState.value, ...scrollState }
@@ -313,6 +360,7 @@ function onScrollState(scrollState) {
 }
 
 
+	/** 发布按钮点击：跳转内容发布页面 */
 function onPublishClick() {
 	uni.navigateTo({
 		url: buildContentPublishUrl({ scene: navState.value.activeLevel2 })
