@@ -157,9 +157,7 @@ function formatPrice(value) {
 	color: #ffffff;
 	background: rgba(17, 24, 39, 0.48);
 }
-
 .shop-product-badge {
-	position: absolute;
 	max-width: 52%;
 	padding: 7rpx 12rpx;
 	font-size: 18rpx;
@@ -194,19 +192,16 @@ function formatPrice(value) {
 }
 
 .shop-product-title {
-	display: -webkit-box;
-	min-height: 68rpx;
+	display: flex;
+	height: 68rpx;
 	font-size: 24rpx;
 	font-weight: 600;
 	line-height: 34rpx;
 	color: #111827;
 	overflow: hidden;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
 }
 
 .shop-product-shop-name {
-	display: block;
 	margin-top: 10rpx;
 	font-size: 18rpx;
 	line-height: 26rpx;
@@ -221,7 +216,7 @@ function formatPrice(value) {
 	align-items: flex-end;
 	justify-content: space-between;
 	gap: 16rpx;
-	margin-top: auto;
+	margin-top: 0rpx;
 	padding-top: 14rpx;
 }
 

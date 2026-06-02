@@ -1,0 +1,783 @@
+<template>
+	<view class="page" :style="{ height: wh + 'px', overflow: 'hidden', backgroundColor: '#000' }">
+
+		<!-- 视频 + 封面 -->
+		<image
+			v-if="detail && !videoActive"
+			class="cover-img"
+			:style="{ width: ww + 'px', height: wh + 'px' }"
+			:src="detail.cover"
+			mode="aspectFill"
+		/>
+		<video
+			v-if="detail && videoActive"
+			:id="'vdetail'"
+			:style="videoStyle"
+			:src="detail.url"
+			:poster="detail.cover"
+			object-fit="cover"
+			:controls="false"
+			:show-progress="false"
+			:enable-progress-gesture="false"
+			:loop="true"
+				@tap="togglePlay"
+				@ended="onVideoEnded"
+			@error="onVidErr"
+		/>
+
+		<!-- ═══ 浮动覆盖层 ═══ -->
+
+		<!-- 顶部：返回 -->
+		<view class="top-bar" :style="topBarStyle">
+			<view class="back-btn" @tap="handleBack">
+				<view class="back-chevron" />
+			</view>
+		</view>
+
+		<!-- 右侧面板：头像 / 点赞 / 评论 / 分享 -->
+		<view class="right-panel" :style="rightPanelStyle">
+			<!-- 头像 -->
+			<view class="right-item" @tap="handleAvatarTap">
+				<view class="avatar-ring">
+					<view class="avatar" :style="{ background: detail?.author?.avatarBg || '#333' }">
+						<text class="avatar-text">{{ detail?.author?.avatarText || '?' }}</text>
+					</view>
+				</view>
+				<view class="follow-badge"><text class="follow-badge-text">+</text></view>
+			</view>
+			<!-- 点赞 -->
+			<view class="right-item" @tap="toggleLike">
+				<text class="right-icon right-icon-heart" :style="{ color: detail?.isLiked ? '#fe2c55' : '#fff' }">
+					{{ detail?.isLiked ? '♥' : '♡' }}
+				</text>
+				<text class="right-count">{{ fmtCount(detail?.likes || 0) }}</text>
+			</view>
+			<!-- 评论 -->
+			<view class="right-item" @tap="openComments">
+				<view class="right-icon right-icon-comment">
+					<view class="cmt-bubble" />
+					<view class="cmt-tail" />
+				</view>
+				<text class="right-count">{{ fmtCount(detail?.cmts || 0) }}</text>
+			</view>
+			<!-- 分享 -->
+			<view class="right-item" @tap="handleShare">
+				<view class="right-icon right-icon-share">
+					<view class="share-arrow" />
+				</view>
+				<text class="right-count">分享</text>
+			</view>
+		</view>
+
+		<!-- 底部信息：作者 + 描述 -->
+		<view class="bottom-info" :style="bottomInfoStyle">
+			<view class="author-row">
+				<text class="author-name">@{{ detail?.author?.nickname || '千语' }}</text>
+				<view class="follow-btn" @tap="handleFollowAuthor">
+					<text class="follow-btn-text">关注</text>
+				</view>
+			</view>
+			<text class="video-desc" :lines="2">{{ detail?.text || '' }}</text>
+		</view>
+
+		<!-- ═══ 评论面板 ═══ -->
+		<!-- 遮罩 -->
+		<view v-if="showComments" class="comment-backdrop" @tap="closeComments" />
+
+		<!-- 底部弹层 -->
+		<view v-if="showComments" class="comment-sheet" :style="commentSheetStyle">
+			<!-- 头部 -->
+			<view class="comment-sheet-head">
+				<view class="comment-handle" />
+				<text class="comment-sheet-title">评论 {{ detail?.cmts || 0 }}</text>
+				<view class="comment-sheet-close" @tap="closeComments">
+					<text class="comment-sheet-close-text">✕</text>
+				</view>
+			</view>
+
+			<!-- 评论列表 -->
+			<scroll-view
+				class="comment-scroll"
+				:style="commentScrollStyle"
+				:scroll-y="true"
+				:show-scrollbar="false" @scrolltolower="loadMoreComments"
+			>
+				<view v-if="comments.length === 0" class="comment-empty">
+					<text class="comment-empty-text">暂无评论，快来抢沙发~</text>
+				</view>
+
+				<view v-for="c in comments" :key="c.id" class="comment-item">
+					<view class="comment-avatar" :style="{ background: c.author.avatarBg }">
+						<text class="comment-avatar-text">{{ c.author.avatarText }}</text>
+					</view>
+					<view class="comment-body">
+						<view class="comment-head">
+							<text class="comment-name">{{ c.author.nickname }}</text>
+							<view class="comment-like" @tap="toggleCommentLike(c)">
+								<text :class="['comment-like-text', c.isLiked ? 'comment-liked' : '']">
+									{{ c.isLiked ? '❤' : '♡' }}{{ c.likes ? ' ' + c.likes : '' }}
+								</text>
+							</view>
+						</view>
+						<text class="comment-content">{{ c.content }}</text>
+						<view class="comment-meta">
+							<text class="comment-time">{{ c.timeText }}</text>
+							<text class="comment-reply-btn" @tap="setReplyTarget(c)">回复</text>
+						</view>
+
+						<!-- 二级回复 -->
+						<view v-if="c.replyCount > 0" class="reply-block">
+							<view
+								v-for="r in c.showAllReplies ? c.replies : c.replies.slice(0, 2)"
+								:key="r.id"
+								class="reply-item"
+							>
+								<view class="reply-avatar" :style="{ background: r.author.avatarBg }">
+									<text class="reply-avatar-text">{{ r.author.avatarText }}</text>
+								</view>
+								<view class="reply-body">
+									<view class="reply-head">
+										<text class="reply-name">{{ r.author.nickname }}</text>
+										<text v-if="r.replyToNickname" class="reply-to"> 回复 {{ r.replyToNickname }}</text>
+									</view>
+									<text class="comment-content reply-content">{{ r.content }}</text>
+									<view class="comment-meta">
+										<text class="comment-time">{{ r.timeText }}</text>
+										<text class="comment-reply-btn" @tap="setReplyTarget(r, c)">回复</text>
+									</view>
+								</view>
+								<view class="comment-like reply-like" @tap="toggleCommentLike(r)">
+									<text :class="['comment-like-text', r.isLiked ? 'comment-liked' : '']">
+										{{ r.isLiked ? '❤' : '♡' }}{{ r.likes ? ' ' + r.likes : '' }}
+									</text>
+								</view>
+							</view>
+
+							<text
+								v-if="c.replyCount > 2"
+								class="reply-expand"
+								@tap="c.showAllReplies = !c.showAllReplies"
+							>
+								{{ c.showAllReplies ? '收起回复' : '展开 ' + c.replyCount + ' 条回复' }}
+							</text>
+						</view>
+					</view>
+				</view>
+
+				<!-- 加载更多 -->
+				<view v-if="loadingMoreComments" class="comment-loading">
+					<text class="comment-loading-text">正在加载更多...</text>
+				</view>
+				<view v-if="!hasMoreComments && comments.length > 0" class="comment-loading">
+					<text class="comment-loading-text">没有更多评论了</text>
+				</view>
+			</scroll-view>
+
+			<!-- 输入栏 -->
+			<view class="comment-input-bar" :style="commentInputBarStyle">
+				<view class="comment-input-row">
+					<input
+					ref="commentInputRef"
+						class="comment-input"
+						:value="inputText"
+						:placeholder="replyTarget ? '回复 @' + replyTarget.author.nickname : '说点什么...'"
+						placeholder-style="color:rgba(255,255,255,.4);font-size:24rpx"
+						@input="onInputChange"
+						confirm-type="send"
+						@confirm="submitComment"
+						@focus="onInputFocus"
+						@blur="onInputBlur"
+					/>
+					<view v-if="replyTarget" class="cancel-reply" @tap="cancelReply">
+						<text class="cancel-reply-text">取消</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+	</view>
+</template>
+
+<script setup>
+import { ref, computed, nextTick } from 'vue'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
+import { resolveReturnUrl } from '@/components/home/navigationResolver'
+import { normalizeVideoFeedRoute } from '@/components/video/videoFeedConfig.js'
+
+// ── 设备 ──
+const wi = uni.getSystemInfoSync()
+const wh = wi.windowHeight
+const ww = wi.windowWidth
+const st = wi.safeAreaInsets?.top || 0
+const sb = wi.safeAreaInsets?.bottom || 0
+
+// ── Mock 资源 ──
+const VIDEO_SRC = 'https://www.clmcat.com/static/video/kaojingchongwu.mp4'
+const COVERS = ['/static/images/home/live-banner-1.jpg', '/static/images/home/live-banner-2.jpg', '/static/images/home/live-banner-3.jpg']
+
+// ── 视频详情 ──
+const detail = ref(null)
+const routeState = ref({})
+const videoActive = ref(false)
+
+const videoAspect = ref(9 / 16) // 默认竖屏 9:16
+
+const videoStyle = computed(() => {
+	const ar = videoAspect.value
+	if (ar <= 1) {
+		// 竖屏 / 方形 → 全屏
+		return { width: ww + 'px', height: wh + 'px' }
+	}
+	// 横屏 → 宽度全屏，垂直居中
+	const h = Math.round(ww / ar)
+	const mt = Math.max(0, Math.round((wh - h) / 2))
+	return { width: ww + 'px', height: h + 'px', marginTop: mt + 'px' }
+})
+// 注意：nvue video 使用系统原生播放器，自动缓存，无需额外配置
+
+// ── 视频控制 ──
+function startVideo() {
+	videoActive.value = true
+	// 等 DOM 更新后播放
+	setTimeout(() => { play() }, 100)
+}
+const isPlaying = ref(true)
+function play() {
+	try { uni.createVideoContext('vdetail').play() } catch (_) {}
+	isPlaying.value = true
+}
+function pause() {
+	try { uni.createVideoContext('vdetail').pause() } catch (_) {}
+	isPlaying.value = false
+}
+function togglePlay() {
+	if (isPlaying.value) pause()
+	else play()
+}
+function onVideoEnded() {
+	isPlaying.value = false
+	setTimeout(() => { play() }, 50)
+}
+function onVidErr(e) { console.warn('[detail] video error:', e?.detail?.errMsg || e) }
+// ── 浮动元素定位 ──
+const topBarStyle = computed(() => ({
+	top: (st + px(20)) + 'px',
+	left: px(24) + 'px',
+}))
+const rightPanelStyle = computed(() => ({
+	right: px(16) + 'px',
+	bottom: px(360) + 'px',
+}))
+
+const bottomInfoStyle = computed(() => ({
+	left: px(24) + 'px',
+	right: px(100) + 'px',
+	bottom: (px(75) + sb) + 'px',
+}))
+
+// ── 点赞 ──
+function toggleLike() {
+	if (!detail.value) return
+	detail.value.isLiked = !detail.value.isLiked
+	detail.value.likes += detail.value.isLiked ? 1 : -1
+}
+
+// ── 分享 ──
+function handleShare() {
+	uni.showToast({ title: '分享功能开发中', icon: 'none', duration: 1500 })
+}
+
+// ── 关注 ──
+function handleFollowAuthor() {
+	uni.showToast({ title: '已关注', icon: 'none', duration: 1200 })
+}
+
+function handleAvatarTap() {
+	if (!detail.value?.author?.id) return
+	uni.navigateTo({ url: '/pages/user-profile/user-profile?userId=' + detail.value.author.id })
+}
+
+// ── 返回 ──
+function handleBack() {
+	const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+	if (pages.length > 1) {
+		uni.navigateBack({ delta: 1 })
+		return
+	}
+	uni.reLaunch({ url: resolveReturnUrl(routeState.value) })
+}
+
+// ── 评论面板 ──
+const showComments = ref(false)
+const replyTarget = ref(null)
+const comments = ref([])
+const inputText = ref('')
+const loadingMoreComments = ref(false)
+const hasMoreComments = ref(true)
+const commentPage = ref(0)
+const keyboardH = ref(0)
+const commentInputRef = ref(null)
+
+const commentSheetH = computed(() => Math.round(wh * 0.75))
+const commentSheetStyle = computed(() => ({
+	height: (commentSheetH.value + keyboardH.value) + 'px',
+	bottom: '0px',
+	left: '0px',
+	right: '0px',
+	borderTopLeftRadius: px(24) + 'px',
+	borderTopRightRadius: px(24) + 'px',
+}))
+const commentScrollStyle = computed(() => ({
+	height: (commentSheetH.value - px(90) - px(120)) + 'px',
+}))
+const commentInputBarStyle = computed(() => ({
+	paddingBottom: (sb + px(24)) + 'px',
+}))
+
+function openComments() {
+	showComments.value = true
+}
+function closeComments() {
+	showComments.value = false
+	replyTarget.value = null
+	keyboardH.value = 0
+}
+function setReplyTarget(item, parent) {
+	replyTarget.value = { ...item, parentId: parent?.id || item.id }
+		// 自动聚焦输入框，拉起软键盘
+		nextTick(() => {
+			const el = commentInputRef.value
+			if (el) el.focus()
+		})
+}
+function cancelReply() {
+	replyTarget.value = null
+}
+
+function onInputChange(e) {
+	inputText.value = e.detail.value || ''
+}
+function submitComment(e) {
+	const txt = (e.detail.value || '').trim()
+	if (!txt) return
+	const now = new Date()
+	const pad = n => String(n).padStart(2, '0')
+	const timeText = pad(now.getHours()) + ':' + pad(now.getMinutes())
+	if (replyTarget.value) {
+		const parent = comments.value.find(c => c.id === replyTarget.value.parentId)
+		if (parent) {
+			parent.replies.push({
+				id: 'r_new_' + Date.now(),
+				author: { nickname: '我', avatarBg: 'linear-gradient(135deg, #fe2c55, #fb7185)', avatarText: '我' },
+				content: txt,
+				replyToNickname: replyTarget.value.author.nickname,
+				timeText,
+				likes: 0,
+				isLiked: false,
+			})
+			parent.replyCount++
+		}
+		replyTarget.value = null
+	} else {
+		comments.value.unshift({
+			id: 'c_new_' + Date.now(),
+			author: { nickname: '我', avatarBg: 'linear-gradient(135deg, #fe2c55, #fb7185)', avatarText: '我' },
+			content: txt,
+			timeText,
+			likes: 0,
+			isLiked: false,
+			replyCount: 0,
+			replies: [],
+			showAllReplies: false,
+		})
+		detail.value.cmts++
+	}
+	inputText.value = ''
+}
+
+function onInputFocus() {
+	// 键盘弹起时抬高评论面板
+	uni.onKeyboardHeightChange(res => {
+		keyboardH.value = res.height > 0 ? res.height : 0
+	})
+}
+function onInputBlur() {
+	keyboardH.value = 0
+}
+
+function loadMoreComments() {
+	if (loadingMoreComments.value || !hasMoreComments.value) return
+	loadingMoreComments.value = true
+	setTimeout(() => {
+		commentPage.value++
+		const more = buildMockComments()
+		if (more.length > 0) {
+			comments.value = [...comments.value, ...more]
+		}
+		if (commentPage.value >= 3) {
+			hasMoreComments.value = false
+		}
+		loadingMoreComments.value = false
+	}, 600)
+}
+
+function toggleCommentLike(item) {
+	item.isLiked = !item.isLiked
+	item.likes += item.isLiked ? 1 : -1
+}
+
+// ── Mock 评论 ──
+function buildMockComments() {
+	const avatarPools = [
+		{ nickname: '旅行者小明', avatarBg: 'linear-gradient(135deg, #fe2c55, #fb7185)', avatarText: '明' },
+		{ nickname: '深夜食堂', avatarBg: 'linear-gradient(135deg, #f97316, #fb923c)', avatarText: '食' },
+		{ nickname: '摄影老张', avatarBg: 'linear-gradient(135deg, #38bdf8, #0ea5e9)', avatarText: '张' },
+		{ nickname: '音乐达人', avatarBg: 'linear-gradient(135deg, #a855f7, #c084fc)', avatarText: '音' },
+		{ nickname: '追风少年', avatarBg: 'linear-gradient(135deg, #22c55e, #4ade80)', avatarText: '风' },
+		{ nickname: '南方姑娘', avatarBg: 'linear-gradient(135deg, #ec4899, #f472b6)', avatarText: '南' },
+		{ nickname: '程序员老王', avatarBg: 'linear-gradient(135deg, #6366f1, #818cf8)', avatarText: '程' },
+		{ nickname: '山间小溪', avatarBg: 'linear-gradient(135deg, #14b8a6, #2dd4bf)', avatarText: '溪' },
+		{ nickname: '咖啡控', avatarBg: 'linear-gradient(135deg, #78716c, #a8a29e)', avatarText: '咖' },
+		{ nickname: '小丸子', avatarBg: 'linear-gradient(135deg, #f43f5e, #fb7185)', avatarText: '丸' },
+	]
+	const contents = [
+		'这个视频太棒了！背景音乐是什么呀？',
+		'哈哈哈哈笑死我了，已转发给朋友',
+		'第一个！沙发！',
+		'拍得真好，这是在哪里拍的？',
+		'每天都来看你的视频，求更新~',
+		'这个视角绝了，是用什么设备拍的？',
+		'有点感同身受，说出了我的心声',
+		'加油！一直支持你！',
+		'此处应该有大拇指 👍 已收藏',
+		'最后那句也太戳了吧，泪目了',
+		'看了三遍才发现那个细节，绝了',
+		'这就是我想要的生活状态啊',
+	]
+	const replies = [
+		'是 Taylor Swift 的新歌~',
+		'我也这么觉得！',
+		'在深圳湾拍的哦',
+		'用的就是手机呀，主要是光线好',
+		'谢谢支持！会持续更新的',
+		'真的假的？我都没注意到！',
+		'同感同感，说出了大家的心声',
+		'已关注，宝藏博主',
+	]
+
+	const list = []
+	for (let i = 0; i < 8; i++) {
+		const author = avatarPools[i % avatarPools.length]
+		const replyCount = [0, 0, 2, 3, 0, 4, 1, 5][i]
+		const replyList = []
+		for (let j = 0; j < replyCount; j++) {
+			const ra = avatarPools[(i + j + 1) % avatarPools.length]
+			replyList.push({
+				id: 'r' + i + '_' + j,
+				author: { ...ra },
+				content: replies[(i + j) % replies.length],
+				replyToNickname: j === 0 ? author.nickname : avatarPools[(i + j) % avatarPools.length].nickname,
+				timeText: (replyCount - j) + '小时前',
+				likes: Math.floor(Math.random() * 80),
+				isLiked: false,
+			})
+		}
+		list.push({
+			id: 'c' + i,
+			author: { ...author },
+			content: contents[i % contents.length],
+			timeText: (i + 1) + '小时前',
+			likes: Math.floor(Math.random() * 300),
+			isLiked: false,
+			replyCount,
+			replies: replyList,
+			showAllReplies: false,
+		})
+	}
+	return list
+}
+
+// ── 初始化 ──
+function createDetail(videoId) {
+	return {
+		momentId: videoId || '10001',
+		cover: COVERS[Math.floor(Math.random() * 3)],
+		url: VIDEO_SRC,
+		text: '今天的天气真好，适合出去走走 🚶 随手记录一下路边的风景，希望大家也能感受到这份惬意~',
+		likes: 1234,
+		cmts: 8,
+		shares: 56,
+		isLiked: false,
+		author: {
+			id: 'u_001',
+			nickname: '千隅同学',
+			avatarText: '千',
+			avatarBg: 'linear-gradient(135deg, #fe2c55 0%, #fb7185 100%)',
+		},
+	}
+}
+
+onLoad((opts = {}) => {
+	const nextRoute = normalizeVideoFeedRoute({ ...opts, mode: 'detail-only' })
+	routeState.value = nextRoute
+	detail.value = createDetail(nextRoute.videoId)
+	comments.value = buildMockComments()
+		// 封面先展示，延时后自动切视频播放
+		setTimeout(() => { startVideo() }, 400)
+})
+
+onUnload(() => {
+	try { uni.createVideoContext('vdetail').stop() } catch (_) {}
+})
+
+// ── 工具 ──
+function px(v) { return (Number(v || 0) * ww) / 750 }
+function fmtCount(n) {
+	if (typeof n !== 'number') return '0'
+	if (n >= 10000) return (n / 10000).toFixed(1) + 'w'
+	if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
+	return String(n)
+}
+
+// ── 对外暴露（方便二次开发调用） ──
+defineExpose({
+	/* 状态 */
+	detail, comments, showComments, replyTarget, isPlaying,
+	loadingMoreComments, hasMoreComments, commentPage, inputText,
+	videoActive, keyboardH,
+	/* 视频 */
+	play, pause, togglePlay, startVideo,
+	/* 评论面板 */
+	openComments, closeComments, loadMoreComments,
+	/* 评论操作 */
+	toggleCommentLike, submitComment, setReplyTarget, cancelReply,
+	/* 视频操作 */
+	toggleLike, handleShare, handleFollowAuthor,
+})
+</script>
+
+<style scoped>
+.page { position: relative; flex: 1; }
+
+/* ── 视频 ── */
+.video { background-color: #000; }
+.cover-img { position: absolute; top: 0; left: 0; z-index: 1; background-color: #000; }
+
+
+/* ── 顶部返回 ── */
+.top-bar { position: absolute; z-index: 20; }
+.back-btn {
+	width: 72rpx; height: 72rpx;
+	border-radius: 36rpx;
+	background-color: rgba(15, 23, 42, 0.52);
+	display: flex; align-items: center; justify-content: center;
+}
+/* CSS 箭头: border-left+top 旋转45deg = < */
+.back-chevron {
+	width: 18rpx; height: 18rpx;
+	border-left: 4rpx solid #fff;
+	border-top: 4rpx solid #fff;
+	transform: rotate(-45deg);
+	margin-left: 6rpx;
+}
+
+/* ── 右侧面板 ── */
+.right-panel { position: absolute; z-index: 20; display: flex; flex-direction: column; align-items: center; }
+.right-item { display: flex; flex-direction: column; align-items: center; position: relative; margin-bottom: 28rpx; overflow: visible; }
+.right-icon { margin-bottom: 4rpx; }
+.right-icon-heart { font-size: 50rpx; line-height: 56rpx; }
+.right-count { font-size: 22rpx; color: #fff; line-height: 28rpx; }
+
+/* 头像 */
+.avatar-ring {
+	width: 88rpx; height: 88rpx;
+	border-radius: 44rpx;
+	border: 3rpx solid #fff;
+	padding: 3rpx;
+}
+.avatar {
+	width: 76rpx; height: 76rpx;
+	border-radius: 38rpx;
+	display: flex; align-items: center; justify-content: center;
+}
+.avatar-text { font-size: 30rpx; font-weight: 700; color: #fff; }
+.follow-badge {
+	margin-top: -14rpx;
+	width: 32rpx; height: 32rpx;
+	border-radius: 16rpx;
+	background-color: #fe2c55;
+	display: flex; align-items: center; justify-content: center;
+}
+.follow-badge-text { font-size: 22rpx; color: #fff; font-weight: 700; }
+
+/* 评论气泡 */
+.right-icon-comment { width: 44rpx; height: 48rpx; position: relative; }
+.cmt-bubble {
+	width: 42rpx; height: 34rpx;
+	border: 3rpx solid #fff;
+	border-radius: 10rpx;
+}
+.cmt-tail {
+	position: absolute; bottom: 2rpx; left: 4rpx;
+	width: 14rpx; height: 14rpx;
+	border-right: 3rpx solid #fff;
+	border-bottom: 3rpx solid #fff;
+	transform: rotate(45deg);
+}
+
+/* 分享箭头 */
+.right-icon-share { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; }
+.share-arrow {
+	width: 26rpx; height: 26rpx;
+	border-top: 3rpx solid #fff;
+	border-right: 3rpx solid #fff;
+	transform: rotate(45deg);
+	margin-bottom: 6rpx;
+	margin-left: -8rpx;
+}
+.share-arrow-head { display: none; }
+
+/* ── 底部信息 ── */
+.bottom-info { position: absolute; z-index: 20; display: flex; flex-direction: column; }
+.author-row { display: flex; flex-direction: row; align-items: center; margin-bottom: 16rpx; }
+.author-name { font-size: 30rpx; font-weight: 700; color: #fff; margin-right: 20rpx; }
+.follow-btn {
+	padding: 6rpx 24rpx;
+	border-radius: 6rpx;
+	border: 2rpx solid rgba(255,255,255,.48);
+}
+.follow-btn-text { font-size: 22rpx; color: #fff; }
+.video-desc { font-size: 26rpx; line-height: 38rpx; color: rgba(255,255,255,.88); }
+
+/* ── 评论遮罩 ── */
+.comment-backdrop {
+	position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+	z-index: 25;
+	background-color: rgba(0,0,0,.42);
+}
+
+/* ── 评论弹层 ── */
+.comment-sheet {
+	position: absolute; z-index: 30;
+	background-color: #1a1a1a;
+	display: flex; flex-direction: column;
+}
+.comment-sheet-head {
+	display: flex; flex-direction: row;
+	align-items: center; justify-content: center;
+	height: 80rpx;
+	padding: 0 32rpx;
+	position: relative;
+}
+.comment-handle {
+	position: absolute; top: 16rpx;
+	width: 72rpx; height: 8rpx;
+	border-radius: 4rpx;
+	background-color: rgba(255,255,255,.24);
+}
+.comment-sheet-title {
+	font-size: 30rpx; font-weight: 600; color: #fff;
+}
+.comment-sheet-close {
+	position: absolute; right: 32rpx;
+	width: 48rpx; height: 48rpx;
+	display: flex; align-items: center; justify-content: center;
+}
+.comment-sheet-close-text { font-size: 32rpx; color: rgba(255,255,255,.6); }
+
+/* ── 评论列表 ── */
+.comment-scroll { flex: 1; }
+.comment-empty {
+	padding: 120rpx 0;
+	display: flex; align-items: center; justify-content: center;
+}
+.comment-empty-text { font-size: 26rpx; color: rgba(255,255,255,.4); }
+
+.comment-item {
+	display: flex; flex-direction: row;
+	padding: 24rpx 32rpx;
+}
+.comment-avatar {
+	width: 64rpx; height: 64rpx;
+	border-radius: 32rpx;
+	flex-shrink: 0;
+	display: flex; align-items: center; justify-content: center;
+}
+.comment-avatar-text { font-size: 24rpx; font-weight: 700; color: #fff; }
+.comment-body { flex: 1; margin-left: 20rpx; min-width: 0; }
+
+.comment-head {
+	display: flex; flex-direction: row;
+	align-items: center; justify-content: space-between;
+}
+.comment-name { font-size: 24rpx; font-weight: 600; color: rgba(255,255,255,.6); }
+.comment-content { font-size: 26rpx; line-height: 38rpx; color: rgba(255,255,255,.92); margin-top: 8rpx; }
+.comment-meta {
+	display: flex; flex-direction: row; align-items: center;
+	margin-top: 10rpx;
+}
+.comment-time { font-size: 20rpx; color: rgba(255,255,255,.4); margin-right: 24rpx; }
+.comment-reply-btn { font-size: 20rpx; color: rgba(255,255,255,.5); font-weight: 600; }
+
+.comment-like { flex-shrink: 0; }
+.comment-like-text { font-size: 22rpx; color: rgba(255,255,255,.5); }
+.comment-liked { color: #fe2c55; }
+
+/* ── 回复区块 ── */
+.reply-block {
+	margin-top: 12rpx;
+	padding: 16rpx;
+	border-radius: 16rpx;
+	background-color: rgba(255,255,255,.06);
+}
+.reply-item {
+	display: flex; flex-direction: row;
+	padding: 10rpx 0;
+}
+.reply-item + .reply-item { border-top: 1rpx solid rgba(255,255,255,.06); }
+.reply-avatar {
+	width: 44rpx; height: 44rpx;
+	border-radius: 22rpx;
+	flex-shrink: 0;
+	display: flex; align-items: center; justify-content: center;
+}
+.reply-avatar-text { font-size: 18rpx; font-weight: 700; color: #fff; }
+.reply-body { flex: 1; margin-left: 14rpx; min-width: 0; }
+.reply-head {
+	display: flex; flex-direction: row; flex-wrap: wrap; align-items: baseline;
+}
+.reply-name { font-size: 22rpx; font-weight: 600; color: rgba(255,255,255,.5); }
+.reply-to { font-size: 20rpx; color: rgba(255,255,255,.35); }
+.reply-content { font-size: 24rpx; line-height: 34rpx; }
+.reply-like { margin-left: 12rpx; }
+
+.reply-expand {
+	display: block;
+	margin-top: 12rpx;
+	font-size: 22rpx; color: rgba(255,255,255,.5); font-weight: 600;
+}
+
+/* ── 输入栏 ── */
+.comment-input-bar {
+	padding: 16rpx 32rpx;
+	background-color: #1a1a1a;
+	border-top: 1rpx solid rgba(255,255,255,.08);
+}
+.comment-input-row { display: flex; flex-direction: row; align-items: center; }
+.comment-input {
+	flex: 1;
+	height: 64rpx;
+	border-radius: 32rpx;
+	background-color: rgba(255,255,255,.1);
+	padding: 0 24rpx;
+	font-size: 24rpx;
+	color: #fff;
+	line-height: 64rpx;
+}
+.cancel-reply { flex-shrink: 0; margin-left: 16rpx; }
+.cancel-reply-text { font-size: 22rpx; color: rgba(255,255,255,.5); }
+
+/* 加载提示 */
+.comment-loading { padding: 24rpx 0; display: flex; align-items: center; justify-content: center; }
+.comment-loading-text { font-size: 22rpx; color: rgba(255,255,255,.35); }
+</style>

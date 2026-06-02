@@ -146,7 +146,11 @@
 			"path": "pages/video/detail",
 			"style": {
 				"navigationStyle": "custom",
-				"backgroundColor": "#000000"
+				"backgroundColor": "#000000",
+				"disableScroll": true,
+				"app-plus": {
+					"bounce": "none"
+				}
 			}
 		},
 		{
