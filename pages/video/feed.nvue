@@ -10,13 +10,7 @@
       >
         <template #default="{ pageNo, index }">
           <view class="video-shell" :style="{ width: ww + 'px', height: vh + 'px' }">
-            <!-- 封面 image -->
-            <image class="cover-image"
-              :style="{ width: ww + 'px', height: vh + 'px' }"
-              :src="videoList[pageNo]?.cover"
-              mode="aspectFill"
-            />
-            <!-- 播放 video：当前页才渲染 -->
+            <!-- 播放 video：当前页才渲染，在 cover 下层 -->
             <video v-if="currentPage === pageNo"
               :id="'v' + index"
               class="video-el"
@@ -32,8 +26,19 @@
               :loop="true"
               @loadedmetadata="onVideoReady(pageNo)"
               @play="onVideoPlay(pageNo)"
+              @timeupdate="onTimeUpdate(pageNo)"
               @pause="onVideoPause(pageNo)"
               @ended="onVideoEnded(pageNo)"
+            />
+            <!-- 封面 image：在 video 上层，@timeupdate 后隐藏 -->
+            <image class="cover-image"
+              :key="'c' + pageNo"
+              :style="{
+                width: ww + 'px', height: vh + 'px',
+                opacity: (currentPage !== pageNo || !coverHidden[pageNo]) ? 1 : 0.6,
+              }"
+              :src="videoList[pageNo]?.cover"
+              mode="aspectFill"
             />
             <view class="video-info">
               <text class="info-text">{{ videoList[pageNo]?.text }}</text>
@@ -69,7 +74,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, reactive, nextTick } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { buildNavigationIndexRoute } from '@/components/common/navigation/navigationActionProtocol.js'
 import { resolveFeedNavigationSnapshot, VIDEO_FEED_HOME_NAV_KEY } from '@/components/home/navigationResolver'
@@ -126,27 +131,52 @@ function handleTopNavTap(n) { if (n?.targetUrl && n.key !== activeTopNavKey) uni
 function handleBottomNavTap(t) { if (t?.targetUrl && t.key !== activeLevel1.value) uni.reLaunch({ url: t.targetUrl }) }
 
 // ── Mock 数据 ──────────────────────────────────────────
-const VIDEO_URL = 'https://www.clmcat.com/static/video/kaojingchongwu.mp4'
+const VIDEO_URLS = [
+  'https://www.clmcat.com/static/video/kaojingrenlei.mp4',
+  'https://www.clmcat.com/static/video/lanqiu.mp4',
+  'https://www.clmcat.com/static/video/peoper.mp4',
+  'https://www.clmcat.com/static/video/saiche.mp4',
+  'https://www.clmcat.com/static/video/taiqiu.mp4',
+  'https://www.clmcat.com/static/video/kaojingchongwu.mp4',
+  'https://www.clmcat.com/static/video/kaojingrenlei.mp4',
+  'https://www.clmcat.com/static/video/lanqiu.mp4',
+  'https://www.clmcat.com/static/video/peoper.mp4',
+  'https://www.clmcat.com/static/video/saiche.mp4',
+]
 const COVERS = [
+  'https://www.clmcat.com/static/video/kaojingrenlei.png',
+  'https://www.clmcat.com/static/video/lanqiu.png',
+  'https://www.clmcat.com/static/video/peoper.png',
+  'https://www.clmcat.com/static/video/saiche.png',
+  'https://www.clmcat.com/static/video/taiqiu.png',
   'https://www.clmcat.com/static/video/kaojingchongwu.png',
+  'https://www.clmcat.com/static/video/kaojingrenlei.png',
+  'https://www.clmcat.com/static/video/lanqiu.png',
+  'https://www.clmcat.com/static/video/peoper.png',
+  'https://www.clmcat.com/static/video/saiche.png',
 ]
 const TEXTS = [
-  '今天天气真好 🚶', '新学的料理 😋', '旅途中的风景 🌄',
-  '街头的表演 🎵', '猫咪又睡着了 🐱', '晨跑打卡第30天 💪',
-  '周末去海边 🌊', '手冲咖啡教程 ☕',
+  '考古人类 🦴', '篮球场 🏀', '胡椒研磨 🌶️',
+  '赛车漂移 🏎️', '打台球 🎱', '考古宠物 🐱',
+  '考古2 🦴', '篮球2 🏀', '胡椒2 🌶️', '赛车2 🏎️',
 ]
 
 const videoList = ref(
-  Array.from({ length: 8 }, (_, i) => ({
-    key: 10000 + i, url: VIDEO_URL,
-    cover: COVERS[i % COVERS.length], text: TEXTS[i % TEXTS.length],
-    likes: (50 + (i * 137) % 950), cmts: (3 + (i * 73) % 198),
+  Array.from({ length: 10 }, (_, i) => ({
+    key: 10000 + i,
+    url: VIDEO_URLS[i],
+    cover: COVERS[i],
+    text: TEXTS[i],
+    likes: (50 + (i * 137) % 950),
+    cmts: (3 + (i * 73) % 198),
   }))
 )
 
 // ── 视频播放管理 ───────────────────────────────────────
 const cardlistRef = ref(null)
 const currentPage = ref(0)
+const coverHidden = reactive({})  // 视频播放后隐藏封面
+
 // 每个 pageNo 的播放状态，由原生 @play/@pause 事件维护
 const playingPages = new Set()
 
@@ -157,7 +187,6 @@ function getSlotByPageNo(pageNo) {
 
 function playVideo(slotIdx) {
   if (slotIdx < 0) { console.warn('[feed] play skip: slot=', slotIdx); return }
-  if (slotIdx >= 0) console.log('[feed] play slot:', slotIdx)
   try {
     const ctx = uni.createVideoContext('v' + slotIdx)
     if (ctx) ctx.play()
@@ -165,18 +194,24 @@ function playVideo(slotIdx) {
 }
 
 function onVideoPlay(pageNo) {
-  console.log('[feed] native play', pageNo)
+  // console.log('[feed] native play', pageNo)
   playingPages.add(pageNo)
 }
 
+// @timeupdate 首帧渲染后隐藏封面（约 250ms 间隔，第二次触发时首帧已就绪）
+function onTimeUpdate(pageNo) {
+  if (pageNo !== currentPage.value || coverHidden[pageNo]) return
+  coverHidden[pageNo] = true
+}
+
 function onVideoPause(pageNo) {
-  console.log('[feed] native pause', pageNo)
+  // console.log('[feed] native pause', pageNo)
   playingPages.delete(pageNo)
 }
 
 function onVideoEnded(pageNo) {
   playingPages.delete(pageNo)
-  console.log('[feed] ended pageNo:', pageNo, 'current:', currentPage.value)
+  // console.log('[feed] ended pageNo:', pageNo, 'current:', currentPage.value)
   // nvue 下 :loop="true" 可能不生效，手动重启
   if (pageNo === currentPage.value) {
     const slotIdx = getSlotByPageNo(pageNo)
@@ -186,7 +221,7 @@ function onVideoEnded(pageNo) {
 
 function stopVideo(slotIdx) {
   if (slotIdx < 0) return
-  console.log('[feed] stop v' + slotIdx)
+  // console.log('[feed] stop v' + slotIdx)
   try {
     const ctx = uni.createVideoContext('v' + slotIdx)
     // nvue 下 video 已销毁时 ctx 可能为 null 或方法不可用，静默跳过
@@ -202,10 +237,10 @@ function onCardClick({ current }) {
     if (!ctx) return
     if (playingPages.has(current.pageNo)) {
       ctx.pause()
-      console.log('[feed] toggle pause', current.pageNo)
+      // console.log('[feed] toggle pause', current.pageNo)
     } else {
       ctx.play()
-      console.log('[feed] toggle play', current.pageNo)
+      // console.log('[feed] toggle play', current.pageNo)
     }
   } catch (e) { console.warn('[feed] toggle err:', e) }
 }
@@ -223,8 +258,10 @@ function onVideoReady(pageNo) {
 
 // @change：翻页完成
 function onPageChange({ from, current, next }) {
-console.log('[feed] onPageChange', from, '→', current, "->", next)	
-  console.log('[feed] change', from.pageNo, '→', current.pageNo)
+  //console.log('[feed] change', from.pageNo, '→', current.pageNo)
+  // 清掉 from 和当前页的 coverHidden，保证回到页面时封面全亮
+  coverHidden[from.pageNo] = false
+  coverHidden[current.pageNo] = false
   currentPage.value = current.pageNo
   nextTick(() => {
     const toSlot = getSlotByPageNo(current.pageNo)
@@ -258,8 +295,8 @@ onShow(() => {
 .page { position: relative; flex: 1; background-color: #000; }
 .content { position: relative; overflow: hidden; background-color: #000; }
 .video-shell { position: relative; overflow: hidden; background-color: #000; }
-.cover-image { position: absolute; top: 0; left: 0; z-index: 1; background-color: #111; }
-.video-el { position: absolute; top: 0; left: 0; z-index: 2; }
+.cover-image { position: absolute; top: 0; left: 0; z-index: 2; background-color: #111; }
+.video-el { position: absolute; top: 0; left: 0; z-index: 1; }
 .video-info {
   position: absolute; z-index: 3; right: 32rpx; bottom: 160rpx; left: 32rpx;
   display: flex; flex-direction: column;
