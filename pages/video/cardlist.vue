@@ -25,13 +25,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 
 const props = defineProps({
   style: { type: Object, default: () => ({}) },
-  list: { type: Array, default: () => ([]) }
+  list: { type: Array, default: () => ([]) },
+  pressThreshold: { type: Number, default: 5 },     // 点击判定阈值(px)
+  longpressDelay: { type: Number, default: 300 },    // 长按判定间隔(ms)
 })
-const emit = defineEmits(['totop', 'tobottom', 'change', 'rotate'])
+const emit = defineEmits(['totop', 'tobottom', 'change', 'rotate', 'click', 'longpress'])
 
 const defaultColors = ['#0a9dff', '#4eff63', '#d94fff']
 const BUFFER_SIZE = 3
@@ -52,7 +54,13 @@ const maxPageNo = computed(() =>
 )
 
 // ── Buffer ────────────────────────────────────────────
-function slot(pageNo) { return { pageNo: Math.max(0, pageNo) } }
+// 每个 slot 自带 _status（reactive），外部可直接写入触发渲染。
+function slot(pageNo) {
+  return {
+    pageNo: Math.max(0, pageNo),
+    _status: reactive({ active: false }),
+  }
+}
 
 const buffer = ref([])
 function initBuffer(start) {
@@ -68,7 +76,9 @@ initBuffer(0)
 const translateY = ref(0)
 const anchorY    = ref(0)
 const isAnimating = ref(false)
+const touchStartX = ref(0)
 const touchStartY = ref(0)
+const touchStartTime = ref(0)
 
 // ── 页码推导（全部从像素位置计算，不独立维护 state） ──
 // 当前可见的 buffer slot 索引（0/1/2）
@@ -92,7 +102,9 @@ function pxToPage(y) {
 
 // ── 触摸事件 ──────────────────────────────────────────
 function touchstart(e) {
+  touchStartX.value = e.touches[0].pageX
   touchStartY.value = e.touches[0].pageY
+  touchStartTime.value = Date.now()
   anchorY.value = translateY.value
 }
 
@@ -110,7 +122,34 @@ function touchmove(e) {
 function touchend(e) {
   if (isAnimating.value) return
 
-  const diffY = e.changedTouches[0].pageY - touchStartY.value
+  const endX = e.changedTouches[0].pageX
+  const endY = e.changedTouches[0].pageY
+
+  // 点击 / 长按判定：位移 < pressThreshold 即视为 tap
+  const dx = Math.abs(endX - touchStartX.value)
+  const dy = Math.abs(endY - touchStartY.value)
+  if (dx < props.pressThreshold && dy < props.pressThreshold) {
+    const elapsed = Date.now() - touchStartTime.value
+    const pn = currentPageNo.value
+    const si = visibleSlot.value
+    const data = {
+      current: {
+        pageNo: pn,
+        slotIndex: si,
+        item: props.list[pn] ?? null,
+        _status: buffer.value[si]._status,
+      },
+    }
+    if (elapsed >= props.longpressDelay) {
+      emit('longpress', data)
+    } else {
+      emit('click', data)
+    }
+    translateY.value = anchorY.value
+    return
+  }
+
+  const diffY = endY - touchStartY.value
   if (diffY === 0 || Math.abs(diffY) <= 15) {
     translateY.value = anchorY.value; return
   }
@@ -169,15 +208,30 @@ function animateTo(targetY, scrollDown, targetPage, duration = 200) {
       // 先处理循环缓冲（补偿 translateY/anchorY），
       // 再解锁动画状态，防止 rotateBuffer 期间被 touch 事件打断
       rotateBuffer(scrollDown, targetPage)
+      syncActiveSlot()
       isAnimating.value = false
 
       const afterPg = currentPageNo.value
       const vs = visibleSlot.value
       console.log('[card] animDone', fromPageNo, '→', targetPage, 'buf:', JSON.stringify(buffer.value.map(s => s.pageNo)))
 
-      // 用 targetPage 而不是 currentPageNo.value（旋转补偿后 visibleSlot 会错位）
+      // 带完整信息的 event
+      function slotInfo(pn) {
+        if (pn < 0 || pn >= props.list.length) return null
+        const idx = buffer.value.findIndex(s => s.pageNo === pn)
+        return {
+          pageNo: pn,
+          slotIndex: idx,
+          item: props.list[pn] ?? null,
+          _status: idx >= 0 ? buffer.value[idx]._status : null,
+        }
+      }
       const nextDir = targetPage > fromPageNo ? 1 : -1
-      emit('change', { from: fromPageNo, to: targetPage, next: targetPage + nextDir })
+      emit('change', {
+        from:    slotInfo(fromPageNo),
+        current: slotInfo(targetPage),
+        next:    slotInfo(targetPage + nextDir),
+      })
     }
   }
   step()
@@ -207,6 +261,14 @@ function rotateBuffer(scrollDown, targetPage) {
     console.log('[card] popToUnshift', JSON.stringify(buffer.value.map(s => s.pageNo)), 'target:', targetPage)
     emit('rotate', { dir: 'up', slots: buffer.value.map(s => s.pageNo) })
   }
+}
+
+// ── 同步 _status.active ──────────────────────────────
+function syncActiveSlot() {
+  const activeIdx = visibleSlot.value
+  buffer.value.forEach((s, i) => {
+    s._status.active = (i === activeIdx)
+  })
 }
 
 // ── 外部控制接口 ──────────────────────────────────────

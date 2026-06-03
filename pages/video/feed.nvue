@@ -6,6 +6,7 @@
         :list="videoList"
         :style="{ width: ww + 'px', height: vh + 'px' }"
         @change="onPageChange"
+        @click="onCardClick"
       >
         <template #default="{ pageNo, index }">
           <view class="video-shell" :style="{ width: ww + 'px', height: vh + 'px' }">
@@ -30,6 +31,8 @@
               object-fit="cover"
               :loop="true"
               @loadedmetadata="onVideoReady(pageNo)"
+              @play="onVideoPlay(pageNo)"
+              @pause="onVideoPause(pageNo)"
               @ended="onVideoEnded(pageNo)"
             />
             <view class="video-info">
@@ -144,6 +147,8 @@ const videoList = ref(
 // ── 视频播放管理 ───────────────────────────────────────
 const cardlistRef = ref(null)
 const currentPage = ref(0)
+// 每个 pageNo 的播放状态，由原生 @play/@pause 事件维护
+const playingPages = new Set()
 
 function getSlotByPageNo(pageNo) {
   const buf = cardlistRef.value?.buffer ?? []
@@ -159,7 +164,18 @@ function playVideo(slotIdx) {
   } catch (e) { console.warn('[feed] play err:', e) }
 }
 
+function onVideoPlay(pageNo) {
+  console.log('[feed] native play', pageNo)
+  playingPages.add(pageNo)
+}
+
+function onVideoPause(pageNo) {
+  console.log('[feed] native pause', pageNo)
+  playingPages.delete(pageNo)
+}
+
 function onVideoEnded(pageNo) {
+  playingPages.delete(pageNo)
   console.log('[feed] ended pageNo:', pageNo, 'current:', currentPage.value)
   // nvue 下 :loop="true" 可能不生效，手动重启
   if (pageNo === currentPage.value) {
@@ -178,6 +194,22 @@ function stopVideo(slotIdx) {
   } catch (_) {}
 }
 
+function onCardClick({ current }) {
+  const slotIdx = getSlotByPageNo(current.pageNo)
+  if (slotIdx < 0) return
+  try {
+    const ctx = uni.createVideoContext('v' + slotIdx)
+    if (!ctx) return
+    if (playingPages.has(current.pageNo)) {
+      ctx.pause()
+      console.log('[feed] toggle pause', current.pageNo)
+    } else {
+      ctx.play()
+      console.log('[feed] toggle play', current.pageNo)
+    }
+  } catch (e) { console.warn('[feed] toggle err:', e) }
+}
+
 // @loadedmetadata：src 加载完成后的保底操作
 function onVideoReady(pageNo) {
   const slotIdx = getSlotByPageNo(pageNo)
@@ -190,11 +222,12 @@ function onVideoReady(pageNo) {
 }
 
 // @change：翻页完成
-function onPageChange({ from, to }) {
-  console.log('[feed] change', from, '→', to)
-  currentPage.value = to
+function onPageChange({ from, current, next }) {
+console.log('[feed] onPageChange', from, '→', current, "->", next)	
+  console.log('[feed] change', from.pageNo, '→', current.pageNo)
+  currentPage.value = current.pageNo
   nextTick(() => {
-    const toSlot = getSlotByPageNo(to)
+    const toSlot = getSlotByPageNo(current.pageNo)
     if (toSlot >= 0) playVideo(toSlot)
   })
 }
