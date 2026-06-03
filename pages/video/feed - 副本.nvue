@@ -1,0 +1,260 @@
+<template>
+	<view class="page" :style="{ height: wh + 'px', position: 'relative', backgroundColor: '#000' }">
+		<view class="content" :style="{ width: ww + 'px', height: vh + 'px' }">
+
+			<view v-if="!ready" class="status"><text class="status-text">加载中...</text></view>
+
+			<swiper
+				v-else
+				class="swiper"
+				:style="{ width: ww + 'px', height: vh + 'px' }"
+				:circular="circularOpen"
+				vertical
+				acceleration
+				@change="onChange"
+				@animationfinish="onAnimFinish"
+			>
+				<swiper-item v-for="i in 5" :key="'s' + i">
+					<view class="shell" :style="{ width: ww + 'px', height: vh + 'px' }">
+						<image v-if="slotData(i-1)" class="cover" :style="{ width: ww + 'px', height: vh + 'px' }"
+							:src="slotData(i-1).cover" mode="aspectFill" />
+						<video
+							v-if="slotData(i-1)"
+							:id="'v' + slotData(i-1).momentId"
+							class="video"
+							:style="{ width: ww + 'px', height: vh + 'px' }"
+							:src="slotData(i-1).url"
+							:poster="slotData(i-1).cover"
+							controls="false"
+							show-progress="false"
+							enable-progress-gesture="false"
+							object-fit="cover"
+							@error="onVidErr"
+						/>
+						<view v-if="slotData(i-1)" class="info">
+							<text class="info-text">{{ slotData(i-1).text }}</text>
+							<view class="info-meta">
+								<text class="info-stat">❤ {{ slotData(i-1).likes }}</text>
+								<text class="info-stat">💬 {{ slotData(i-1).cmts }}</text>
+							</view>
+						</view>
+					</view>
+				</swiper-item>
+			</swiper>
+
+			<!-- 顶部导航 -->
+			<view class="top-nav" :style="topNavStyle">
+				<image class="top-nav-bg" :style="topNavStyle"
+					src="/static/images/home/home-subnav-dark.png" mode="scaleToFill" />
+				<view class="top-nav-mask" :style="topNavStyle"></view>
+				<view class="top-nav-panel" :style="topPanelStyle">
+					<view class="top-nav-row" :style="topRowStyle">
+						<view v-for="(n, i) in topNavList" :key="n.key" class="top-nav-item"
+							:style="getTopNavItemStyle(n, i)" @tap="handleTopNavTap(n)">
+							<text :lines="1" :class="['top-nav-text', n.key === activeTopNavKey ? 'top-nav-text-active' : '']">{{ n.label }}</text>
+						</view>
+					</view>
+				</view>
+			</view>
+
+		</view>
+
+		<!-- 底部 Tab -->
+		<view class="bottom-tab" :style="tabStyle">
+			<view v-for="t in bottomNavList" :key="t.key" class="tab-item" @tap="handleBottomNavTap(t)">
+				<text :lines="1" :class="['tab-text', activeLevel1 === t.key ? 'tab-text-active' : '']">{{ t.label }}</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
+import { buildNavigationIndexRoute } from '@/components/common/navigation/navigationActionProtocol.js'
+import { resolveFeedNavigationSnapshot, VIDEO_FEED_HOME_NAV_KEY } from '@/components/home/navigationResolver'
+import { normalizeVideoFeedRoute } from '@/components/video/videoFeedConfig.js'
+import { NAV_CONFIG } from '@/components/home/indexNavigationConfig'
+
+// ── 设备 ──
+const wi = uni.getSystemInfoSync()
+const wh = wi.windowHeight
+const ww = wi.windowWidth
+const st = wi.safeAreaInsets?.top || 0
+const sb = wi.safeAreaInsets?.bottom || 0
+
+// ── 导航 ──
+const navSnapshot  = ref(resolveFeedNavigationSnapshot())
+const activeLevel1 = ref(NAV_CONFIG.defaultLevel1)
+const activeLevel2 = ref(NAV_CONFIG.home.defaultLevel2)
+const navTokens  = computed(() => navSnapshot.value.navTokens)
+const tabBarH    = rpxToPx(navTokens.value.tabBarHeightRpx)
+const navSafe    = rpxToPx(navTokens.value.navSafeGapRpx)
+const navH       = rpxToPx(navTokens.value.navHeightRpx)
+const navPad     = rpxToPx(navTokens.value.navSidePaddingRpx)
+const navGap     = rpxToPx(navTokens.value.navItemGapRpx)
+const panelBot   = rpxToPx(20)
+
+const vh = wh - tabBarH - sb  // swiper viewport
+
+const topNavList = computed(() => navSnapshot.value.topNavList.map(item => ({
+	key: item.key, label: item.label,
+	targetUrl: item.key === VIDEO_FEED_HOME_NAV_KEY ? '' : buildNavigationIndexRoute({ level1: 'home', level2: item.key }),
+})))
+const bottomNavList = computed(() => navSnapshot.value.bottomNavList.map(item => ({
+	key: item.key, label: item.label,
+	targetUrl: buildNavigationIndexRoute({ level1: item.key, level2: item.key === 'home' ? activeLevel2.value : '' }),
+})))
+const activeTopNavKey = VIDEO_FEED_HOME_NAV_KEY
+
+// ── Mock ──
+const VIDEO_SRC = 'https://www.clmcat.com/static/video/kaojingchongwu.mp4'
+const COVERS = ['/static/images/home/live-banner-1.jpg','/static/images/home/live-banner-2.jpg','/static/images/home/live-banner-3.jpg']
+const TEXTS = ['今天天气真好 🚶','新学的料理 😋','旅途中的风景 🌄','街头的表演 🎵','猫咪又睡着了 🐱','晨跑打卡第30天 💪','周末去海边 🌊','手冲咖啡教程 ☕','深夜电台 🌙','骑行50公里 🚴']
+
+let globalIdx = 0, batchCount = 0
+const PAGE_SIZE = 10, MAX_BATCH = 3
+
+function mockBatch() {
+	batchCount++
+	if (batchCount > MAX_BATCH) return []
+	const items = []
+	for (let k = 0; k < PAGE_SIZE; k++) {
+		const idx = globalIdx++
+		items.push({
+			momentId: 10000 + idx + 1,
+			cover: COVERS[idx % 3], url: VIDEO_SRC, text: TEXTS[idx % 10],
+			likes: (50 + (idx * 137) % 950), cmts: (3 + (idx * 73) % 198),
+		})
+	}
+	return items
+}
+
+// ── 数据模型 ──
+const fullItems   = ref([])
+const slotIndexes = ref([0,1,2,3,4])
+const currentIdx  = ref(0)
+const cursorSlot  = ref(0)
+const ready       = ref(false)
+const loadingMore = ref(false)
+
+const circularOpen = computed(() =>
+	currentIdx.value > 0 && currentIdx.value + 1 < fullItems.value.length
+)
+
+function slotData(i) {
+	const di = slotIndexes.value[i]
+	return (di != null && di < fullItems.value.length) ? fullItems.value[di] : null
+}
+
+function refreshSlots() {
+	const cur = cursorSlot.value, idx = currentIdx.value
+	const ni  = [...slotIndexes.value]
+	ni[cur] = idx
+	for (let o = 1; o <= 3; o++) {
+		const s = (cur + o) % 5, di = idx + o
+		if (di < fullItems.value.length) ni[s] = di
+	}
+	slotIndexes.value = ni
+}
+
+// ── Swiper 事件 ──
+let prevPlayingSlot = -1
+
+function onChange(e) {
+	const ns = e.detail.current, prev = cursorSlot.value
+	if (ns === prev) return
+	const cw = (ns - prev + 5) % 5
+	if (cw <= 2) currentIdx.value++
+	else         currentIdx.value--
+	cursorSlot.value = ns
+	refreshSlots()
+	if (fullItems.value.length - currentIdx.value <= 4) loadMore()
+}
+
+function onAnimFinish() {
+	if (prevPlayingSlot >= 0) stopVideo(prevPlayingSlot)
+	playVideo(cursorSlot.value)
+	prevPlayingSlot = cursorSlot.value
+}
+
+// ── 视频控制 ──
+function playVideo(slot) {
+	const d = slotData(slot); if (!d) return
+	try { uni.createVideoContext('v' + d.momentId).play() } catch (_) {}
+}
+function stopVideo(slot) {
+	const d = slotData(slot); if (!d) return
+	try { uni.createVideoContext('v' + d.momentId).stop() } catch (_) {}
+}
+function onVidErr(e) { console.warn('[feed] video error:', e?.detail?.errMsg || e) }
+
+// ── 数据加载 ──
+async function init() {
+	const data = mockBatch()
+	fullItems.value = data
+	currentIdx.value = 0; cursorSlot.value = 0
+	slotIndexes.value = [0,1,2,3,4]
+	ready.value = true
+}
+async function loadMore() {
+	const more = mockBatch()
+	if (more.length) fullItems.value = [...fullItems.value, ...more]
+}
+
+// ── 样式 ──
+const topNavStyle  = { height: `${st + navSafe + navH + panelBot}px` }
+const topPanelStyle = { width: `${ww}px`, paddingTop: `${st + navSafe}px`, paddingRight: `${navPad}px`, paddingBottom: `${panelBot}px`, paddingLeft: `${navPad}px` }
+const topRowStyle   = { width: `${Math.max(0, ww - navPad * 2)}px`, height: `${navH}px` }
+const tabStyle      = { height: `${tabBarH + sb}px`, paddingBottom: `${sb}px` }
+function getTopNavItemStyle(item, index) {
+	const w = rpxToPx(item.key === VIDEO_FEED_HOME_NAV_KEY ? 120 : 96)
+	return { width: `${w}px`, height: `${navH}px`, marginRight: index === topNavList.value.length - 1 ? '0px' : `${navGap}px` }
+}
+function rpxToPx(v) { return (Number(v || 0) * ww) / 750 }
+function formatCount(n) {
+	if (typeof n !== 'number') return '0'
+	if (n >= 10000) return (n / 10000).toFixed(1) + 'w'
+	if (n >= 1000)  return (n / 1000).toFixed(1) + 'k'
+	return String(n)
+}
+
+onLoad(async (opts = {}) => {
+	const rs = normalizeVideoFeedRoute(opts)
+	activeLevel1.value = rs.level1; activeLevel2.value = rs.level2
+	navSnapshot.value = resolveFeedNavigationSnapshot({ level2: rs.level2 })
+	init()
+})
+onUnload(() => { for (let i = 0; i < 5; i++) stopVideo(i) })
+function handleTopNavTap(n)    { if (n?.targetUrl && n.key !== activeTopNavKey)    uni.reLaunch({ url: n.targetUrl }) }
+function handleBottomNavTap(t) { if (t?.targetUrl && t.key !== activeLevel1.value) uni.reLaunch({ url: t.targetUrl }) }
+</script>
+
+<style scoped>
+.page{position:relative;flex:1;background-color:#000}
+.content{position:relative;overflow:hidden;background-color:#000}
+.status{position:absolute;top:0;right:0;bottom:0;left:0;justify-content:center;align-items:center;background-color:#000}
+.status-text{font-size:28rpx;color:rgba(255,255,255,.48)}
+.swiper{position:relative}
+.shell{position:relative;overflow:hidden;background-color:#000}
+.cover{position:absolute;top:0;left:0}
+.video{position:absolute;top:0;left:0}
+.info{position:absolute;right:32rpx;bottom:160rpx;left:32rpx;display:flex;flex-direction:column}
+.info-text{font-size:32rpx;font-weight:600;line-height:44rpx;color:#fff;margin-bottom:12rpx}
+.info-meta{display:flex;flex-direction:row;align-items:center}
+.info-stat{font-size:24rpx;color:rgba(255,255,255,.72);margin-right:24rpx}
+/* 顶部导航 */
+.top-nav{position:absolute;top:0;right:0;left:0;z-index:20;overflow:hidden;border-bottom-width:1rpx;border-bottom-style:solid;border-bottom-color:rgba(255,255,255,.06)}
+.top-nav-bg,.top-nav-mask{position:absolute;top:0;right:0;bottom:0;left:0}
+.top-nav-mask{background-color:rgba(10,10,10,.56)}
+.top-nav-panel{position:relative;display:flex;flex-direction:column}
+.top-nav-row{position:relative;display:flex;flex-direction:row;align-items:center;justify-content:flex-start}
+.top-nav-item{display:flex;flex-direction:row;align-items:center;justify-content:center}
+.top-nav-text{font-size:28rpx;line-height:40rpx;color:rgba(255,255,255,.48)}
+.top-nav-text-active{color:#fff;font-weight:600}
+/* 底部 Tab */
+.bottom-tab{position:absolute;right:0;bottom:0;left:0;z-index:20;display:flex;flex-direction:row;align-items:stretch;border-top-width:1rpx;border-top-style:solid;border-top-color:rgba(255,255,255,.12);background-color:#000}
+.tab-item{display:flex;flex:1;flex-direction:row;align-items:flex-start;justify-content:center;padding-top:25rpx}
+.tab-text{font-size:26rpx;line-height:36rpx;color:rgba(255,255,255,.48)}
+.tab-text-active{color:#fff;font-weight:600}
+</style>

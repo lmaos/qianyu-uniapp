@@ -9,19 +9,14 @@
       >
         <template #default="{ pageNo, index }">
           <view class="video-shell" :style="{ width: ww + 'px', height: vh + 'px' }">
-            <!-- 封面 image -->
-            <image class="cover-image"
-              :style="{ width: ww + 'px', height: vh + 'px' }"
-              :src="videoList[pageNo]?.cover"
-              mode="aspectFill"
-            />
-            <!-- 播放 video：当前页才渲染 -->
+            <image class="cover-img" :style="{ width: ww + 'px', height: vh + 'px' }"
+              :src="videoList[pageNo]?.cover" mode="aspectFill" />
+            <!-- v-if：离开销毁，进入重建（nvue 不支持 v-show） -->
             <video v-if="currentPage === pageNo"
               :id="'v' + index"
               class="video-el"
               :style="{ width: ww + 'px', height: vh + 'px' }"
               :src="videoList[pageNo]?.url"
-              :poster="videoList[pageNo]?.cover"
               :controls="false"
               :show-center-play-btn="false"
               :show-loading="false"
@@ -142,19 +137,27 @@ const videoList = ref(
 )
 
 // ── 视频播放管理 ───────────────────────────────────────
+// v-show 保持 3 个 video 常驻 DOM，不销毁重建。
+// @change 时：停所有 3 路 → 播目标。
+// @loadedmetadata 时：当前页保底 play，非当前页保底 stop。
+// 日志保留给 debug 用，不要删。
+
 const cardlistRef = ref(null)
 const currentPage = ref(0)
 
 function getSlotByPageNo(pageNo) {
   const buf = cardlistRef.value?.buffer ?? []
-  return buf.findIndex(s => s.pageNo === pageNo)
+  const idx = buf.findIndex(s => s.pageNo === pageNo)
+  console.log('[feed] getSlot pg:', pageNo, 'idx:', idx, 'buf:', buf.map(s => s.pageNo))
+  return idx
 }
 
 function playVideo(slotIdx) {
   if (slotIdx < 0) { console.warn('[feed] play skip: slot=', slotIdx); return }
-  if (slotIdx >= 0) console.log('[feed] play slot:', slotIdx)
+  console.log('[feed] play v' + slotIdx)
   try {
     const ctx = uni.createVideoContext('v' + slotIdx)
+    console.log('[feed] ctx v' + slotIdx, ctx ? 'found' : 'null')
     if (ctx) ctx.play()
   } catch (e) { console.warn('[feed] play err:', e) }
 }
@@ -190,12 +193,14 @@ function onVideoReady(pageNo) {
 }
 
 // @change：翻页完成
-function onPageChange({ from, to }) {
-  console.log('[feed] change', from, '→', to)
+function onPageChange({ to }) {
+  console.log('[feed] change →', to)
   currentPage.value = to
+  // v-if 销毁旧 video 时原生组件自动停止，无需显式 stop
   nextTick(() => {
     const toSlot = getSlotByPageNo(to)
-    if (toSlot >= 0) playVideo(toSlot)
+    console.log('[feed] nextTick play slot:', toSlot, 'pageNo:', to)
+    playVideo(toSlot)
   })
 }
 
@@ -205,17 +210,15 @@ onLoad(async (opts = {}) => {
   activeLevel2.value = rs.level2
   navSnapshot.value = resolveFeedNavigationSnapshot({ level2: rs.level2 })
   console.log('[feed] onLoad done')
-  nextTick(() => {
-    const s = getSlotByPageNo(0)
-    if (s >= 0) playVideo(s)
-  })
+  nextTick(() => playVideo(getSlotByPageNo(0)))
 })
 
-// APP 从后台恢复 → 重播当前视频
+// APP 从后台恢复 → 重播当前视频（nvue 原生视频进后台会暂停）
 onShow(() => {
-  console.log('[feed] onShow cur:', currentPage.value)
+  console.log('[feed] onShow resume page:', currentPage.value)
   setTimeout(() => {
     const slotIdx = getSlotByPageNo(currentPage.value)
+    console.log('[feed] onShow play slot:', slotIdx)
     if (slotIdx >= 0) playVideo(slotIdx)
   }, 200)
 })
@@ -225,7 +228,7 @@ onShow(() => {
 .page { position: relative; flex: 1; background-color: #000; }
 .content { position: relative; overflow: hidden; background-color: #000; }
 .video-shell { position: relative; overflow: hidden; background-color: #000; }
-.cover-image { position: absolute; top: 0; left: 0; z-index: 1; background-color: #111; }
+.cover-img { position: absolute; top: 0; left: 0; z-index: 1; }
 .video-el { position: absolute; top: 0; left: 0; z-index: 2; }
 .video-info {
   position: absolute; z-index: 3; right: 32rpx; bottom: 160rpx; left: 32rpx;

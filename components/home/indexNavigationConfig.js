@@ -90,11 +90,11 @@ export const NAV_CONFIG = {
 					showPublishAction: true   // 是否在导航栏右侧显示发布按钮
 				},
 				// 【短视频】— pagePath 页面跳转型，点击会 uni.reLaunch 到 feed 页
-				// {
-				// 	key: 'video',
-				// 	label: '短视频',
-				// 	pagePath: '/pages/video/feed'
-				// }
+				{
+					key: 'video',
+					label: '短视频',
+					pagePath: '/pages/video/feed'
+				}
 			]
 		},
 		{
