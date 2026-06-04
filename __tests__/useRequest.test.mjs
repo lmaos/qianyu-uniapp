@@ -42,6 +42,7 @@ function stopServer() {
 
 function createMockUni() {
   const calls = []
+  const toastCalls = []
   const mock = {
     request(opts) {
       calls.push(opts)
@@ -49,13 +50,36 @@ function createMockUni() {
         const url = opts.url || ''
         if (url.includes('fail')) {
           opts.fail({ errMsg: 'mock network error' })
-        } else {
-          opts.success({
-            statusCode: url.includes('403') ? 403 : url.includes('500') ? 500 : 200,
-            data: url.includes('empty') ? '' : JSON.stringify({ ok: true, value: 42 }),
-            errMsg: 'request:ok',
-          })
+          return
         }
+        let statusCode = 200
+        let data = JSON.stringify({ ok: true, value: 42 })
+        if (url.includes('403')) {
+          statusCode = 403
+          data = JSON.stringify({ code: 403, message: '登录失败', data: null })
+        } else if (url.includes('404')) {
+          statusCode = 404
+          data = JSON.stringify({ code: 404, message: 'not found', data: null })
+        } else if (url.includes('500')) {
+          statusCode = 500
+          data = JSON.stringify({ code: 500, message: '数据库异常', data: null })
+        } else if (url.includes('502')) {
+          statusCode = 502
+          data = JSON.stringify({ code: 502, message: 'Bad Gateway', data: null })
+        } else if (url.includes('503')) {
+          statusCode = 503
+          data = JSON.stringify({ code: 503, message: 'Service Unavailable', data: null })
+        } else if (url.includes('400')) {
+          statusCode = 400
+          if (url.includes('nomsg')) {
+            data = JSON.stringify({ code: 400, data: null })
+          } else {
+            data = JSON.stringify({ code: 400, message: '参数错误', data: null })
+          }
+        } else if (url.includes('empty')) {
+          data = ''
+        }
+        opts.success({ statusCode, data, errMsg: 'request:ok' })
       }, 5)
     },
     uploadFile(opts) {
@@ -68,9 +92,12 @@ function createMockUni() {
         })
       }, 5)
     },
+    showToast(opts) { toastCalls.push(opts) },
     lastCall: () => calls[calls.length - 1],
     callCount: () => calls.length,
-    reset: () => { calls.length = 0 },
+    lastToast: () => toastCalls[toastCalls.length - 1],
+    toastCount: () => toastCalls.length,
+    reset: () => { calls.length = 0; toastCalls.length = 0 },
   }
   return mock
 }
@@ -331,6 +358,228 @@ async function runUnitTests() {
     assert.equal(c.name, 'file')
     assert.equal(c.formData.desc, 'test')
   })
+
+  suite('15. 4xx/5xx 拦截器 Toast')
+  await test('404 触发 No resource access toast', async () => {
+    mock.reset()
+    const api = useRequest({
+      baseURL: SERVER_URL,
+      responseInterceptors: [
+        (res) => {
+          if (res.code >= 400 && res.code < 500) {
+            if (res.code === 404) {
+              uni.showToast({ title: 'No resource access', icon: 'none', duration: 3000 })
+            }
+            return res
+          }
+          return res
+        },
+      ],
+    })
+    await api.get({ url: '/api/404-test' })
+    assert.equal(mock.toastCount(), 1)
+    assert.equal(mock.lastToast().title, 'No resource access')
+  })
+  await test('500 触发服务端 message toast', async () => {
+    mock.reset()
+    const api = useRequest({
+      baseURL: SERVER_URL,
+      responseInterceptors: [
+        (res) => {
+          if (res.code >= 500 && res.code < 600) {
+            if (res.code === 502 || res.code === 503 || res.code === 504) {
+              uni.showToast({ title: 'Network error', icon: 'none', duration: 3000 })
+              return res
+            }
+            const msg =
+              (res.response && typeof res.response === 'object' && res.response.message) ||
+              `Server error (${res.code})`
+            uni.showToast({ title: String(msg), icon: 'none', duration: 3000 })
+            return res
+          }
+          return res
+        },
+      ],
+    })
+    await api.get({ url: '/api/500-test' })
+    assert.equal(mock.toastCount(), 1)
+    assert.equal(mock.lastToast().title, '数据库异常')
+  })
+  await test('502 触发 Network error toast', async () => {
+    mock.reset()
+    const api = useRequest({
+      baseURL: SERVER_URL,
+      responseInterceptors: [
+        (res) => {
+          if (res.code >= 500 && res.code < 600) {
+            if (res.code === 502 || res.code === 503 || res.code === 504) {
+              uni.showToast({ title: 'Network error', icon: 'none', duration: 3000 })
+              return res
+            }
+            return res
+          }
+          return res
+        },
+      ],
+    })
+    await api.get({ url: '/api/502-test' })
+    assert.equal(mock.toastCount(), 1)
+    assert.equal(mock.lastToast().title, 'Network error')
+  })
+  await test('503 走正常 5xx 逻辑（不覆盖 Network error）', async () => {
+    mock.reset()
+    const api = useRequest({
+      baseURL: SERVER_URL,
+      responseInterceptors: [
+        (res) => {
+          if (res.code >= 500 && res.code < 600) {
+            if (res.code === 502 || res.code === 504) {
+              uni.showToast({ title: 'Network error', icon: 'none', duration: 3000 })
+              return res
+            }
+            const msg =
+              (res.response && typeof res.response === 'object' && res.response.message) ||
+              `Server error (${res.code})`
+            uni.showToast({ title: String(msg), icon: 'none', duration: 3000 })
+            return res
+          }
+          return res
+        },
+      ],
+    })
+    await api.get({ url: '/api/503-test' })
+    assert.equal(mock.toastCount(), 1)
+    assert.equal(mock.lastToast().title, 'Service Unavailable')
+  })
+  await test('400 有 message 时 toast', async () => {
+    mock.reset()
+    const api = useRequest({
+      baseURL: SERVER_URL,
+      responseInterceptors: [
+        (res) => {
+          if (res.code >= 400 && res.code < 500 && res.code !== 403 && res.code !== 404) {
+            const msg = res.response && typeof res.response === 'object' && res.response.message
+            if (msg) {
+              uni.showToast({ title: String(msg), icon: 'none', duration: 3000 })
+            }
+            return res
+          }
+          return res
+        },
+      ],
+    })
+    await api.get({ url: '/api/400-test' })
+    assert.equal(mock.toastCount(), 1)
+    assert.equal(mock.lastToast().title, '参数错误')
+  })
+  await test('400 无 message 时不 toast', async () => {
+    mock.reset()
+    const api = useRequest({
+      baseURL: SERVER_URL,
+      responseInterceptors: [
+        (res) => {
+          if (res.code >= 400 && res.code < 500 && res.code !== 403 && res.code !== 404) {
+            const msg = res.response && typeof res.response === 'object' && res.response.message
+            if (msg) {
+              uni.showToast({ title: String(msg), icon: 'none', duration: 3000 })
+            }
+            return res
+          }
+          return res
+        },
+      ],
+    })
+    await api.get({ url: '/api/400-nomsg' })
+    assert.equal(mock.toastCount(), 0)
+  })
+  await test('200 不触发 toast', async () => {
+    mock.reset()
+    const api = useRequest({
+      baseURL: SERVER_URL,
+      responseInterceptors: [
+        (res) => {
+          if (res.code >= 400 && res.code < 500) {
+            uni.showToast({ title: 'should not fire', icon: 'none' })
+            return res
+          }
+          if (res.code >= 500 && res.code < 600) {
+            uni.showToast({ title: 'should not fire', icon: 'none' })
+            return res
+          }
+          return res
+        },
+      ],
+    })
+    await api.get({ url: '/api/ok-test' })
+    assert.equal(mock.toastCount(), 0)
+  })
+
+  suite('16. 5xx Promise 抛出异常')
+  async function wrapThrow(api) {
+    const wrap = (fn) => (opts, cb) => {
+      if (typeof cb === 'function') return fn(opts, cb)
+      return fn(opts).then((res) => {
+        if (res.code >= 500 && res.code < 600) {
+          const msg =
+            (res.response && typeof res.response === 'object' && res.response.message) ||
+            `Server error (${res.code})`
+          const err = new Error(msg)
+          err.code = res.code
+          err.response = res.response
+          return Promise.reject(err)
+        }
+        return res
+      })
+    }
+    return {
+      get: wrap(api.get), post: wrap(api.post),
+      put: wrap(api.put), delete: wrap(api.delete),
+      fileUpload: wrap(api.fileUpload),
+    }
+  }
+  await test('500 Promise reject', async () => {
+    mock.reset()
+    const wrapped = await wrapThrow(useRequest({ baseURL: SERVER_URL }))
+    try {
+      await wrapped.get({ url: '/api/500-test' })
+      assert.fail('should have thrown')
+    } catch (err) {
+      assert.equal(err.code, 500)
+      assert.ok(err.message.includes('数据库异常'))
+      assert.ok(err.response !== undefined)
+    }
+  })
+  await test('502 Promise reject', async () => {
+    mock.reset()
+    const wrapped = await wrapThrow(useRequest({ baseURL: SERVER_URL }))
+    try {
+      await wrapped.get({ url: '/api/502-test' })
+      assert.fail('should have thrown')
+    } catch (err) {
+      assert.equal(err.code, 502)
+      assert.ok(err instanceof Error)
+    }
+  })
+  await test('200 Promise resolve 不抛异常', async () => {
+    mock.reset()
+    const wrapped = await wrapThrow(useRequest({ baseURL: SERVER_URL }))
+    const res = await wrapped.get({ url: '/api/ok-test' })
+    assert.equal(res.code, 200)
+  })
+  await test('400 Promise resolve 不抛异常', async () => {
+    mock.reset()
+    const wrapped = await wrapThrow(useRequest({ baseURL: SERVER_URL }))
+    const res = await wrapped.get({ url: '/api/400-test' })
+    assert.equal(res.code, 400)
+  })
+  await test('callback 模式 500 不抛异常', async () => {
+    mock.reset()
+    const wrapped = await wrapThrow(useRequest({ baseURL: SERVER_URL }))
+    const res = await new Promise((resolve) => {
+      wrapped.get({ url: '/api/500-test' }, (r) => resolve(r))
+    })
+    assert.equal(res.code, 500)
+  })
 }
 
 // ══════════════════════════════════════════════════════════
@@ -405,6 +654,20 @@ async function runIntegrationTests() {
   await test('404 未定义路由', async () => {
     const r = await fetch(`${SERVER_URL}/api/not-exist`)
     assert.equal(r.status, 404)
+  })
+  await test('400 错误', async () => {
+    const r = await fetch(`${SERVER_URL}/api/bad-request`)
+    assert.equal(r.status, 400)
+    const b = await r.json()
+    assert.equal(b.code, 400)
+    assert.equal(b.message, '参数错误')
+  })
+  await test('502 网关错误', async () => {
+    const r = await fetch(`${SERVER_URL}/api/gateway-error`)
+    assert.equal(r.status, 502)
+    const b = await r.json()
+    assert.equal(b.code, 502)
+    assert.equal(b.message, 'Bad Gateway')
   })
 }
 

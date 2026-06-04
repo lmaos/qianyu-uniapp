@@ -63,6 +63,12 @@ class TestHandler(BaseHTTPRequestHandler):
         elif path == '/api/server-error':
             self._send_json(500, {'code': 500, 'message': '数据库异常', 'data': None})
 
+        elif path == '/api/bad-request':
+            self._send_json(400, {'code': 400, 'message': '参数错误', 'data': None})
+
+        elif path == '/api/gateway-error':
+            self._send_json(502, {'code': 502, 'message': 'Bad Gateway', 'data': None})
+
         elif path == '/api/timeout':
             time.sleep(3)
             self._send_json(200, {'code': 200, 'message': 'ok', 'data': None})
