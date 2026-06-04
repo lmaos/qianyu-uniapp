@@ -35,7 +35,7 @@
               :key="'c' + pageNo"
               :style="{
                 width: ww + 'px', height: vh + 'px',
-                opacity: (currentPage !== pageNo || !coverHidden[pageNo]) ? 1 : 0.6,
+                opacity: (currentPage !== pageNo || !coverHidden[pageNo]) ? 1 : 0,
               }"
               :src="videoList[pageNo]?.cover"
               mode="aspectFill"
@@ -53,12 +53,14 @@
     </view>
 
     <view class="top-nav" :style="topNavStyle">
-      <view class="top-nav-mask" :style="topNavStyle"></view>
+      <!-- <view class="top-nav-mask" :style="topNavStyle"></view> -->
       <view class="top-nav-panel" :style="topPanelStyle">
         <view class="top-nav-row" :style="topRowStyle">
           <view v-for="(n, i) in topNavList" :key="n.key"
-            class="top-nav-item" :style="getTopNavItemStyle(n, i)" @tap="handleTopNavTap(n)">
+            :class="['top-nav-item', n.key === activeTopNavKey ? 'top-nav-item-active' : '']"
+            :style="getTopNavItemStyle(n, i)" @tap="handleTopNavTap(n)">
             <text :lines="1" :class="['top-nav-text', n.key === activeTopNavKey ? 'top-nav-text-active' : '']">{{ n.label }}</text>
+            <view class="active-bar"></view>
           </view>
         </view>
       </view>
@@ -80,7 +82,7 @@ import { buildNavigationIndexRoute } from '@/components/common/navigation/naviga
 import { resolveFeedNavigationSnapshot, VIDEO_FEED_HOME_NAV_KEY } from '@/components/home/navigationResolver'
 import { normalizeVideoFeedRoute } from '@/components/video/videoFeedConfig.js'
 import { NAV_CONFIG } from '@/components/home/indexNavigationConfig'
-import Cardlist from './cardlist.vue'
+import Cardlist from '@/components/common/cardlist.vue'
 
 const wi = uni.getSystemInfoSync()
 const wh = wi.windowHeight
@@ -310,9 +312,15 @@ onShow(() => {
 .top-nav-mask { background-color: rgba(10,10,10,.56); }
 .top-nav-panel { position: relative; display: flex; flex-direction: column; }
 .top-nav-row { position: relative; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; }
-.top-nav-item { display: flex; flex-direction: row; align-items: center; justify-content: center; }
+.top-nav-item { display: flex; flex-direction: row; align-items: center; justify-content: center; position: relative; }
 .top-nav-text { font-size: 28rpx; line-height: 40rpx; color: rgba(255,255,255,.48); }
-.top-nav-text-active { color: #fff; font-weight: 600; }
+.top-nav-text-active { color: #fff; font-weight: 700; }
+.active-bar {
+  position: absolute; bottom: 4rpx; left: 50%; transform: translateX(-50%);
+  width: 24rpx; height: 4rpx; border-radius: 2rpx;
+  background-color: transparent;
+}
+.top-nav-item-active .active-bar { background-color: #fff; }
 .bottom-tab { position: absolute; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; flex-direction: row; align-items: stretch; border-top-width: 1rpx; border-top-style: solid; border-top-color: rgba(255,255,255,.12); background-color: #000; }
 .tab-item { display: flex; flex: 1; flex-direction: row; align-items: flex-start; justify-content: center; padding-top: 25rpx; }
 .tab-text { font-size: 26rpx; line-height: 36rpx; color: rgba(255,255,255,.48); }

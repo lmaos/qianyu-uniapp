@@ -1,28 +1,31 @@
 <template>
 	<view class="page" :style="{ height: wh + 'px', overflow: 'hidden', backgroundColor: '#000' }">
 
-		<!-- 视频 + 封面 -->
-		<image
-			v-if="detail && !videoActive"
-			class="cover-img"
-			:style="{ width: ww + 'px', height: wh + 'px' }"
-			:src="detail.cover"
-			mode="aspectFill"
-		/>
+
+		<!-- 播放 video：始终渲染在封面下层，封面 z-index 更高 -->
 		<video
-			v-if="detail && videoActive"
+			v-if="detail"
 			:id="'vdetail'"
 			:style="videoStyle"
 			:src="detail.url"
-			
 			object-fit="cover"
 			:controls="false"
 			:show-progress="false"
 			:enable-progress-gesture="false"
 			:loop="true"
-				@tap="togglePlay"
-				@ended="onVideoEnded"
+			@tap="togglePlay"
+			@ended="onVideoEnded"
 			@error="onVidErr"
+			@timeupdate="onTimeUpdate"
+		/>
+		
+		<!-- 封面 image：始终渲染在上层，@timeupdate 首帧就绪后隐藏 -->
+		<image
+			v-if="detail"
+			class="cover-img"
+			:style="{ width: ww + 'px', height: wh + 'px', opacity: coverHidden ? 0 : 1 }"
+			:src="detail.cover"
+			mode="aspectFill"
 		/>
 
 		<!-- ═══ 浮动覆盖层 ═══ -->
@@ -213,12 +216,12 @@ const sb = wi.safeAreaInsets?.bottom || 0
 
 // ── Mock 资源 ──
 const VIDEO_SRC = 'https://www.clmcat.com/static/video/kaojingchongwu.mp4'
-const COVERS = ['/static/images/home/live-banner-1.jpg', '/static/images/home/live-banner-2.jpg', '/static/images/home/live-banner-3.jpg']
+const COVERS = ['https://www.clmcat.com/static/video/kaojingchongwu.png']
 
 // ── 视频详情 ──
 const detail = ref(null)
 const routeState = ref({})
-const videoActive = ref(false)
+const coverHidden = ref(false)
 
 const videoAspect = ref(9 / 16) // 默认竖屏 9:16
 
@@ -237,8 +240,7 @@ const videoStyle = computed(() => {
 
 // ── 视频控制 ──
 function startVideo() {
-	videoActive.value = true
-	// 等 DOM 更新后播放
+	// 视频始终在 DOM 中，可直接播放
 	setTimeout(() => { play() }, 100)
 }
 const isPlaying = ref(true)
@@ -259,6 +261,11 @@ function onVideoEnded() {
 	setTimeout(() => { play() }, 50)
 }
 function onVidErr(e) { console.warn('[detail] video error:', e?.detail?.errMsg || e) }
+// @timeupdate 首帧渲染后隐藏封面
+function onTimeUpdate() {
+	if (coverHidden.value) return
+	coverHidden.value = true
+}
 // ── 浮动元素定位 ──
 const topBarStyle = computed(() => ({
 	top: (st + px(20)) + 'px',
@@ -501,7 +508,7 @@ function buildMockComments() {
 function createDetail(videoId) {
 	return {
 		momentId: videoId || '10001',
-		cover: COVERS[Math.floor(Math.random() * 3)],
+		cover: COVERS[0],
 		url: VIDEO_SRC,
 		text: '今天的天气真好，适合出去走走 🚶 随手记录一下路边的风景，希望大家也能感受到这份惬意~',
 		likes: 1234,
@@ -522,8 +529,8 @@ onLoad((opts = {}) => {
 	routeState.value = nextRoute
 	detail.value = createDetail(nextRoute.videoId)
 	comments.value = buildMockComments()
-		// 封面先展示，延时后自动切视频播放
-		setTimeout(() => { startVideo() }, 400)
+	// 视频已在 DOM 中，短延时后播放；封面由 @timeupdate 隐藏
+	setTimeout(() => { startVideo() }, 400)
 })
 
 onUnload(() => {
@@ -544,7 +551,7 @@ defineExpose({
 	/* 状态 */
 	detail, comments, showComments, replyTarget, isPlaying,
 	loadingMoreComments, hasMoreComments, commentPage, inputText,
-	videoActive, keyboardH,
+	coverHidden, keyboardH,
 	/* 视频 */
 	play, pause, togglePlay, startVideo,
 	/* 评论面板 */
@@ -561,7 +568,7 @@ defineExpose({
 
 /* ── 视频 ── */
 .video { background-color: #000; }
-.cover-img { position: absolute; top: 0; left: 0; z-index: 1; background-color: #000; }
+.cover-img { position: absolute; top: 0; left: 0; z-index: 2; background-color: #000; transition: opacity .3s; }
 
 
 /* ── 顶部返回 ── */
