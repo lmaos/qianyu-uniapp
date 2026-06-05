@@ -15,5 +15,5 @@ import { schedule,once } from './appTask.js'
 
 // 1s 定时器 — 测试用
 schedule(() => {
-  console.log('[appTask] 1s 定时器执行', Date.now())
-}, 1000, 0)
+  console.log('[appTask] 30s 定时器执行', Date.now())
+}, 30000, 0)
