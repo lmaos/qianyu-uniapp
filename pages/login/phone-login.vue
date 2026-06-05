@@ -114,6 +114,7 @@ import { computed, onUnmounted, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useLoginAgreement } from '@/composables/useLoginAgreement.js'
 import { redirectAfterLogin, resolveLoginRedirect, saveLoginInfo } from '@/composables/useLoginSession.js'
+import { stopAll } from '@/composables/appStartup.js'
 import request from '@/composables/baseRequest.js'
 
 const TABS = [
@@ -149,6 +150,7 @@ const codeButtonText = computed(() => {
 })
 
 onShow(() => {
+	stopAll()
 	syncAgreementState()
 })
 

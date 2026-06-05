@@ -1,4 +1,5 @@
 import { computed, reactive, readonly } from 'vue'
+import { stopAll } from '@/composables/appStartup.js'
 
 /**
  * 全局登录态使用说明
@@ -609,6 +610,7 @@ export function requireLogin(options = {}) {
  */
 export function logoutToLogin(options = {}) {
 	const { url = LOGIN_PAGE_URL, method = 'reLaunch' } = options
+	stopAll()
 	clearLoginInfo()
 	navigateToLogin({
 		method,

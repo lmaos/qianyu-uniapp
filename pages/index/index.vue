@@ -65,7 +65,9 @@
 //   - 修改主题色 -> 改 APP_THEME_MAP 中的色值
 //   - 新增场景专属主题 -> 在 resolvedThemeConfig 追加条件分支
 import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { startAll, stopAll } from '@/composables/appStartup.js'
+import { getCurrentLoginInfo } from '@/composables/useLoginSession.js'
 import IndexSubNavBar from '@/components/home/IndexSubNavBar.vue'
 import IndexContentShell from '@/components/home/IndexContentShell.vue'
 // -- 导航配置 + 解析器 ---------------------------------
@@ -283,6 +285,12 @@ onLoad(options => {
 	activeLevel1.value = targetLevel1
 	activeLevel2.value = targetLevel2
 	activeLevel3.value = targetLevel3
+})
+
+onShow(() => {
+	const info = getCurrentLoginInfo()
+	const userId = info.userId || info.userNo || ''
+	startAll(userId)
 })
 
 	/** 规范化一级导航：校验合法性，非法则 fallback 到 home */
