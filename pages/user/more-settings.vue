@@ -13,6 +13,7 @@ import UserMenuList from '@/components/user-center/common/UserMenuList.vue'
 import UserSectionCard from '@/components/user-center/common/UserSectionCard.vue'
 import UserSubPageLayout from '@/components/user-center/common/UserSubPageLayout.vue'
 import { getMoreSettingsPageMock } from '@/components/user-center/userCenterMock.js'
+import { logoutToLogin } from '@/composables/useLoginSession.js'
 
 const pageMock = ref(getMoreSettingsPageMock())
 
@@ -34,7 +35,20 @@ function handleMenuSelect(item) {
 		return
 	}
 
-	if (item.key === 'logout' || item.key === 'destroy') {
+	if (item.key === 'logout') {
+		uni.showModal({
+			title: '退出登录',
+			content: '确定要退出当前账号吗？',
+			success: (res) => {
+				if (res.confirm) {
+					logoutToLogin()
+				}
+			}
+		})
+		return
+	}
+
+	if (item.key === 'destroy') {
 		uni.showModal({
 			title: item.label,
 			content: `${item.label}流程占位，后续可直接替换真实接口。`

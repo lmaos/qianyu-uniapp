@@ -14,7 +14,7 @@ class ImServiceImpl {
     this._adapter = null       // 当前 Adapter 实例
     this._storage = null       // Storage 实例
     this._channel = ''         // 当前厂商标识
-    this._userId = '10001'     // 当前登录用户 ID（开发阶段默认）
+    this._userId = ''           // 当前登录用户 ID，登录时由 login() 设置
     this._isReady = false      // SDK 就绪状态
     this._eventHandlers = {}   // 上层事件回调 { event: [fn, ...] }
     this._baseUrl = ''         // 服务端 API 基础地址

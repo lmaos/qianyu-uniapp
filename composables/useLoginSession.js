@@ -561,6 +561,7 @@ export function navigateToLogin(options = {}) {
 export function redirectAfterLogin(options = {}) {
 	const { redirect = '', fallbackUrl = LOGIN_HOME_URL, method = 'reLaunch' } = options
 	const targetUrl = resolveLoginRedirect(redirect) || normalizePageUrl(fallbackUrl)
+	console.log('[redirectAfterLogin]', { redirect, fallbackUrl, method, targetUrl })
 	navigateByMethod({
 		method,
 		url: targetUrl

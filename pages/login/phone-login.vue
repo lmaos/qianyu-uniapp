@@ -15,7 +15,7 @@
 			<view class="form-sheet">
 				<view class="nav-bar">
 					<view
-						v-for="item in phoneLoginMock.tabs"
+						v-for="item in TABS"
 						:key="item.key"
 						:class="['nav-item', activeTab === item.key ? 'nav-item-active' : '']"
 						@tap="handleTabClick(item.key)"
@@ -93,13 +93,16 @@
 					<text class="agreement-link" @tap.stop="handleAgreementLinkClick('privacy')">《隐私政策》</text>
 				</view>
 
-				<view class="submit-button" @tap="handleSubmit">
-					{{ phoneLoginMock.submitButtonText }}
+				<view
+					:class="['submit-button', submitting ? 'submit-button-disabled' : '']"
+					@tap="handleSubmit"
+				>
+					{{ submitting ? '登录中...' : '登录' }}
 				</view>
 
 				<view class="mock-tip-card">
-					<text class="mock-tip-title">{{ phoneLoginMock.mockTitle }}</text>
-					<text class="mock-tip-text">{{ phoneLoginMock.mockText }}</text>
+					<text class="mock-tip-title">测试账号</text>
+					<text class="mock-tip-text">手机号 13800138000，验证码 123456，密码 qianyu123</text>
 				</view>
 			</view>
 		</view>
@@ -111,22 +114,12 @@ import { computed, onUnmounted, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useLoginAgreement } from '@/composables/useLoginAgreement.js'
 import { redirectAfterLogin, resolveLoginRedirect, saveLoginInfo } from '@/composables/useLoginSession.js'
+import request from '@/composables/baseRequest.js'
 
-const phoneLoginMock = {
-	tabs: [
-		{ key: 'code', label: '验证码登录' },
-		{ key: 'password', label: '密码登录' }
-	],
-	submitButtonText: '登录',
-	mockTitle: 'Mock 验证数据',
-	mockText: '验证码：123456，密码账号：13800000000 / qianyu123。TODO：替换真实 API 与异常提示。',
-	correctCode: '123456',
-	passwordAccount: {
-		phone: '13800000000',
-		password: 'qianyu123'
-	},
-	loginExpireMs: 7 * 24 * 60 * 60 * 1000
-}
+const TABS = [
+	{ key: 'code', label: '验证码登录' },
+	{ key: 'password', label: '密码登录' }
+]
 
 const activeTab = ref('code')
 const countdown = ref(0)
@@ -139,6 +132,7 @@ const passwordForm = ref({
 	password: ''
 })
 const redirectUrl = ref('')
+const submitting = ref(false)
 
 let countdownTimer = null
 
@@ -162,137 +156,29 @@ onLoad((options) => {
 	redirectUrl.value = resolveLoginRedirect(options?.redirect)
 })
 
-function handleBackClick() {
-	onBackClick()
-	uni.navigateBack()
-}
+// ── 工具函数 ─────────────────────────────────────
 
-function handleTabClick(tabKey) {
-	activeTab.value = tabKey
-	onTabChange(tabKey)
-}
-
-function handleCodeButtonClick() {
-	if (countdown.value > 0) {
-		uni.showToast({
-			title: '验证码已发送',
-			icon: 'none'
-		})
-		return
-	}
-
-	if (!isValidPhone(codeForm.value.phone)) {
-		uni.showToast({
-			title: '请输入正确手机号',
-			icon: 'none'
-		})
-		return
-	}
-
-	startCountdown()
-	onCodeRequest({
-		phone: codeForm.value.phone
-	})
-	uni.showToast({
-		title: '验证码已发送',
-		icon: 'none'
-	})
-}
-
-function handleAgreementLinkClick(type) {
-	openAgreementPage(type)
-}
-
-async function handleSubmit() {
-	if (!(await ensureAgreementAccepted())) {
-		return
-	}
-
-	if (activeTab.value === 'code') {
-		submitCodeLogin()
-		return
-	}
-
-	submitPasswordLogin()
-}
-
-function submitCodeLogin() {
-	if (!isValidPhone(codeForm.value.phone)) {
-		uni.showToast({
-			title: '请输入正确手机号',
-			icon: 'none'
-		})
-		return
-	}
-
-	if (codeForm.value.code !== phoneLoginMock.correctCode) {
-		uni.showToast({
-			title: '验证码错误',
-			icon: 'none'
-		})
-		return
-	}
-
-	onCodeLogin({
-		phone: codeForm.value.phone,
-		code: codeForm.value.code
-	})
-	saveMockLoginInfo({
-		phone: codeForm.value.phone,
-		loginType: 'phone-code'
-	})
-	uni.showToast({
-		title: '登录成功',
-		icon: 'none'
-	})
-	redirectAfterAuth()
-}
-
-function submitPasswordLogin() {
-	if (!isValidPhone(passwordForm.value.phone)) {
-		uni.showToast({
-			title: '请输入正确手机号',
-			icon: 'none'
-		})
-		return
-	}
-
-	const account = phoneLoginMock.passwordAccount
-	if (
-		passwordForm.value.phone !== account.phone ||
-		passwordForm.value.password !== account.password
-	) {
-		uni.showToast({
-			title: '账户或密码错误',
-			icon: 'none'
-		})
-		return
-	}
-
-	onPasswordLogin({
-		phone: passwordForm.value.phone,
-		password: passwordForm.value.password
-	})
-	saveMockLoginInfo({
-		phone: passwordForm.value.phone,
-		loginType: 'phone-password'
-	})
-	uni.showToast({
-		title: '登录成功',
-		icon: 'none'
-	})
-	redirectAfterAuth()
+/**
+ * 校验 11 位纯手机号
+ */
+function isValidPhone(phone) {
+	return /^1\d{10}$/.test(phone)
 }
 
 /**
- * 登录成功后优先回到触发登录的业务页；如果没有 redirect，再回首页。
+ * 将 11 位纯手机号转为 API 要求的 +86-xxxxxxxxxxx 格式
  */
-function redirectAfterAuth() {
-	setTimeout(() => {
-		redirectAfterLogin({
-			redirect: redirectUrl.value
-		})
-	}, 800)
+function formatPhoneToApi(rawPhone) {
+	return `+86-${rawPhone}`
+}
+
+function clearCountdown() {
+	if (!countdownTimer) {
+		return
+	}
+
+	clearInterval(countdownTimer)
+	countdownTimer = null
 }
 
 function startCountdown() {
@@ -309,60 +195,235 @@ function startCountdown() {
 	}, 1000)
 }
 
-function clearCountdown() {
-	if (!countdownTimer) {
+/**
+ * 登录成功后优先回到触发登录的业务页；如果没有 redirect，再回首页。
+ */
+function redirectAfterAuth() {
+	submitting.value = false
+	console.log('[phone-login] 登录成功，开始跳转, redirectUrl:', redirectUrl.value)
+	setTimeout(() => {
+		const target = redirectAfterLogin({
+			redirect: redirectUrl.value
+		})
+		console.log('[phone-login] redirectAfterLogin 返回:', target)
+	}, 100)
+}
+
+// ── 发送验证码 ──────────────────────────────────
+
+async function handleCodeButtonClick() {
+	if (countdown.value > 0) {
+		uni.showToast({ title: '验证码已发送', icon: 'none' })
 		return
 	}
 
-	clearInterval(countdownTimer)
-	countdownTimer = null
+	if (!isValidPhone(codeForm.value.phone)) {
+		uni.showToast({ title: '请输入正确手机号', icon: 'none' })
+		return
+	}
+
+	const phone = formatPhoneToApi(codeForm.value.phone)
+
+	try {
+		console.log('[phone-login] 发送验证码请求:', { phone })
+		const res = await request.post({
+			url: '/api/user/login/phone/verify_code',
+			type: 'json',
+			data: { phone }
+		})
+		console.log('[phone-login] 发送验证码响应:', { code: res.code, status: res.response?.status, message: res.response?.message })
+
+		// HTTP 层面失败（4xx/5xx）— baseRequest 已 toast，这里不再重复提示
+		if (res.code !== 200) {
+			return
+		}
+
+		// 业务层面失败（status !== 0）
+		if (res.response && Number(res.response.status) !== 0) {
+			uni.showToast({
+				title: res.response.message || '发送失败，请稍后重试',
+				icon: 'none'
+			})
+			return
+		}
+
+		// 成功 → 开始倒计时
+		startCountdown()
+		onCodeRequest({ phone })
+	} catch (err) {
+		// 5xx / 网络异常 — baseRequest 已 toast
+		console.error('[send-verify-code]', err)
+	}
 }
 
-function isValidPhone(phone) {
-	return /^1\d{10}$/.test(phone)
+// ── 页面处理 ────────────────────────────────────
+
+function handleBackClick() {
+	onBackClick()
+	uni.navigateBack()
 }
 
-/**
- * 当前还是 mock 登录，这里先把登录结果统一映射到全局登录态。
- * 后续替换真实登录接口时，直接把服务端返回的 token / 用户信息透传给 saveLoginInfo 即可。
- */
-function saveMockLoginInfo({ phone, loginType }) {
-	const now = Date.now()
-	saveLoginInfo({
-		token: `mock-token-${phone}-${now}`,
-		expireMs: now + phoneLoginMock.loginExpireMs,
-		nickname: `千语用户${phone.slice(-4)}`,
-		userNo: `QY${phone.slice(-6)}`,
-		avatar: '',
-		liveAuth: true,
-		shopAuth: true,
-		phone,
-		loginType
-	})
+function handleTabClick(tabKey) {
+	activeTab.value = tabKey
+	onTabChange(tabKey)
 }
+
+function handleAgreementLinkClick(type) {
+	openAgreementPage(type)
+}
+
+async function handleSubmit() {
+	if (submitting.value) {
+		return
+	}
+
+	if (!(await ensureAgreementAccepted())) {
+		return
+	}
+
+	if (activeTab.value === 'code') {
+		await submitCodeLogin()
+		return
+	}
+
+	await submitPasswordLogin()
+}
+
+// ── 验证码登录 ──────────────────────────────────
+
+async function submitCodeLogin() {
+	if (!isValidPhone(codeForm.value.phone)) {
+		uni.showToast({ title: '请输入正确手机号', icon: 'none' })
+		return
+	}
+
+	if (!codeForm.value.code) {
+		uni.showToast({ title: '请输入验证码', icon: 'none' })
+		return
+	}
+
+	submitting.value = true
+
+	try {
+		const loginData = {
+			phone: formatPhoneToApi(codeForm.value.phone),
+			code: codeForm.value.code,
+			authMode: 'CODE'
+		}
+		console.log('[phone-login] 验证码登录请求:', { phone: loginData.phone, code: '***' })
+		const res = await request.post({
+			url: '/api/user/login/phone',
+			type: 'json',
+			data: loginData
+		})
+		console.log('[phone-login] 验证码登录响应:', { code: res.code, status: res.response?.status, message: res.response?.message })
+
+		if (res.code !== 200) {
+			submitting.value = false
+			return
+		}
+
+		// 登录成功
+		const { token, userInfo } = res.response.content
+		saveLoginInfo({
+			token,
+			expireMs: Date.now() + 7 * 24 * 60 * 60 * 1000,
+			nickname: userInfo.nickname,
+			userNo: userInfo.userNo,
+			userId: userInfo.userId,
+			avatar: userInfo.avatar || '',
+			liveAuth: true,
+			shopAuth: true,
+			phone: userInfo.phone,
+			loginType: 'phone-code'
+		})
+
+		onCodeLogin({ phone: codeForm.value.phone, code: codeForm.value.code })
+		uni.showToast({ title: '登录成功', icon: 'none' })
+		redirectAfterAuth()
+	} catch (err) {
+		submitting.value = false
+		console.error('[code-login]', err)
+	}
+}
+
+// ── 密码登录 ────────────────────────────────────
+
+async function submitPasswordLogin() {
+	if (!isValidPhone(passwordForm.value.phone)) {
+		uni.showToast({ title: '请输入正确手机号', icon: 'none' })
+		return
+	}
+
+	if (!passwordForm.value.password) {
+		uni.showToast({ title: '请输入密码', icon: 'none' })
+		return
+	}
+
+	submitting.value = true
+
+	try {
+		const loginData = {
+			phone: formatPhoneToApi(passwordForm.value.phone),
+			password: passwordForm.value.password,
+			authMode: 'PASSWORD'
+		}
+		console.log('[phone-login] 密码登录请求:', { phone: loginData.phone, password: '***' })
+		const res = await request.post({
+			url: '/api/user/login/phone',
+			type: 'json',
+			data: loginData
+		})
+		console.log('[phone-login] 密码登录响应:', { code: res.code, status: res.response?.status, message: res.response?.message })
+
+		if (res.code !== 200) {
+			submitting.value = false
+			return
+		}
+
+		// 登录成功
+		const { token, userInfo } = res.response.content
+		saveLoginInfo({
+			token,
+			expireMs: Date.now() + 7 * 24 * 60 * 60 * 1000,
+			nickname: userInfo.nickname,
+			userNo: userInfo.userNo,
+			userId: userInfo.userId,
+			avatar: userInfo.avatar || '',
+			liveAuth: true,
+			shopAuth: true,
+			phone: userInfo.phone,
+			loginType: 'phone-password'
+		})
+
+		onPasswordLogin({ phone: passwordForm.value.phone, password: passwordForm.value.password })
+		uni.showToast({ title: '登录成功', icon: 'none' })
+		redirectAfterAuth()
+	} catch (err) {
+		submitting.value = false
+		console.error('[password-login]', err)
+	}
+}
+
+// ── 生命周期 / 埋点 ─────────────────────────────
 
 function onBackClick() {
-	// TODO：替换手机号登录返回事件
 	console.log('phone-login-back')
 }
 
 function onTabChange(tabKey) {
-	// TODO：替换手机号登录模式切换事件
 	console.log('phone-login-tab-change', tabKey)
 }
 
 function onCodeRequest(payload) {
-	// TODO：替换验证码发送 API
 	console.log('phone-login-code-request', payload.phone)
 }
 
 function onCodeLogin(payload) {
-	// TODO：替换验证码登录 API
-	console.log('phone-login-code-submit', payload.phone)
+	console.log('phone-login-code-submit', payload.phone, payload.code)
 }
 
 function onPasswordLogin(payload) {
-	// TODO：替换密码登录 API
 	console.log('phone-login-password-submit', payload.phone)
 }
 
@@ -582,6 +643,11 @@ onUnmounted(() => {
 	font-size: 30rpx;
 	font-weight: 600;
 	color: #ffffff;
+}
+
+.submit-button-disabled {
+	opacity: 0.5;
+	pointer-events: none;
 }
 
 .mock-tip-card {

@@ -14,7 +14,7 @@ import { env } from '@/config/env'
  * 4xx → 统一 Toast 提示
  *   403 → 登录失效，调用 logoutToLogin() 跳登录页
  *   404 → "No resource access"
- *   其他 4xx → 服务端 message 存在才 toast
+ *   其他 4xx → 服务端 message 存在才 toast（silent4xx: true 可跳过）
  * 5xx →  Toast 提示 + Promise 模式抛出异常
  *   502/504 → 固定提示 "Network error"
  *   其他 5xx → 服务端 message 或 "Server error (code)"
@@ -41,6 +41,13 @@ import { env } from '@/config/env'
  * request.get({ url: '/user/list' }, ({ code, response }) => {
  *   if (code === 200) console.log(response.data)
  * })
+ *
+ * ── 单次请求选项 ────────────────
+ * 以下选项可在每次请求的 opts 中传入：
+ * @param {boolean} [opts.silent4xx=false]
+ *   跳过 baseRequest 对"其他 4xx"的自动 toast，由业务自行处理。
+ *   403（跳登录）/ 404（No resource access）不受影响。
+ *   例：request.get({ url: '/check', silent4xx: true })
  */
 
 function wrapRequestMethod(fn) {
@@ -95,7 +102,7 @@ const instance = useRequest({
      * @param {{ code: number, message: string, response: any }} res
      * @returns {{ code: number, message: string, response: any }}
      */
-    (res) => {
+    (res, config) => {
       // ── 4xx：客户端错误 ───────────────────────
       if (res.code >= 400 && res.code < 500) {
         // 403 → 登录已失效，清本地态并跳登录页
@@ -109,9 +116,12 @@ const instance = useRequest({
           return res
         }
         // 其他 4xx（400, 401, 405, 408…）→ 仅 message 存在时 toast
-        const msg = res.response && typeof res.response === 'object' && res.response.message
-        if (msg) {
-          uni.showToast({ title: String(msg), icon: 'none', duration: 3000 })
+        // silent4xx: true 时跳过自动 toast，由业务自行处理
+        if (!config?.silent4xx) {
+          const msg = res.response && typeof res.response === 'object' && res.response.message
+          if (msg) {
+            uni.showToast({ title: String(msg), icon: 'none', duration: 3000 })
+          }
         }
         return res
       }

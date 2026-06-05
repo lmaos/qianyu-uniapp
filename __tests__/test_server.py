@@ -78,7 +78,121 @@ class TestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        path = parsed.path
         body = self._read_body()
+
+        # ── 手机登录 API ────────────────────────────────
+
+        if path == '/api/user/login/phone/verify_code':
+            phone = body.get('phone', '')
+            if not phone or not phone.startswith('+'):
+                return self._send_json(400, {
+                    'requestId': 'test-req-id',
+                    'status': 300004,
+                    'state': 'P_VALUE_ERROR',
+                    'content': None,
+                    'message': '手机号格式不正确',
+                })
+            if phone == '+86-13800138000' or phone == '+86-13800000000':
+                return self._send_json(200, {
+                    'requestId': 'test-req-id',
+                    'status': 0,
+                    'state': 'OK',
+                    'content': {'needSecondVerify': False},
+                    'message': 'OK',
+                })
+            # 其他手机号 → 频率限制
+            return self._send_json(429, {
+                'requestId': 'test-req-id',
+                'status': 400005,
+                'state': 'L_FREQUENT_ACCESS',
+                'content': None,
+                'message': '操作过于频繁',
+            })
+
+        if path == '/api/user/login/phone':
+            phone = body.get('phone', '')
+            auth_mode = body.get('authMode', 'CODE')
+            if not phone or not phone.startswith('+'):
+                return self._send_json(400, {
+                    'requestId': 'test-req-id',
+                    'status': 300004,
+                    'state': 'P_VALUE_ERROR',
+                    'content': None,
+                    'message': '手机号格式不正确',
+                })
+            if auth_mode == 'CODE':
+                code = body.get('code', '')
+                if not code:
+                    return self._send_json(400, {
+                        'requestId': 'test-req-id',
+                        'status': 300004,
+                        'state': 'P_VALUE_ERROR',
+                        'content': None,
+                        'message': '验证码不能为空',
+                    })
+                if code != '123456':
+                    return self._send_json(401, {
+                        'requestId': 'test-req-id',
+                        'status': 100002,
+                        'state': 'AUTH_LOGIN_FAIL',
+                        'content': None,
+                        'message': '验证码不正确',
+                    })
+            elif auth_mode == 'PASSWORD':
+                password = body.get('password', '')
+                if password != 'qianyu123':
+                    return self._send_json(401, {
+                        'requestId': 'test-req-id',
+                        'status': 100002,
+                        'state': 'AUTH_LOGIN_FAIL',
+                        'content': None,
+                        'message': '账户或密码错误',
+                    })
+            else:
+                return self._send_json(422, {
+                    'requestId': 'test-req-id',
+                    'status': 400020,
+                    'state': 'R_ERROR',
+                    'content': None,
+                    'message': '不支持的 authMode 值',
+                })
+
+            # 登录成功
+            import time
+            now_ms = int(time.time() * 1000)
+            return self._send_json(200, {
+                'requestId': 'test-req-id',
+                'status': 0,
+                'state': 'OK',
+                'content': {
+                    'token': 'test-jwt-token-' + phone + '-' + str(now_ms),
+                    'userInfo': {
+                        'userNo': 'QY' + phone.replace('+86-', ''),
+                        'userId': 100001,
+                        'nickname': '千语用户_' + phone[-4:],
+                        'avatar': None,
+                        'bio': '',
+                        'gender': 0,
+                        'birthday': None,
+                        'age': 0,
+                        'phone': phone,
+                        'phoneVerifiedTime': now_ms,
+                        'email': None,
+                        'country': 'CN',
+                        'province': None,
+                        'city': None,
+                        'lastLoginTime': now_ms,
+                        'status': 0,
+                        'freezeEndTime': None,
+                        'createTime': now_ms,
+                        'updateTime': now_ms,
+                    },
+                },
+                'message': 'OK',
+            })
+
+        # ── 默认回声 ─────────────────────────────────
         self._send_json(200, {
             'code': 200,
             'message': 'ok',

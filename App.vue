@@ -4,6 +4,7 @@
 	import { useIm } from '@/composables/useIm.js'
 	import imConfig from '@/core/im/im.config.js'
 	import { initUserService } from '@/core/user/UserService.js'
+	import { getCurrentLoginInfo, hasValidLoginSession } from '@/composables/useLoginSession.js'
 
 	let startupWarmupScheduled = false
 	let imStartupPromise = null
@@ -20,9 +21,9 @@
 		schedulePostLaunchWarmup()
 	})
 
-	async function initImService() {
+	async function initImService(userId) {
 		const { start } = useIm()
-		await start(10001, imConfig)
+		await start(userId, imConfig)
 	}
 
 	function schedulePostLaunchWarmup() {
@@ -41,7 +42,20 @@
 			return imStartupPromise
 		}
 
-		imStartupPromise = initImService().catch((error) => {
+		// 未登录时跳过 IM 初始化
+		if (!hasValidLoginSession()) {
+			console.log('[App] 未登录，跳过 IM 初始化')
+			return
+		}
+
+		const loginInfo = getCurrentLoginInfo()
+		const userId = loginInfo.userId || loginInfo.userNo || ''
+		if (!userId) {
+			console.log('[App] 无用户信息，跳过 IM 初始化')
+			return
+		}
+
+		imStartupPromise = initImService(userId).catch((error) => {
 			console.error('[App] IM 服务初始化失败:', error)
 			imStartupPromise = null
 			throw error

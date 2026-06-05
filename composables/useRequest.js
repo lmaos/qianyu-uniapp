@@ -51,11 +51,12 @@
  * api.fileUpload(opts, callback?)
  *
  * ── opts 字段 ─────────────────────────────────────────
- * @param {string}  opts.url       - 请求地址
- * @param {string}  [opts.type]    - Content-Type 简写，默认由 options.defaultType 决定（默认 'json'）
- * @param {*}       [opts.data]    - 请求数据
- * @param {Object}  [opts.header]  - 自定义请求头
- * @param {number}  [opts.timeout] - 超时毫秒
+ * @param {string}  opts.url        - 请求地址
+ * @param {string}  [opts.type]     - Content-Type 简写，默认由 options.defaultType 决定（默认 'json'）
+ * @param {*}       [opts.data]     - 请求数据
+ * @param {Object}  [opts.header]   - 自定义请求头
+ * @param {number}  [opts.timeout]  - 超时毫秒
+ * @param {boolean} [opts.silent4xx] - true 时跳过响应拦截器中"其他 4xx"的自动 toast，由业务自行处理
  * @param {boolean|string} [opts.jsonp] - true 走 JSONP（H5 跨域），传字符串则作为 callback 参数名
  *
  * fileUpload 额外:
@@ -65,7 +66,12 @@
  *
  * ── 请求拦截器 config 对象 ────────────────────────────
  * 每个请求拦截器接收一个 config 对象，可直接修改后返回：
- * { url, type, data, header, timeout, method, body, name, filePath, formData }
+ * { url, type, data, header, timeout, method, body, silent4xx, name, filePath, formData }
+ *
+ * ── 响应拦截器签名 ────────────────────────────────────
+ * 每个响应拦截器接收 (res, config) 两个参数：
+ *   res    — { code, message, response }
+ *   config — 当前请求的完整配置对象（含 silent4xx 等）
  *
  * ── 序列化器扩展 ──────────────────────────────────────
  * const api = useRequest({
@@ -131,10 +137,10 @@ export function useRequest(options = {}) {
   }
 
   /** 运行响应拦截器 */
-  function runResponseInterceptors(res) {
+  function runResponseInterceptors(res, config) {
     return responseInterceptors.reduce((acc, fn) => {
       if (typeof fn !== 'function') return acc
-      const next = fn(acc)
+      const next = fn(acc, config)
       return next !== undefined ? next : acc
     }, res)
   }
@@ -182,6 +188,7 @@ export function useRequest(options = {}) {
       header: (opts && opts.header) ? { ...opts.header } : {},
       timeout: (opts && opts.timeout != null) ? opts.timeout : defaultTimeout,
       method,
+      silent4xx: !!(opts && opts.silent4xx),
       body: (opts && opts.body) || false,
       jsonp: (opts && opts.jsonp) || false,
       jsonpKey: typeof (opts && opts.jsonp) === 'string' ? opts.jsonp : jsonpKey,
@@ -198,7 +205,7 @@ export function useRequest(options = {}) {
     // 3. 参数校验
     if (!config.url) {
       const result = createResult(-1, 'Request url is required', null)
-      const interRes = runResponseInterceptors(result)
+      const interRes = runResponseInterceptors(result, config)
       if (hasCallback) {
         callback(interRes)
         return
@@ -256,10 +263,10 @@ export function useRequest(options = {}) {
 
     function wrapRes(res) {
       const response = tryParseJSON(res.data)
-      return runResponseInterceptors(createResult(res.statusCode, '', response))
+      return runResponseInterceptors(createResult(res.statusCode, '', response), config)
     }
     function wrapFail(err) {
-      return runResponseInterceptors(createResult(0, err.errMsg || 'Network error', null))
+      return runResponseInterceptors(createResult(0, err.errMsg || 'Network error', null), config)
     }
 
     if (hasCallback) {
@@ -288,10 +295,10 @@ export function useRequest(options = {}) {
 
     function wrapRes(res) {
       const response = tryParseJSON(res.data)
-      return runResponseInterceptors(createResult(res.statusCode, '', response))
+      return runResponseInterceptors(createResult(res.statusCode, '', response), config)
     }
     function wrapFail(err) {
-      return runResponseInterceptors(createResult(0, err.errMsg || 'Upload failed', null))
+      return runResponseInterceptors(createResult(0, err.errMsg || 'Upload failed', null), config)
     }
 
     const uploadOpts = {
@@ -346,7 +353,7 @@ export function useRequest(options = {}) {
     }
 
     function dispatchResult(code, msg, response) {
-      const result = runResponseInterceptors(createResult(code, msg, response))
+      const result = runResponseInterceptors(createResult(code, msg, response), config)
       if (hasCallback) callback(result)
       return result
     }
