@@ -11,7 +11,7 @@
  * - 不允许业务层动态注册全局任务
  */
 
-import { schedule } from './appTask.js'
+import { schedule,once } from './appTask.js'
 
 // 1s 定时器 — 测试用
 schedule(() => {
