@@ -119,3 +119,55 @@ export async function batchGetUserInfo(userIds) {
 
   return resultMap
 }
+
+// ===== 搜索 =====
+
+/**
+ * 按 userNo 精确搜索用户（添加好友场景）。
+ * 与 getUserInfo 区别：getUserInfo 按 userId 走缓存层；本方法按 userNo 走唯一索引直查，
+ * 不查缓存（搜索低频，且 userNo 索引天然 O(1)）。命中后回填 userCache，
+ * 后续 getUserInfo(userId) / useUserDirectory 能命中。
+ *
+ * @param {string} userNo 用户外显 ID
+ * @returns {Promise<Object|null>} UserInfo 或 null（未命中 / 参数非法）
+ */
+export async function searchByUserNo(userNo) {
+  // 客户端基本校验：后端也会校验（errplace=userNo）
+  if (!userNo || typeof userNo !== 'string' || !userNo.trim()) {
+    return null
+  }
+  const trimmed = userNo.trim()
+  if (trimmed.length > 64) {
+    console.warn('[UserService] search userNo 超长:', trimmed.length)
+    return null
+  }
+
+  try {
+    const { code, response } = await request.get({
+      url: '/api/user/user_info/search',
+      data: { userNo: trimmed },
+      silent4xx: true,
+    })
+    console.log('[UserService] search /user_info/search', trimmed, '→ code=', code, 'state=', response?.state)
+
+    // 业务失败（未命中 / 参数错）一律返回 null，不抛出
+    if (code !== 200 || !response || response.state !== 'OK') {
+      return null
+    }
+
+    // content 为 null 表示未命中
+    if (!response.content) {
+      console.log('[UserService] search 未命中: userNo=', trimmed)
+      return null
+    }
+
+    const userInfo = createUserInfo(response.content)
+    // 命中后回填 userCache：让后续 getUserInfo(userId) / useUserDirectory 不必再走网络
+    setCachedUserInfo(userInfo.userId, userInfo)
+    console.log('[UserService] search 命中: userNo=', trimmed, 'userId=', userInfo.userId)
+    return userInfo
+  } catch (e) {
+    console.error('[UserService] search 异常: userNo=', trimmed, e)
+    return null
+  }
+}
