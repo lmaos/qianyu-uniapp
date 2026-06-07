@@ -4,7 +4,10 @@
 			<view class="chat-back-button" @tap="handleBack">‹</view>
 
 			<view class="chat-user-meta">
-				<view class="chat-user-avatar" :style="{ background: chatInfo.avatarBackground }">{{ chatInfo.avatarText }}</view>
+				<view class="chat-user-avatar" :style="chatInfo.avatar ? '' : { background: chatInfo.avatarBackground }">
+					<image v-if="chatInfo.avatar" class="chat-user-avatar-image" :src="chatInfo.avatar" mode="aspectFill"></image>
+					<text v-else>{{ chatInfo.avatarText }}</text>
+				</view>
 				<view class="chat-user-copy">
 					<text class="chat-user-name">{{ chatInfo.name }}</text>
 					<text class="chat-user-status">{{ chatInfo.statusText }}</text>
@@ -33,9 +36,10 @@
 							<view
 								v-if="item.type !== 'self'"
 								class="chat-bubble-avatar"
-								:style="{ background: chatInfo.avatarBackground }"
+								:style="chatInfo.avatar ? '' : { background: chatInfo.avatarBackground }"
 							>
-								{{ chatInfo.avatarText }}
+								<image v-if="chatInfo.avatar" class="chat-bubble-avatar-image" :src="chatInfo.avatar" mode="aspectFill"></image>
+								<text v-else>{{ chatInfo.avatarText }}</text>
 							</view>
 
 							<view :class="['chat-bubble', item.type === 'self' ? 'chat-bubble-self' : 'chat-bubble-other']">
@@ -90,9 +94,11 @@ import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
 import SafeBottomArea from '@/components/common/SafeBottomArea.vue'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import { useIm } from '@/composables/useIm.js'
+import { useUserDirectory } from '@/composables/useUserDirectory.js'
 import { getMessageDirection } from '@/core/im/models/MessageEntity.js'
 
 const im = useIm()
+const { userDirectory, ensureUsers, getUser } = useUserDirectory()
 
 const CHAT_COMPOSER_LAYOUT = {
 	topPaddingRpx: 16,
@@ -113,6 +119,7 @@ const chatInfo = ref({
 	targetId: '',
 	name: '聊天',
 	statusText: '',
+	avatar: '', // 对方头像 URL（来自 userDirectory）
 	avatarText: '?',
 	avatarBackground: 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
 })
@@ -150,18 +157,42 @@ function scrollToBottom() {
 // ===== 生命周期 =====
 
 onLoad((options) => {
+	const fallbackName = decodeURIComponent(options.name || '聊天')
 	chatInfo.value = {
 		conversationId: options.conversationId || '',
 		chatType: Number(options.chatType) || 1,
 		targetId: options.targetId || '',
-		name: decodeURIComponent(options.name || '聊天'),
+		name: fallbackName,
 		statusText: '',
-		avatarText: (decodeURIComponent(options.name || '聊天')).charAt(0),
+		avatar: '',
+		avatarText: fallbackName.charAt(0),
 		avatarBackground: 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
 	}
 
 	console.log('[chat.vue] onLoad: convId=', chatInfo.value.conversationId, ', targetId=', chatInfo.value.targetId)
+
+	// 拉取对方真实 userInfo（首屏先用 onLoad options.name 兜底，userInfo 到达后自动覆盖）
+	if (chatInfo.value.targetId) {
+		ensureUsers([chatInfo.value.targetId])
+	}
+
 	loadMessages()
+})
+
+// 当对方 userInfo 异步到达时，覆盖 onLoad 传入的 options.name 快照
+watch(userDirectory, () => {
+	const targetId = chatInfo.value.targetId
+	if (!targetId) return
+	const user = getUser(targetId)
+	if (!user) return
+	const displayName = user.nickname || user.userNo
+	if (!displayName) return
+	chatInfo.value = {
+		...chatInfo.value,
+		name: displayName,
+		avatar: user.avatar || '',
+		avatarText: displayName.charAt(0).toUpperCase(),
+	}
 })
 
 onShow(() => {
@@ -393,6 +424,13 @@ function handleMessageClick(message) {
 	font-weight: 700;
 	color: #ffffff;
 	box-shadow: 0 16rpx 34rpx rgba(255, 171, 191, 0.18);
+	overflow: hidden;
+}
+
+.chat-user-avatar-image {
+	width: 100%;
+	height: 100%;
+	border-radius: 28rpx;
 }
 
 .chat-user-copy {
@@ -482,6 +520,13 @@ function handleMessageClick(message) {
 	font-weight: 700;
 	color: #ffffff;
 	flex-shrink: 0;
+	overflow: hidden;
+}
+
+.chat-bubble-avatar-image {
+	width: 100%;
+	height: 100%;
+	border-radius: 22rpx;
 }
 
 .chat-bubble {

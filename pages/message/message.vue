@@ -105,8 +105,9 @@
 							@tap.stop="handleConversationCardClick(item)"
 						>
 							<view class="message-conversation-avatar-shell">
-								<view class="message-conversation-avatar" :style="{ background: item.avatarBackground }">
-									{{ item.avatarText }}
+								<view class="message-conversation-avatar" :style="item.avatar ? '' : { background: item.avatarBackground }">
+									<image v-if="item.avatar" class="message-conversation-avatar-image" :src="item.avatar" mode="aspectFill"></image>
+									<text v-else>{{ item.avatarText }}</text>
 								</view>
 								<view
 									v-if="item.onlineState !== 'hidden'"
@@ -157,6 +158,7 @@ import { onShow, onHide } from '@dcloudio/uni-app'
 import PullPagingShell from '@/components/common/PullPagingShell.vue'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import { useIm } from '@/composables/useIm.js'
+import { useUserDirectory } from '@/composables/useUserDirectory.js'
 import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
 import {
 	buildMessageContactListUrl,
@@ -174,6 +176,7 @@ const props = defineProps({
 })
 
 const im = useIm()
+const { userDirectory, ensureUsers } = useUserDirectory()
 const pageMock = buildMessagePageMock()
 const notificationUnreadCount = Number(pageMock.notificationBadge?.unreadCount || 0)
 const { safeTopPx, rpxToPx } = useSafeAreaMetrics()
@@ -245,7 +248,12 @@ const messageListener = {
 		console.log('[message.vue] listener leave')
 	},
 	onMessage(body) {
-		console.log('[message.vue] listener onMessage: convId=', body?.conversationId)
+		console.log('[message.vue] listener onMessage: convId=', body?.conversationId, ', sender=', body?.sender)
+		// 积极策略：收到消息立即确保 sender 的 userInfo 已加载
+		// （不等 loadConversationList + ensureUsers 链路，新会话/陌生人场景能更早渲染真昵称头像）
+		if (body && body.sender && String(body.sender) !== String(im.getCurrentUserId() || '')) {
+			ensureUsers([body.sender])
+		}
 		loadConversationList()
 	}
 }
@@ -253,17 +261,49 @@ const messageListener = {
 // ===== 会话数据转换 =====
 
 /**
+ * 从 IM 会话对象中提取 targetId（userId 字符串）
+ * 兜底解析：部分历史数据 / SDK 适配遗漏场景下，targetId 字段可能缺失
+ * 此时从 conversationId（private_{userId} / group_{groupId} / C2C{userId} / GROUP{groupId}）反解
+ *
+ * @param {Object} conv
+ * @returns {string} targetId 字符串（空字符串表示解析失败）
+ */
+function extractConvTargetId(conv) {
+	if (!conv) return ''
+	// 主路径：直接读 targetId 字段
+	if (conv.targetId != null && conv.targetId !== '') {
+		return String(conv.targetId)
+	}
+	// 兜底：从 conversationId 前缀反解
+	const cid = conv.conversationId || ''
+	if (cid.startsWith('private_')) return cid.slice(8)
+	if (cid.startsWith('group_'))   return cid.slice(6)
+	if (cid.startsWith('C2C'))      return cid.slice(3)
+	if (cid.startsWith('GROUP'))    return cid.slice(5)
+	return ''
+}
+
+/**
  * 将 IM 会话对象转换为模板所需的视图模型
  * IM 会话字段: conversationId, targetId, name, avatarText, avatarBackground,
  *             lastMessagePreview, lastMessageTime, unreadCount, isPinned, isMuted, onlineState
  */
 function normalizeConversation(conv) {
+	const userId = extractConvTargetId(conv)
+	const user = userId ? userDirectory.get(userId) : null
+	const displayName = user?.nickname || user?.userNo || conv.name || userId || ''
+	// 诊断：首次 normalize 时 userDirectory 多数为空（L1 miss，异步加载中）
+	if (!user && userId) {
+		console.log('[message.vue] normalize conv', userId, '→ userDirectory MISS (将走异步加载)')
+	}
 	return {
 		id: conv.conversationId,
 		conversationId: conv.conversationId,
 		targetId: conv.targetId,
-		name: conv.name || conv.targetId || '',
-		avatarText: conv.avatarText || (conv.name || '').charAt(0) || '?',
+		userId, // 新增：供 watch userDirectory 时定位
+		name: displayName,
+		avatar: user?.avatar || '',
+		avatarText: displayName.charAt(0).toUpperCase() || '?',
 		avatarBackground: conv.avatarBackground || 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
 		onlineState: conv.onlineState || 'hidden',
 		timeText: formatTimeText(conv.lastMessageTime),
@@ -309,6 +349,16 @@ async function loadConversationList() {
 	try {
 		const result = await im.getConversationList()
 		const list = result.list || []
+		console.log('[message.vue] IM 返回会话数:', list.length, '| sample=', list[0] ? { convId: list[0].conversationId, targetId: list[0].targetId, name: list[0].name, hasAvatarText: !!list[0].avatarText } : null)
+
+		// 先拉取对方 userInfo，再转换（userDirectory 已有数据时 normalize 可拿到真昵称/头像）
+		// 走 extractConvTargetId 而非 c.targetId — 兼容 targetId 字段缺失的旧 storage 缓存
+		const targetIds = [...new Set(list.map(c => extractConvTargetId(c)).filter(Boolean))]
+		console.log('[message.vue] 待加载 userInfo 的 targetIds:', targetIds)
+		if (targetIds.length) {
+			await ensureUsers(targetIds)
+		}
+
 		conversationSourceList.value = list.map(normalizeConversation)
 		conversationPage.value = 1
 		conversationList.value = conversationSourceList.value.slice(0, messagePageConfig.pageSize)
@@ -391,6 +441,35 @@ watch(
 		flush: 'post'
 	}
 )
+
+// 当 userInfo 异步到达（晚于 loadConversationList）时，增量更新已有会话的 name/avatar
+// 注意：模板 v-for 用的是 conversationList（当前页视图，从 conversationSourceList.slice 派生）
+// 所以源列表变化时必须同步刷新 conversationList，否则 UI 不更新
+watch(userDirectory, () => {
+	if (!conversationSourceList.value.length) return
+	let needUpdate = false
+	const newList = conversationSourceList.value.map(c => {
+		const user = c.userId ? userDirectory.get(c.userId) : null
+		if (!user) return c
+		const displayName = user.nickname || user.userNo || c.name
+		const newAvatar = user.avatar || ''
+		if (displayName === c.name && newAvatar === c.avatar) return c
+		needUpdate = true
+		return {
+			...c,
+			name: displayName,
+			avatar: newAvatar,
+			avatarText: (displayName || '?').charAt(0).toUpperCase(),
+		}
+	})
+	if (needUpdate) {
+		conversationSourceList.value = newList
+		// 同步刷新当前页视图（保留分页位置，不重置 conversationPage）
+		conversationList.value = newList.slice(0, conversationPage.value * messagePageConfig.pageSize)
+		conversationNoMore.value = conversationList.value.length >= newList.length
+		console.log('[message.vue] watch userDirectory: 已更新', newList.length, '个会话的源数据, 可见', conversationList.value.length)
+	}
+})
 
 // ===== 计算属性 =====
 
@@ -603,7 +682,8 @@ function buildChatUrl(item) {
 	return buildPageUrl('/pages/message/chat', {
 		conversationId: item.conversationId || item.id || '',
 		chatType: item.chatType || 1,
-		targetId: item.targetId || '',
+		// 用 item.userId（normalizeConversation 兜底解析过的）而非 item.targetId（原始字段可能缺失）
+		targetId: item.userId || item.targetId || '',
 		name: item.name || '',
 	})
 }
@@ -1226,6 +1306,13 @@ onBeforeUnmount(() => {
 	font-size: 30rpx;
 	font-weight: 700;
 	color: #ffffff;
+	overflow: hidden;
+}
+
+.message-conversation-avatar-image {
+	width: 100%;
+	height: 100%;
+	border-radius: 28rpx;
 }
 
 .message-presence-dot {

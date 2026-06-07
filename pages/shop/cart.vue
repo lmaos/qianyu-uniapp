@@ -52,17 +52,23 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import FullScreenPageLayout from '@/components/common/FullScreenPageLayout.vue'
 import ShopSubPageHeader from '@/components/shop/common/ShopSubPageHeader.vue'
 import ShopCartList from '@/components/shop/cart/ShopCartList.vue'
-import { buildCartOrderSubmitUrl, getShopCartMockList } from '@/components/shop/cart/shopCartMock.js'
+import { buildCartOrderSubmitUrl } from '@/components/shop/cart/shopCartMock.js'
 import {
 	SHOP_HEADER_AREA_STYLE,
 	SHOP_HEADER_BACKGROUND,
 	SHOP_PAGE_BACKGROUND
 } from '@/components/shop/common/shopSurface.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptCartItem } from '@/utils/shopAdapter'
 
-const cartList = ref(getShopCartMockList())
+const cartList = ref([])
+const totalPrice = ref('0.00')
+const loading = ref(false)
 const cartContentProps = {
 	'scroll-y': true
 }
@@ -78,6 +84,48 @@ const formattedTotalPrice = computed(() => {
 		selectedCartList.value.reduce((total, item) => total + Number(item.price || 0) * Number(item.quantity || 0), 0)
 	)
 })
+
+// ── 加载购物车（oms/cartList） ────────────────────────
+async function loadCartList() {
+	loading.value = true
+	try {
+		const { code, data } = await request.post({ url: API.OMS_CART_LIST })
+		if (code !== 200) return
+		const content = data.content || {}
+		cartList.value = (content.list || []).map(adaptCartItem)
+		totalPrice.value = content.totalPrice || '0.00'
+	} finally {
+		loading.value = false
+	}
+}
+
+onLoad(loadCartList)
+onShow(loadCartList)   // 从其他页面返回时刷新
+
+// 更新数量（oms/cartUpdate）
+async function updateCartItemQuantity(cartItemId, quantity) {
+	const { code } = await request.post({
+		url: API.OMS_CART_UPDATE,
+		data: { cartItemId, quantity }
+	})
+	if (code !== 200) {
+		uni.showToast({ title: '更新数量失败', icon: 'none' })
+		await loadCartList()
+	}
+}
+
+// 删除商品（oms/cartDelete）
+async function removeCartItems(cartItemIds) {
+	const { code } = await request.post({
+		url: API.OMS_CART_DELETE,
+		data: { cartItemIds }
+	})
+	if (code === 200) {
+		uni.showToast({ title: '删除成功', icon: 'none' })
+	} else {
+		await loadCartList()
+	}
+}
 
 function handleBack() {
 	uni.navigateBack({
@@ -122,18 +170,9 @@ function handleIncreaseItem(itemInfo) {
 		return
 	}
 
-	cartList.value = cartList.value.map((item) =>
-		item.id === itemInfo.id
-			? {
-					...item,
-					quantity: item.quantity + 1
-			  }
-			: item
-	)
-	onQuantityChange({
-		...itemInfo,
-		action: 'increase'
-	})
+	const newQty = matchedItem.quantity + 1
+	matchedItem.quantity = newQty   // 乐观更新
+	updateCartItemQuantity(matchedItem.id, newQty)
 }
 
 function handleDecreaseItem(itemInfo) {
@@ -143,18 +182,9 @@ function handleDecreaseItem(itemInfo) {
 	}
 
 	if (matchedItem.quantity > 1) {
-		cartList.value = cartList.value.map((item) =>
-			item.id === itemInfo.id
-				? {
-						...item,
-						quantity: item.quantity - 1
-				  }
-				: item
-		)
-		onQuantityChange({
-			...itemInfo,
-			action: 'decrease'
-		})
+		const newQty = matchedItem.quantity - 1
+		matchedItem.quantity = newQty
+		updateCartItemQuantity(matchedItem.id, newQty)
 		return
 	}
 
@@ -209,21 +239,12 @@ function handleClearCart() {
 		skuId: item.skuId,
 		quantity: item.quantity
 	}))
-	cartList.value = []
-	onClearCart(clearedItemList)
-	uni.showToast({
-		title: '已清空购物车',
-		icon: 'none'
-	})
+	removeCartItems(clearedItemList.map((i) => i.id))
 }
 
 function removeCartItem(itemInfo) {
 	cartList.value = cartList.value.filter((item) => item.id !== itemInfo.id)
-	onDeleteItem(itemInfo)
-	uni.showToast({
-		title: '删除成功',
-		icon: 'none'
-	})
+	removeCartItems([itemInfo.id])
 }
 
 function onToggleAll(payload) {

@@ -60,14 +60,21 @@ import {
 	SHOP_HEADER_BORDER,
 	SHOP_PAGE_BACKGROUND
 } from '@/components/shop/common/shopSurface.js'
-import { getGoodsEvaluateMock } from '@/components/shop/detail/shopDetailMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptReviewItem, adaptReviewStat, extractPage } from '@/utils/shopAdapter'
 
 const systemInfo = uni.getSystemInfoSync()
 const safeTopPx = systemInfo.safeAreaInsets?.top || systemInfo.statusBarHeight || 0
 const windowWidthPx = Number(systemInfo.windowWidth) || 375
 const navBarHeightPx = safeTopPx + rpxToPx(88)
 
-const evaluateData = ref(getGoodsEvaluateMock('recommend-product-1-1'))
+// 评价数据
+const spuInfo = ref({ name: '', image: '' })
+const evaluateData = ref({ summary: {}, reviewList: [] })
+const reviewPage = ref({ records: [], totalRow: 0, pageNumber: 1, pageSize: 10, totalPage: 0 })
+const loading = ref(false)
+const currentSpuId = ref(0)
 
 const navStyle = computed(() => {
 	return {
@@ -86,23 +93,54 @@ const contentStyle = computed(() => {
 	}
 })
 
-onLoad((options) => {
-	const productId = `${options?.productId || 'recommend-product-1-1'}`.trim() || 'recommend-product-1-1'
-	evaluateData.value = getGoodsEvaluateMock(productId)
-	onEvaluateDetailLoad({
-		productId
+// 加载评价聚合（pms/rev/reviewPage）
+async function loadEvaluatePage() {
+	const { code, data } = await request.post({
+		url: API.REV_REVIEW_PAGE,
+		data: { spuId: currentSpuId.value, pageNum: 1, pageSize: 10, score: 0 }
 	})
+	if (code !== 200) return
+	const content = data.content || {}
+	spuInfo.value = { name: content.spuName || '', image: content.spuImage || '' }
+	evaluateData.value = {
+		summary: adaptReviewStat(content.reviewStat),
+		reviewList: (content.reviewList?.records || []).map(adaptReviewItem)
+	}
+	reviewPage.value = extractPage(content.reviewList)
+}
+
+// 加载更多
+async function loadMoreReview() {
+	if (loading.value) return
+	if (reviewPage.value.pageNumber >= reviewPage.value.totalPage) return
+	loading.value = true
+	try {
+		const next = reviewPage.value.pageNumber + 1
+		const { code, data } = await request.post({
+			url: API.REV_REVIEW_LIST,
+			data: { spuId: currentSpuId.value, pageNum: next, pageSize: 10, score: 0 }
+		})
+		if (code !== 200) return
+		const page = extractPage(data.content)
+		const list = page.records.map(adaptReviewItem)
+		reviewPage.value = page
+		evaluateData.value.reviewList = evaluateData.value.reviewList.concat(list)
+	} finally {
+		loading.value = false
+	}
+}
+
+onLoad((options) => {
+	currentSpuId.value = Number(options?.productId || options?.spuId) || 0
+	if (currentSpuId.value > 0) {
+		loadEvaluatePage()
+	}
 })
 
 function handleBack() {
 	uni.navigateBack({
 		delta: 1
 	})
-}
-
-function onEvaluateDetailLoad(payload) {
-	// TODO：替换评价详情初始化接口
-	console.log('shop-evaluate-detail-load', payload.productId)
 }
 
 function rpxToPx(value) {

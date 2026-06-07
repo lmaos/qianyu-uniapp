@@ -29,16 +29,14 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onActivated, ref, watch } from 'vue'
 import ShopRecommendBanner from '@/components/home/shop/ShopRecommendBanner.vue'
 import ShopRecommendZone from '@/components/home/shop/ShopRecommendZone.vue'
 import ShopProductList from '@/components/home/shop/ShopProductList.vue'
-import {
-	buildRecommendBannerList,
-	buildRecommendFeedList,
-	buildRecommendZoneList,
-	buildShopProductDetailUrl
-} from '@/components/home/shop/shopProductMock.js'
+import { buildShopProductDetailUrl } from '@/components/home/shop/shopProductMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptProductItem, extractPage } from '@/utils/shopAdapter'
 
 const props = defineProps({
 	active: {
@@ -55,19 +53,67 @@ const props = defineProps({
 	}
 })
 
-// 推荐页顶部 Banner 列表一次性渲染即可。
-const bannerList = computed(() => {
-	return buildRecommendBannerList()
-})
+// ── 数据状态 ──────────────────────────────────────────
+const bannerList = ref([])
+const zoneList = ref([])
+const feedProductList = ref([])
+const feedPageNum = ref(1)
+const feedHasMore = ref(true)
+const feedLoading = ref(false)
+const initialLoading = ref(false)
 
-// 推荐区固定区域数据，不参与分页。
-const zoneList = computed(() => {
-	return buildRecommendZoneList(props.categoryId)
-})
+// ── 加载首页聚合数据 ──────────────────────────────────
+async function loadHomePage() {
+	initialLoading.value = true
+	try {
+		const { code, data } = await request.post({ url: API.CMS_HOME_PAGE })
+		if (code !== 200) return
+		const content = data.content || {}
+		bannerList.value = content.bannerList || []
+		zoneList.value = (content.zoneList || []).map((zone) => ({
+			...zone,
+			productList: (zone.productList || []).map(adaptProductItem),
+		}))
+	} finally {
+		initialLoading.value = false
+	}
+}
 
-// 推荐流商品列表走分页加载，复用当前双列商品列表组件。
-const feedProductList = computed(() => {
-	return buildRecommendFeedList(props.categoryId, props.sectionCount)
+// ── 加载猜你喜欢（分页） ──────────────────────────────
+async function loadFeedList(reset = false) {
+	if (feedLoading.value) return
+	feedLoading.value = true
+	try {
+		const pageNum = reset ? 1 : feedPageNum.value
+		const { code, data } = await request.post({
+			url: API.PMS_SPU_LIST,
+			data: { pageNum, pageSize: 20, categoryId: props.categoryId || null },
+		})
+		if (code !== 200) return
+		const page = extractPage(data.content)
+		const list = page.records.map(adaptProductItem)
+		if (reset) {
+			feedProductList.value = list
+			feedPageNum.value = 2
+		} else {
+			feedProductList.value = feedProductList.value.concat(list)
+			feedPageNum.value = pageNum + 1
+		}
+		feedHasMore.value = list.length > 0 && pageNum < page.totalPage
+	} finally {
+		feedLoading.value = false
+	}
+}
+
+watch(
+	() => props.categoryId,
+	() => loadFeedList(true),
+	{ immediate: false }
+)
+
+onActivated(() => {
+	if (bannerList.value.length === 0) loadHomePage()
+	if (feedProductList.value.length === 0) loadFeedList(true)
 })
 
 // 推荐区商品点击后，先走占位回调，再跳详情页。

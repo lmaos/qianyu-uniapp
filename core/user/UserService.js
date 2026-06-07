@@ -11,12 +11,13 @@ import {
   batchGetCachedUserInfo,
   batchSetCachedUserInfo,
 } from './UserCache'
+import request from '@/composables/baseRequest.js'
 
-/** @type {string} 服务端 API 基础地址 */
+/** @type {string} 服务端 API 基础地址（保留以兼容旧 init 入口） */
 let _baseUrl = ''
 
 /**
- * 初始化用户服务
+ * 初始化用户服务（保留入口，实际 baseURL 由 baseRequest 的 env 配置管理）
  * @param {Object} options
  * @param {string} options.baseUrl 服务端 API 地址
  */
@@ -42,12 +43,17 @@ export async function getUserInfo(targetId) {
     return cached
   }
 
-  // 2. 请求接口
+  // 2. 调接口（baseRequest 自动带 token header，silent4xx 跳过自动 toast）
   try {
-    const result = await _requestGet('/api/user/user_info/get', { targetId })
-    if (!result) return null
+    const { code, response } = await request.get({
+      url: '/api/user/user_info/get',
+      data: { targetId },
+      silent4xx: true,
+    })
+    console.log('[UserService] get /user_info/get', targetId, '→ code=', code, 'state=', response?.state)
+    if (code !== 200 || !response || response.state !== 'OK') return null
 
-    const userInfo = createUserInfo(result)
+    const userInfo = createUserInfo(response.content)
     setCachedUserInfo(targetId, userInfo)
     console.log('[UserService] 查询成功: userId=', targetId)
     return userInfo
@@ -81,66 +87,35 @@ export async function batchGetUserInfo(userIds) {
   }
 
   // 2. 批量请求未命中的
+  // 后端约定：参数名是 targetIds（@Params(name="targetIds")），
+  // 不能用 targetIdsText。基类接口是 GET，用 query 串（data 会被序列化为 ?targetIds=1,2,3）
   try {
-    const idsText = miss.join(',')
-    const list = await _requestGet('/api/user/user_info/list', { targetIdsText: idsText })
+    const { code, response } = await request.get({
+      url: '/api/user/user_info/list',
+      data: { targetIds: miss.join(',') },
+      silent4xx: true,
+    })
+    console.log('[UserService] list /user_info/list', miss.length, '→ code=', code, 'state=', response?.state)
 
-    if (list && list.length) {
+    if (code !== 200 || !response || response.state !== 'OK') {
+      console.warn('[UserService] 批量查询失败: code=', code, 'state=', response?.state, 'message=', response?.message)
+      return resultMap
+    }
+
+    const list = response.content || []
+    if (list.length) {
       for (const item of list) {
         const userInfo = createUserInfo(item)
         resultMap.set(String(userInfo.userId), userInfo)
         setCachedUserInfo(userInfo.userId, userInfo)
       }
-      console.log('[UserService] 批量查询完成: cached=', hit.size, ', fetched=', list.length)
+      console.log('[UserService] 批量查询完成: cached=', hit.size, ', fetched=', list.length, '| sample=', JSON.stringify(list[0]).slice(0, 200))
+    } else {
+      console.warn('[UserService] 批量查询返回空: cached=', hit.size, ', miss=', miss.length, '| missIds=', miss)
     }
   } catch (e) {
     console.error('[UserService] 批量查询用户信息失败:', e)
   }
 
   return resultMap
-}
-
-// ===== 内部方法 =====
-
-/**
- * 发送 GET 请求（框架自动包装响应）
- * @param {string} path API 路径
- * @param {Object} params 查询参数
- * @returns {Promise<Object>} content 字段内容
- */
-function _requestGet(path, params) {
-  return new Promise((resolve, reject) => {
-    if (!_baseUrl) {
-      reject(new Error('[UserService] baseUrl 未配置'))
-      return
-    }
-
-    // 拼接查询参数
-    const query = Object.entries(params)
-      .filter(([, v]) => v !== undefined && v !== null && v !== '')
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join('&')
-
-    const url = `${_baseUrl}${path}?${query}`
-
-    uni.request({
-      url,
-      method: 'GET',
-      success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          const data = res.data || {}
-          if (data.state === 'OK') {
-            resolve(data.content)
-          } else {
-            reject(new Error(`[UserService] 接口返回失败: state=${data.state}, message=${data.message}`))
-          }
-        } else {
-          reject(new Error(`[UserService] HTTP ${res.statusCode}`))
-        }
-      },
-      fail: (err) => {
-        reject(new Error(`[UserService] 网络请求失败: ${err.errMsg || err}`))
-      },
-    })
-  })
 }

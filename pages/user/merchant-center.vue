@@ -2,7 +2,7 @@
 	<UserSubPageLayout title="商家管理" @back="handleBack">
 		<view class="merchant-stat-grid">
 			<UserSectionCard
-				v-for="item in pageMock.statList"
+				v-for="item in dashboardData.statList"
 				:key="item.key"
 				class="merchant-stat-card"
 			>
@@ -12,7 +12,7 @@
 		</view>
 
 		<UserSectionCard class="merchant-section-gap" title="经营入口">
-			<UserMenuList :item-list="pageMock.menuList" @select="handleMenuSelect" />
+			<UserMenuList :item-list="menuList" @select="handleMenuSelect" />
 		</UserSectionCard>
 	</UserSubPageLayout>
 </template>
@@ -23,20 +23,48 @@ import { onLoad } from '@dcloudio/uni-app'
 import UserMenuList from '@/components/user-center/common/UserMenuList.vue'
 import UserSectionCard from '@/components/user-center/common/UserSectionCard.vue'
 import UserSubPageLayout from '@/components/user-center/common/UserSubPageLayout.vue'
-import { getMerchantCenterPageMock } from '@/components/user-center/userCenterMock.js'
 import {
 	buildShopMerchantDeliveryUrl,
 	buildShopMerchantGoodsUrl,
 	buildShopMerchantPromotionUrl
 } from '@/components/shop/common/shopFlowMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
 
 const currentUserId = ref('mine-self')
 
-const pageMock = ref(getMerchantCenterPageMock())
+// 仪表盘数据（merchant/merchant/dashboard）
+const dashboardData = ref({
+  merchantId: '',
+  shopName: '',
+  auditStatus: 0,
+  status: 0,
+  statList: []
+})
 
-onLoad((options) => {
-	pageMock.value = getMerchantCenterPageMock(options?.userId)
+// 经营入口（前端静态配置，不依赖后端）
+const menuList = [
+  { key: 'goods', label: '商品管理' },
+  { key: 'delivery', label: '发货管理' },
+  { key: 'promotion', label: '营销活动' }
+]
+
+async function loadDashboard() {
+	const { code, data } = await request.post({ url: API.M_MCH_DASHBOARD })
+	if (code !== 200) return
+	const content = data.content || {}
+	dashboardData.value = {
+		merchantId: content.merchantId || '',
+		shopName: content.shopName || '',
+		auditStatus: content.auditStatus ?? 0,
+		status: content.status ?? 0,
+		statList: content.statList || []
+	}
+}
+
+onLoad(async (options) => {
 	currentUserId.value = options?.userId || 'mine-self'
+	await loadDashboard()
 })
 
 function handleBack() {
@@ -65,7 +93,6 @@ function handleMenuSelect(item) {
 }
 
 function onMenuSelect(item) {
-	// TODO：替换商家管理入口逻辑
 	console.log('user-merchant-menu-click', item.key)
 }
 </script>

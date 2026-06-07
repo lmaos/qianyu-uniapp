@@ -47,32 +47,78 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ShopCustomerServiceSheet from '@/components/shop/common/ShopCustomerServiceSheet.vue'
 import UserContentTabBar from '@/components/user-center/main/UserContentTabBar.vue'
 import UserSectionCard from '@/components/user-center/common/UserSectionCard.vue'
 import UserSubPageLayout from '@/components/user-center/common/UserSubPageLayout.vue'
-import { filterOrderListByStatus, getOrderListPageMock } from '@/components/user-center/userCenterMock.js'
 import {
 	buildShopOrderDetailUrl,
 	getShopCustomerServiceSheetMock
 } from '@/components/shop/common/shopFlowMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptOrderSimple, extractPage } from '@/utils/shopAdapter'
 
-const pageMock = ref(getOrderListPageMock())
+// status 映射：前端 tab key → 后端 status
+const STATUS_TO_BACKEND = {
+  'all': 0,
+  'pending-pay': 1,
+  'pending-send': 2,
+  'pending-receive': 3,
+  'completed': 4,
+  'refund': 5,
+  'cancelled': 6
+}
+
+const statusTabList = [
+  { key: 'all', label: '全部' },
+  { key: 'pending-pay', label: '待付款' },
+  { key: 'pending-send', label: '待发货' },
+  { key: 'pending-receive', label: '待收货' },
+  { key: 'completed', label: '已完成' },
+  { key: 'refund', label: '退款/售后' },
+  { key: 'cancelled', label: '已取消' }
+]
+
+const orderList = ref([])
 const activeStatus = ref('all')
+const loading = ref(false)
+const total = ref(0)
 const currentUserId = ref('mine-self')
 const serviceSheetVisible = ref(false)
 const serviceSheetData = ref(getShopCustomerServiceSheetMock({ contextType: 'order' }))
 
-const statusTabList = computed(() => pageMock.value.statusTabList || [])
-const displayOrderList = computed(() => filterOrderListByStatus(pageMock.value.orderList || [], activeStatus.value))
+const displayOrderList = computed(() => orderList.value)
+
+// 加载订单列表（oms/orderList）
+async function loadOrderList() {
+	loading.value = true
+	try {
+		const { code, data } = await request.post({
+			url: API.OMS_ORDER_LIST,
+			data: {
+				status: STATUS_TO_BACKEND[activeStatus.value] ?? 0,
+				pageNum: 1,
+				pageSize: 20
+			}
+		})
+		if (code !== 200) return
+		const page = extractPage(data.content)
+		orderList.value = page.records.map(adaptOrderSimple)
+		total.value = page.totalRow
+	} finally {
+		loading.value = false
+	}
+}
 
 onLoad((options) => {
-	pageMock.value = getOrderListPageMock(options?.userId)
 	currentUserId.value = options?.userId || 'mine-self'
-	activeStatus.value = 'all'
+	loadOrderList()
 })
+
+watch(activeStatus, () => loadOrderList())
 
 function handleBack() {
 	uni.navigateBack({ delta: 1 })

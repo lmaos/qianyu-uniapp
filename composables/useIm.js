@@ -8,6 +8,7 @@ import { ref, readonly } from 'vue'
 import { getImService } from '@/core/im/ImServiceImpl'
 import { ImEvent } from '@/core/im/models/enums'
 import { generateSeqId, generateMsgId } from '@/core/im/models/MessageEntity'
+import { onLoginSessionCleared, onLoginSessionSaved } from '@/composables/useLoginSession.js'
 
 // ===== 模块级单例状态 =====
 
@@ -22,7 +23,17 @@ let _coreListenersBound = false
 let _initPromise = null
 let _startPromise = null
 
+// 登录态事件订阅句柄
+let _loginClearedOff = null
+let _loginSavedOff = null
+let _lifecycleBound = false
+
+// stop() 幂等保护：账号切换时新 start() 必须等旧 stop() 完成
+let _stopPromise = null
+
 export function useIm() {
+  // 首次调用时自动绑定 IM 生命周期到登录态事件总线
+  bindImLifecycle()
 
   function getService() {
     return getImService()
@@ -40,6 +51,11 @@ export function useIm() {
    * @param {string} [options.baseUrl]             服务端 API 地址
    */
   async function start(userId, options = {}) {
+    // 账号切换时，旧 stop() 可能还没跑完；等待它完成再启动新会话
+    if (_stopPromise) {
+      await _stopPromise
+    }
+
     if (isReady.value) {
       return
     }
@@ -148,6 +164,124 @@ export function useIm() {
     await getService().logout()
     isReady.value = false
     _startPromise = null
+  }
+
+  /**
+   * 彻底销毁 IM 服务
+   *
+   * 与 logout() 的区别：
+   *   - logout()：仅断开 SDK 连接、登出当前账号
+   *                保留 _adapter / _storage，**不可重新 start()**
+   *   - stop()  ：logout + destroy，释放所有资源
+   *                调用后**可以重新 start()** 启动新一轮会话
+   *
+   * 使用场景：
+   *   1. 用户登出（含 token 过期、403 挤下线）→ 必须 stop
+   *   2. 切换账号 → 必须 stop 旧账号 + start 新账号
+   *   3. App 销毁 / 长时间挂起 → 清理资源
+   *
+   * 调用者保证：stop() 调用前应已确认无 in-flight start() 等待；
+   *              重复调用安全（内部有 isReady/isInitialized 守卫）。
+   */
+  async function stop() {
+    // 幂等：并发 stop() 复用同一个 Promise，避免重复释放
+    if (_stopPromise) {
+      return _stopPromise
+    }
+
+    _stopPromise = _doStop()
+    try {
+      return await _stopPromise
+    } finally {
+      _stopPromise = null
+    }
+  }
+
+  async function _doStop() {
+    console.log('[useIm] stop 开始')
+
+    // 1. SDK logout（如果已 ready）：断开连接、登出账号
+    if (isReady.value) {
+      try {
+        await getService().logout()
+      } catch (e) {
+        console.warn('[useIm] stop 阶段 logout 失败（已忽略）:', e?.message || e)
+      }
+    }
+
+    // 2. SDK destroy（如果已初始化）：释放 adapter + storage
+    if (isInitialized.value) {
+      try {
+        await getService().destroy()
+      } catch (e) {
+        console.warn('[useIm] stop 阶段 destroy 失败（已忽略）:', e?.message || e)
+      }
+    }
+
+    // 3. 重置 useIm 内部响应式状态
+    isReady.value = false
+    isInitialized.value = false
+    totalUnread.value = 0
+
+    // 4. 重置 module-level 单例状态（关键：否则下次 start() 会因
+    //    _initPromise / _startPromise 已存在而提前 return）
+    _initPromise = null
+    _startPromise = null
+
+    // 5. 清理 ImService 内部事件订阅（_sdkReadyOff 等）
+    if (_sdkReadyOff) {
+      _sdkReadyOff()
+      _sdkReadyOff = null
+    }
+    if (_sdkNotReadyOff) {
+      _sdkNotReadyOff()
+      _sdkNotReadyOff = null
+    }
+    if (_convUpdatedOff) {
+      _convUpdatedOff()
+      _convUpdatedOff = null
+    }
+    _coreListenersBound = false
+
+    console.log('[useIm] stop 完成')
+  }
+
+  /**
+   * 把 IM 的 start/stop 绑到登录态事件总线上：
+   *   - onLoginSessionCleared（登出 / token 过期 / 403 挤下线 / 账号切换清旧）→ stop()
+   *   - onLoginSessionSaved（账号切换登新账号）→ 仅做日志埋点；新 IM 由 App.vue onShow 拉起
+   *
+   * 幂等：多次 useIm() 只会绑定一次；stop() 不解绑（事件总线是模块级）。
+   * App.vue onUnload 中调 disposeImLifecycle() 彻底解绑。
+   */
+  function bindImLifecycle() {
+    if (_lifecycleBound) return
+
+    _loginClearedOff = onLoginSessionCleared(() => {
+      console.log('[useIm] 登录态已清空 → 自动 stop IM')
+      stop().catch((e) => console.warn('[useIm] 登录态清空后 stop 失败:', e?.message || e))
+    })
+
+    _loginSavedOff = onLoginSessionSaved(() => {
+      console.log('[useIm] 登录态已保存（账号切换） → 等待 App.vue onShow 启动新 IM')
+    })
+
+    _lifecycleBound = true
+  }
+
+  /**
+   * 解除 IM 生命周期订阅。仅供 App.vue onUnload 进程退出时使用。
+   */
+  function disposeImLifecycle() {
+    if (_loginClearedOff) {
+      _loginClearedOff()
+      _loginClearedOff = null
+    }
+    if (_loginSavedOff) {
+      _loginSavedOff()
+      _loginSavedOff = null
+    }
+    _lifecycleBound = false
   }
 
   // ===== 消息 =====
@@ -327,6 +461,8 @@ export function useIm() {
     init,
     login,
     logout,
+    stop,
+    disposeImLifecycle,
 
     // 消息
     sendMessage,

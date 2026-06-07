@@ -17,7 +17,7 @@
 			</template>
 
 			<view class="shop-merchant-summary-grid">
-				<view v-for="item in pageMock.summaryList" :key="item.key" class="shop-merchant-summary-card">
+				<view v-for="item in summaryList" :key="item.key" class="shop-merchant-summary-card">
 					<text class="shop-merchant-summary-value">{{ item.value }}</text>
 					<text class="shop-merchant-summary-label">{{ item.label }}</text>
 				</view>
@@ -25,7 +25,7 @@
 
 			<view class="shop-merchant-filter-row">
 				<view
-					v-for="item in pageMock.filterList"
+					v-for="item in filterList"
 					:key="item.key"
 					:class="['shop-merchant-filter', activeFilter === item.key ? 'shop-merchant-filter-active' : '']"
 					@tap="handleFilterChange(item)"
@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import FullScreenPageLayout from '@/components/common/FullScreenPageLayout.vue'
 import ShopSubPageHeader from '@/components/shop/common/ShopSubPageHeader.vue'
 import {
@@ -65,10 +65,25 @@ import {
 	SHOP_HEADER_BACKGROUND,
 	SHOP_PAGE_BACKGROUND
 } from '@/components/shop/common/shopSurface.js'
-import { getShopMerchantGoodsPageMock } from '@/components/shop/common/shopFlowMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { extractPage } from '@/utils/shopAdapter'
 
-const pageMock = ref(getShopMerchantGoodsPageMock())
+// filter → 后端值
+const FILTER_TO_BACKEND = { all: 0, selling: 1, pending: 2, warning: 3 }
+
+// 静态筛选 Tab（不依赖后端）
+const filterList = [
+  { key: 'all', label: '全部' },
+  { key: 'selling', label: '在售' },
+  { key: 'pending', label: '待上架' },
+  { key: 'warning', label: '库存预警' }
+]
+
+const summaryList = ref([])
+const goodsList = ref([])
 const activeFilter = ref('all')
+const loading = ref(false)
 
 const contentProps = {
 	'scroll-y': true
@@ -81,21 +96,52 @@ const contentStyle = {
 }
 
 const displayGoodsList = computed(() => {
-	if (activeFilter.value === 'all') {
-		return pageMock.value.goodsList
+	if (activeFilter.value === 'all') return goodsList.value
+	if (activeFilter.value === 'selling') {
+		return goodsList.value.filter((it) => it.statusText === '在售中')
 	}
-
-	return pageMock.value.goodsList.filter((item) => {
-		if (activeFilter.value === 'selling') {
-			return item.statusText === '在售中'
-		}
-		if (activeFilter.value === 'pending') {
-			return item.statusText === '待上架'
-		}
-
-		return item.statusText === '库存预警'
-	})
+	if (activeFilter.value === 'pending') {
+		return goodsList.value.filter((it) => it.statusText === '待上架' || it.statusText === '已下架')
+	}
+	return goodsList.value.filter((it) => it.statusText === '库存预警')
 })
+
+// 加载商品管理页（merchant/pms/goodsPage）
+async function loadGoodsPage() {
+	loading.value = true
+	try {
+		const { code, data } = await request.post({
+			url: API.M_PMS_GOODS_PAGE,
+			data: {
+				filter: FILTER_TO_BACKEND[activeFilter.value] ?? 0,
+				pageNum: 1,
+				pageSize: 20
+			}
+		})
+		if (code !== 200) return
+		const content = data.content || {}
+		summaryList.value = content.summaryList || []
+		const page = extractPage(content.goodsList)
+		goodsList.value = page.records
+	} finally {
+		loading.value = false
+	}
+}
+
+// 上架/下架
+async function changeSpuStatus(spuId, action) {
+	const url = action === 'on' ? API.M_PMS_SPU_LIST_ON : API.M_PMS_SPU_LIST_OFF
+	const { code } = await request.post({ url, data: { spuId } })
+	if (code === 200) {
+		uni.showToast({ title: action === 'on' ? '已上架' : '已下架', icon: 'success' })
+		loadGoodsPage()
+	} else {
+		uni.showToast({ title: '操作失败', icon: 'none' })
+	}
+}
+
+watch(activeFilter, () => loadGoodsPage())
+loadGoodsPage()
 
 function handleBack() {
 	uni.navigateBack({
@@ -105,38 +151,22 @@ function handleBack() {
 
 function handleFilterChange(filterItem) {
 	activeFilter.value = filterItem.key
-	onFilterChange(filterItem)
 }
 
 function handleGoodsAction(item, actionKey) {
-	onGoodsAction(item, actionKey)
-	uni.showToast({
-		title: actionKey === 'edit' ? '编辑商品占位' : '更多操作占位',
-		icon: 'none'
-	})
+	if (actionKey === 'edit') {
+		uni.showToast({ title: '编辑商品占位', icon: 'none' })
+		return
+	}
+	if (actionKey === 'on' || actionKey === 'off') {
+		changeSpuStatus(item.id, actionKey)
+		return
+	}
+	uni.showToast({ title: '更多操作占位', icon: 'none' })
 }
 
 function handleCreateGoods() {
-	onCreateGoods()
-	uni.showToast({
-		title: '新增商品占位',
-		icon: 'none'
-	})
-}
-
-function onFilterChange(filterItem) {
-	// TODO：替换商品管理筛选逻辑
-	console.log('shop-merchant-goods-filter-change', filterItem.key)
-}
-
-function onGoodsAction(item, actionKey) {
-	// TODO：替换商品管理卡片操作逻辑
-	console.log('shop-merchant-goods-action', item.id, actionKey)
-}
-
-function onCreateGoods() {
-	// TODO：替换新增商品逻辑
-	console.log('shop-merchant-goods-create')
+	uni.showToast({ title: '新增商品占位', icon: 'none' })
 }
 </script>
 
