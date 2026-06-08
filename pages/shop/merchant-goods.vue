@@ -110,7 +110,7 @@ const displayGoodsList = computed(() => {
 async function loadGoodsPage() {
 	loading.value = true
 	try {
-		const { code, data } = await request.post({
+		const { code, response } = await request.post({
 			url: API.M_PMS_GOODS_PAGE,
 			data: {
 				filter: FILTER_TO_BACKEND[activeFilter.value] ?? 0,
@@ -119,7 +119,9 @@ async function loadGoodsPage() {
 			}
 		})
 		if (code !== 200) return
-		const content = data.content || {}
+		if (response?.state !== 'OK') return
+		if (response?.state !== 'OK') return
+		const content = response.content || {}
 		summaryList.value = content.summaryList || []
 		const page = extractPage(content.goodsList)
 		goodsList.value = page.records

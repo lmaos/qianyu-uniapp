@@ -96,7 +96,7 @@ const displayOrderList = computed(() => orderList.value)
 async function loadOrderList() {
 	loading.value = true
 	try {
-		const { code, data } = await request.post({
+		const { code, response } = await request.post({
 			url: API.OMS_ORDER_LIST,
 			data: {
 				status: STATUS_TO_BACKEND[activeStatus.value] ?? 0,
@@ -105,7 +105,9 @@ async function loadOrderList() {
 			}
 		})
 		if (code !== 200) return
-		const page = extractPage(data.content)
+		if (response?.state !== 'OK') return
+		if (response?.state !== 'OK') return
+		const page = extractPage(response.content)
 		orderList.value = page.records.map(adaptOrderSimple)
 		total.value = page.totalRow
 	} finally {

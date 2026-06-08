@@ -180,12 +180,13 @@ const activeTabLabel = computed(() => {
 
 // 加载店铺首页聚合数据（mch/storeHome）
 async function loadStoreHome() {
-	const { code, data } = await request.post({
+	const { code, response } = await request.post({
 		url: API.MCH_STORE_HOME,
 		data: { merchantId: merchantId.value, hotLimit: 6, newLimit: 6 }
 	})
 	if (code !== 200) return
-	const adapted = adaptStoreHome(data.content || {})
+		if (response?.state !== 'OK') return
+	const adapted = adaptStoreHome(response.content || {})
 	storeInfo.value = adapted
 	hotProducts.value = adapted.hotProducts
 	newProducts.value = adapted.newProducts
@@ -197,12 +198,14 @@ async function loadShopProductList() {
 	goodsLoading.value = true
 	try {
 		const sortField = activeTab.value === 'hot' ? 'sales' : 'createTime'
-		const { code, data } = await request.post({
+		const { code, response } = await request.post({
 			url: API.MCH_SHOP_PRODUCT_LIST,
 			data: { merchantId: merchantId.value, sortField, pageNum: 1, pageSize: 20 }
 		})
 		if (code !== 200) return
-		const page = extractPage(data.content)
+		if (response?.state !== 'OK') return
+		if (response?.state !== 'OK') return
+		const page = extractPage(response.content)
 		goodsList.value = page.records.map(adaptProductItem)
 	} finally {
 		goodsLoading.value = false
@@ -212,12 +215,12 @@ async function loadShopProductList() {
 // 加载关注状态（fav/favStatus）
 async function loadFavStatus() {
 	if (!storeId.value) return
-	const { code, data } = await request.post({
+	const { code, response } = await request.post({
 		url: API.FAV_STATUS,
 		data: { targetType: 2, targetId: storeId.value }
 	})
 	if (code === 200) {
-		followed.value = !!data.content?.isFav
+		followed.value = !!response.content?.isFav
 	}
 }
 

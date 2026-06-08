@@ -1,46 +1,3 @@
-<template>
-	<view class="page-shell" :style="pageShellStyle">
-		<view class="page-content">
-			<view v-if="navState.isHome" class="home-shell">
-				<IndexSubNavBar
-					v-bind="resolvedSubNavProps"
-					@tab-change="onSubNavTab"
-					@publish-click="onPublishClick"
-				/>
-				<IndexContentShell
-					ref="contentShellRef"
-					:scene-key="navState.activeLevel2"
-					:content-key="activeLevel3"
-					:scene-config-list="navState.homeSceneConfigList"
-					:viewport-height-px="viewportHeightPx"
-					:content-top-padding-rpx="contentTopPaddingRpx"
-					:safe-top-rpx="safeTopRpx"
-					@scroll-state="onScrollState"
-				/>
-			</view>
-
-			<template v-for="tab in navState.otherTabs" :key="tab.key">
-				<component
-					:is="tab.component"
-					v-show="navState.activeLevel1 === tab.key"
-					v-bind="tab.props"
-				/>
-			</template>
-		</view>
-
-		<view class="tab-bar" :style="tabBarStyle">
-			<view
-				v-for="tab in navState.bottomNavList"
-				:key="tab.key"
-				:class="['tab-item', { active: tab.active }]"
-				@tap="onTabClick(tab.key)"
-			>
-				<text class="tab-label" :style="getTabLabelStyle(tab)">{{ tab.label }}</text>
-			</view>
-		</view>
-	</view>
-</template>
-
 <script setup>
 // ════════════════════════════════════════════════════════════
 // index.vue — 应用主入口页面
@@ -73,10 +30,12 @@ import IndexContentShell from '@/components/home/IndexContentShell.vue'
 // -- 导航配置 + 解析器 ---------------------------------
 import { NAV_CONFIG } from '@/components/home/indexNavigationConfig'
 import { resolveNavigationState, resolveRouteAction } from '@/components/home/navigationResolver'
-// -- 商城 Mock 数据（后续可替换为真实 API） ---------------
-import { buildMallHomeNavCategoryList } from '@/components/shop/category/shopCategoryMock.js'
+// -- URL 构造器（搜索 / 发布按钮） ----------------------
 import { buildShopSearchUrl } from '@/components/shop/common/shopFlowMock.js'
 import { buildContentPublishUrl } from '@/components/user-center/contentPublishMock.js'
+
+// 注：商城 tabList / zoneList / spuList 的请求已迁到 MallScene 内部自管，
+//     此处不再提前加载。
 
 // ── 设备信息 ──────────────────────────────────────────
 // 获取设备信息用于响应式布局。pxToRpx/rpxToPx 转换工具。safeBottomPx 用于 Tab 栏避开系统导航条。
@@ -240,10 +199,9 @@ const resolvedSubNavProps = computed(() => {
 function resolveExtraProps(config) {
 	if (!config.extraComponent) { return {} }
 	if (navState.value.activeLevel2 === 'mall') {
+		// 分类条已迁到 MallScene，此处只透传搜索框占位文案
 		return {
-			searchPlaceholder: '搜索商品 / 店铺 / 品牌',
-			categoryList: buildMallHomeNavCategoryList(),
-			activeId: activeLevel3.value
+			searchPlaceholder: '搜索商品 / 店铺 / 品牌'
 		}
 	}
 	return {}
@@ -262,6 +220,7 @@ const mallExtraListeners = computed(() => {
 			uni.navigateTo({ url: '/pages/shop/cart' })
 		},
 		'category-change': (category) => {
+			console.log('[index.vue] category-change:', category)
 			if (category?.id) {
 				activeLevel3.value = category.id
 			}
@@ -285,11 +244,14 @@ onLoad(options => {
 	activeLevel1.value = targetLevel1
 	activeLevel2.value = targetLevel2
 	activeLevel3.value = targetLevel3
+	console.log('[index.vue] onLoad, route:', { level1: targetLevel1, level2: targetLevel2, level3: targetLevel3 })
+	// 商城 tabList / zoneList / spuList 的请求已迁到 MallScene 内部自管，此处无需触发
 })
 
 onShow(() => {
 	const info = getCurrentLoginInfo()
 	const userId = info.userId || info.userNo || ''
+	console.log('[index.vue] onShow, current route:', { level1: activeLevel1.value, level2: activeLevel2.value, level3: activeLevel3.value })
 	startAll(userId)
 })
 
@@ -375,6 +337,52 @@ function onPublishClick() {
 	})
 }
 </script>
+<template>
+	<view class="page-shell" :style="pageShellStyle">
+		<view class="page-content">
+			<view v-if="navState.isHome" class="home-shell">
+				<IndexSubNavBar
+					v-bind="resolvedSubNavProps"
+					@tab-change="onSubNavTab"
+					@publish-click="onPublishClick"
+				/>
+				<IndexContentShell
+					ref="contentShellRef"
+					:scene-key="navState.activeLevel2"
+					:content-key="activeLevel3"
+					:scene-config-list="navState.homeSceneConfigList"
+					:viewport-height-px="viewportHeightPx"
+					:content-top-padding-rpx="contentTopPaddingRpx"
+					:safe-top-rpx="safeTopRpx"
+					@scroll-state="onScrollState"
+				/>
+			</view>
+
+			<template v-for="tab in navState.otherTabs" :key="tab.key">
+				<component
+					:is="tab.component"
+					v-show="navState.activeLevel1 === tab.key"
+					v-bind="tab.props"
+				/>
+			</template>
+		</view>
+
+		<view class="tab-bar" :style="tabBarStyle">
+			<view
+				v-for="tab in navState.bottomNavList"
+				:key="tab.key"
+				:class="['tab-item', { active: tab.active }]"
+				@tap="onTabClick(tab.key)"
+			>
+				<text class="tab-label" :style="getTabLabelStyle(tab)">{{ tab.label }}</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+
+
+
 
 <style scoped>
 .page-shell {

@@ -95,12 +95,13 @@ const contentStyle = computed(() => {
 
 // 加载评价聚合（pms/rev/reviewPage）
 async function loadEvaluatePage() {
-	const { code, data } = await request.post({
+	const { code, response } = await request.post({
 		url: API.REV_REVIEW_PAGE,
 		data: { spuId: currentSpuId.value, pageNum: 1, pageSize: 10, score: 0 }
 	})
 	if (code !== 200) return
-	const content = data.content || {}
+		if (response?.state !== 'OK') return
+	const content = response.content || {}
 	spuInfo.value = { name: content.spuName || '', image: content.spuImage || '' }
 	evaluateData.value = {
 		summary: adaptReviewStat(content.reviewStat),
@@ -116,12 +117,14 @@ async function loadMoreReview() {
 	loading.value = true
 	try {
 		const next = reviewPage.value.pageNumber + 1
-		const { code, data } = await request.post({
+		const { code, response } = await request.post({
 			url: API.REV_REVIEW_LIST,
 			data: { spuId: currentSpuId.value, pageNum: next, pageSize: 10, score: 0 }
 		})
 		if (code !== 200) return
-		const page = extractPage(data.content)
+		if (response?.state !== 'OK') return
+		if (response?.state !== 'OK') return
+		const page = extractPage(response.content)
 		const list = page.records.map(adaptReviewItem)
 		reviewPage.value = page
 		evaluateData.value.reviewList = evaluateData.value.reviewList.concat(list)

@@ -357,12 +357,13 @@ const activeCategoryId = ref('')
 
 // 加载分类页（用于获取二级分类下的三级 Tab 列表）
 async function loadCategoryPageForSearch() {
-	const { code, data } = await request.post({
+	const { code, response } = await request.post({
 		url: API.PMS_CATEGORY_PAGE,
 		data: { categoryId: activeCategoryId.value }
 	})
 	if (code !== 200) return
-	const list = data.content?.firstCategoryList || []
+		if (response?.state !== 'OK') return
+	const list = response.content?.firstCategoryList || []
 	// 查找包含当前 categoryId 的二级分类
 	for (const first of list) {
 		for (const second of (first.secondCategoryList || [])) {
@@ -391,7 +392,7 @@ async function loadProductList({ reset = false } = {}) {
 	}
 	loadingMore.value = true
 	try {
-		const { code, data } = await request.post({
+		const { code, response } = await request.post({
 			url: API.PMS_CATEGORY_SEARCH,
 			data: {
 				categoryId: activeCategoryId.value,
@@ -402,7 +403,9 @@ async function loadProductList({ reset = false } = {}) {
 			}
 		})
 		if (code !== 200) return
-		const page = extractPage(data.content)
+		if (response?.state !== 'OK') return
+		if (response?.state !== 'OK') return
+		const page = extractPage(response.content)
 		const list = page.records.map(adaptProductItem)
 		if (reset) {
 			productSourceList.value = list

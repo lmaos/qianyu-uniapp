@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-import { computed, onActivated, ref, watch } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
 import ShopRecommendBanner from '@/components/home/shop/ShopRecommendBanner.vue'
 import ShopRecommendZone from '@/components/home/shop/ShopRecommendZone.vue'
 import ShopProductList from '@/components/home/shop/ShopProductList.vue'
@@ -62,18 +62,33 @@ const feedHasMore = ref(true)
 const feedLoading = ref(false)
 const initialLoading = ref(false)
 
+// ── 分类映射（由 index.vue 注入）────────────────────────
+// 父组件把 cms-homePage 拉到的 tabList 通过 provide 传下来，
+// 我们需要把前端的 tabKey（'recommend' / 'digital' …）转换成后端期望的 categoryId。
+// "推荐" 这条 tab 在后端响应里没有 categoryId 字段，映射结果为 null —— 后端应据此返回全部商品。
+const mallCategoryList = inject('mallCategoryList', ref([]))
+const apiCategoryId = computed(() => {
+	const matchedTab = mallCategoryList.value.find(tab => tab.id === props.categoryId)
+	return matchedTab ? matchedTab.categoryId : null
+})
+
 // ── 加载首页聚合数据 ──────────────────────────────────
 async function loadHomePage() {
+	console.log('[ShopRecommendContent] loadHomePage 发起')
 	initialLoading.value = true
 	try {
-		const { code, data } = await request.post({ url: API.CMS_HOME_PAGE })
-		if (code !== 200) return
-		const content = data.content || {}
+		const { code, response } = await request.post({ url: API.CMS_HOME_PAGE })
+		if (code !== 200) { console.log('[ShopRecommendContent] loadHomePage code !== 200:', code); return }
+			if (response?.state !== 'OK') { console.log('[ShopRecommendContent] loadHomePage state !== OK:', response?.state); return }
+		const content = response.content || {}
 		bannerList.value = content.bannerList || []
 		zoneList.value = (content.zoneList || []).map((zone) => ({
 			...zone,
 			productList: (zone.productList || []).map(adaptProductItem),
 		}))
+		console.log('[ShopRecommendContent] loadHomePage 完成:', { bannerCount: bannerList.value.length, zoneCount: zoneList.value.length })
+	} catch (e) {
+		console.error('[ShopRecommendContent] loadHomePage 异常:', e)
 	} finally {
 		initialLoading.value = false
 	}
@@ -82,15 +97,17 @@ async function loadHomePage() {
 // ── 加载猜你喜欢（分页） ──────────────────────────────
 async function loadFeedList(reset = false) {
 	if (feedLoading.value) return
+	console.log('[ShopRecommendContent] loadFeedList 发起, reset=', reset, 'tabKey=', props.categoryId, 'apiCategoryId=', apiCategoryId.value)
 	feedLoading.value = true
 	try {
 		const pageNum = reset ? 1 : feedPageNum.value
-		const { code, data } = await request.post({
+		const { code, response } = await request.post({
 			url: API.PMS_SPU_LIST,
-			data: { pageNum, pageSize: 20, categoryId: props.categoryId || null },
+			data: { pageNum, pageSize: 20, categoryId: apiCategoryId.value },
 		})
-		if (code !== 200) return
-		const page = extractPage(data.content)
+		if (code !== 200) { console.log('[ShopRecommendContent] loadFeedList code !== 200:', code); return }
+			if (response?.state !== 'OK') { console.log('[ShopRecommendContent] loadFeedList state !== OK:', response?.state); return }
+		const page = extractPage(response.content)
 		const list = page.records.map(adaptProductItem)
 		if (reset) {
 			feedProductList.value = list
@@ -100,6 +117,9 @@ async function loadFeedList(reset = false) {
 			feedPageNum.value = pageNum + 1
 		}
 		feedHasMore.value = list.length > 0 && pageNum < page.totalPage
+		console.log('[ShopRecommendContent] loadFeedList 完成:', { count: list.length, total: feedProductList.value.length })
+	} catch (e) {
+		console.error('[ShopRecommendContent] loadFeedList 异常:', e)
 	} finally {
 		feedLoading.value = false
 	}
@@ -111,10 +131,21 @@ watch(
 	{ immediate: false }
 )
 
-onActivated(() => {
+// 【修复】项目未使用 <KeepAlive>，onActivated 永远不会触发。
+// 改为 onMounted（首次挂载即拉）+ watch(props.active)（v-show 切回可见时也重试一次）。
+onMounted(() => {
 	if (bannerList.value.length === 0) loadHomePage()
 	if (feedProductList.value.length === 0) loadFeedList(true)
 })
+
+watch(
+	() => props.active,
+	(isActive) => {
+		if (!isActive) { return }
+		if (bannerList.value.length === 0) loadHomePage()
+		if (feedProductList.value.length === 0) loadFeedList(true)
+	}
+)
 
 // 推荐区商品点击后，先走占位回调，再跳详情页。
 function handleProductClick(productInfo) {

@@ -50,9 +50,10 @@ const menuList = [
 ]
 
 async function loadDashboard() {
-	const { code, data } = await request.post({ url: API.M_MCH_DASHBOARD })
+	const { code, response } = await request.post({ url: API.M_MCH_DASHBOARD })
 	if (code !== 200) return
-	const content = data.content || {}
+		if (response?.state !== 'OK') return
+	const content = response.content || {}
 	dashboardData.value = {
 		merchantId: content.merchantId || '',
 		shopName: content.shopName || '',

@@ -305,7 +305,8 @@ async function loadGoodsDetail(productId) {
 
 	// 主数据
 	if (spuRes.code === 200) {
-		const spu = spuRes.data.content || {}
+		if (spuRes.response?.state !== 'OK') return
+		const spu = spuRes.response.content || {}
 		const nextDetail = adaptSpuDetail(spu)
 		// SPU 级销量补到 SKU.soldCount
 		nextDetail.skuList = (nextDetail.skuList || []).map((sku) => ({
@@ -317,12 +318,14 @@ async function loadGoodsDetail(productId) {
 
 	// 收藏状态
 	if (favRes.code === 200) {
-		collected.value = !!favRes.data.content?.isFav
+		if (favRes.response?.state !== 'OK') return
+		collected.value = !!favRes.response.content?.isFav
 	}
 
 	// 评价列表（首屏 3 条）
 	if (reviewRes.code === 200) {
-		const records = reviewRes.data.content?.records || []
+		if (reviewRes.response?.state !== 'OK') return
+		const records = reviewRes.response.content?.records || []
 		const nextDetail = { ...goodsDetail.value }
 		nextDetail.reviewList = records.map(adaptReviewItem)
 		goodsDetail.value = nextDetail
@@ -330,7 +333,8 @@ async function loadGoodsDetail(productId) {
 
 	// 购物车角标
 	if (cartRes.code === 200) {
-		cartCount.value = cartRes.data.content?.totalCount || 0
+		if (cartRes.response?.state !== 'OK') return
+		cartCount.value = cartRes.response.content?.totalCount || 0
 	}
 
 	// 浏览历史（静默）
