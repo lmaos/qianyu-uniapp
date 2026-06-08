@@ -136,12 +136,13 @@ onLoad(async (query) => {
 
 // 加载分类页数据（pms/categoryPage v2）
 async function loadCategoryPage(entryCategoryId) {
-	const { code, data } = await request.post({
+	const { code, response } = await request.post({
 		url: API.PMS_CATEGORY_PAGE,
 		data: { categoryId: entryCategoryId || null }
 	})
 	if (code !== 200) return
-	const content = data.content || {}
+		if (response?.state !== 'OK') return
+	const content = response.content || {}
 	firstCategoryList.value = (content.firstCategoryList || []).map((first) => ({
 		...first,
 		secondCategoryList: (first.secondCategoryList || []).map((second) => ({

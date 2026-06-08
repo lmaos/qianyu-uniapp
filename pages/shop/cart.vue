@@ -89,9 +89,11 @@ const formattedTotalPrice = computed(() => {
 async function loadCartList() {
 	loading.value = true
 	try {
-		const { code, data } = await request.post({ url: API.OMS_CART_LIST })
+		const { code, response } = await request.post({ url: API.OMS_CART_LIST })
 		if (code !== 200) return
-		const content = data.content || {}
+		if (response?.state !== 'OK') return
+		if (response?.state !== 'OK') return
+		const content = response.content || {}
 		cartList.value = (content.list || []).map(adaptCartItem)
 		totalPrice.value = content.totalPrice || '0.00'
 	} finally {
