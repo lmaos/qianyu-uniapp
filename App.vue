@@ -1,5 +1,5 @@
 <script setup>
-	import { onLaunch, onShow } from '@dcloudio/uni-app'
+	import { onLaunch, onShow, onUnload } from '@dcloudio/uni-app'
 	import { initSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 	import { useIm } from '@/composables/useIm.js'
 	import imConfig from '@/core/im/im.config.js'
@@ -19,6 +19,13 @@
 
 	onShow(() => {
 		schedulePostLaunchWarmup()
+	})
+
+	onUnload(() => {
+		// 进程退出：彻底销毁 IM 服务 + 解绑登录态事件订阅
+		const { stop, disposeImLifecycle } = useIm()
+		stop().catch(() => {})
+		disposeImLifecycle()
 	})
 
 	async function initImService(userId) {

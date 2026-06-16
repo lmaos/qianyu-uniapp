@@ -85,9 +85,10 @@ import {
 } from '@/components/shop/common/shopSurface.js'
 import {
 	buildCategorySearchUrl,
-	buildShopSearchPlaceholderUrl,
-	getShopCategoryPageMock
+	buildShopSearchPlaceholderUrl
 } from '@/components/shop/category/shopCategoryMock'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
 
 const instance = getCurrentInstance()
 const systemInfo = uni.getSystemInfoSync()
@@ -129,12 +130,30 @@ const layoutStyle = computed(() => ({
 	overflow: 'hidden'
 }))
 
-onLoad((query) => {
-	const pageMock = getShopCategoryPageMock(query.categoryId || query.firstCategoryId || '')
-	firstCategoryList.value = pageMock.firstCategoryList
-	activeFirstCategoryId.value = pageMock.initialFirstCategoryId
-	syncActiveSecondFromFirstCategory()
+onLoad(async (query) => {
+	await loadCategoryPage(query.categoryId || query.firstCategoryId || '')
 })
+
+// 加载分类页数据（pms/categoryPage v2）
+async function loadCategoryPage(entryCategoryId) {
+	const { code, response } = await request.post({
+		url: API.PMS_CATEGORY_PAGE,
+		data: { categoryId: entryCategoryId || null }
+	})
+	if (code !== 200) return
+		if (response?.state !== 'OK') return
+	const content = response.content || {}
+	firstCategoryList.value = (content.firstCategoryList || []).map((first) => ({
+		...first,
+		secondCategoryList: (first.secondCategoryList || []).map((second) => ({
+			...second,
+			anchorId: `anchor-${second.id}`,
+			thirdCategoryList: second.thirdCategoryList || []
+		}))
+	}))
+	activeFirstCategoryId.value = content.initialFirstCategoryId || (firstCategoryList.value[0] || {}).id || ''
+	syncActiveSecondFromFirstCategory()
+}
 
 onBeforeUnmount(() => {
 	clearAnchorLockTimer()

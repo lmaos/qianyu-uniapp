@@ -148,7 +148,9 @@ import {
 	SHOP_PAGE_BACKGROUND
 } from '@/components/shop/common/shopSurface.js'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
-import { getCategorySearchPageMock } from '@/components/shop/category/shopCategoryMock'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptProductItem, extractPage } from '@/utils/shopAdapter'
 
 const { safeBottomPx, windowHeightPx, rpxToPx } = useSafeAreaMetrics()
 
@@ -336,13 +338,85 @@ const displayProductList = computed(() => {
 	return filteredProductList.value.slice(0, resultPage.value * searchMock.pageSize)
 })
 
-onLoad((query) => {
-	const pageMock = getCategorySearchPageMock(query)
-	secondCategoryInfo.value = pageMock.secondCategory
-	thirdCategoryTabList.value = pageMock.thirdCategoryTabList
-	productSourceList.value = pageMock.productSourceList
-	activeThirdCategoryId.value = pageMock.activeThirdCategoryId
+onLoad(async (query) => {
+	// 解析入口 categoryId：优先三级 > 二级
+	activeCategoryId.value = query.thirdCategoryId || query.secondCategoryId || ''
+	activeThirdCategoryId.value = query.thirdCategoryId || ''
+
+	// 加载二级分类信息（含其下三级 Tab）— 通过 categoryPage 拉取
+	if (activeCategoryId.value) {
+		await loadCategoryPageForSearch()
+	}
+
+	// 加载商品列表
+	await loadProductList({ reset: true })
 })
+
+// 分类搜索时使用的当前 categoryId
+const activeCategoryId = ref('')
+
+// 加载分类页（用于获取二级分类下的三级 Tab 列表）
+async function loadCategoryPageForSearch() {
+	const { code, response } = await request.post({
+		url: API.PMS_CATEGORY_PAGE,
+		data: { categoryId: activeCategoryId.value }
+	})
+	if (code !== 200) return
+		if (response?.state !== 'OK') return
+	const list = response.content?.firstCategoryList || []
+	// 查找包含当前 categoryId 的二级分类
+	for (const first of list) {
+		for (const second of (first.secondCategoryList || [])) {
+			if (String(second.id) === String(activeCategoryId.value)) {
+				secondCategoryInfo.value = {
+					id: second.id,
+					name: second.name,
+					brandList: [],
+					specGroupList: [],
+					thirdCategoryList: second.thirdCategoryList || []
+				}
+				thirdCategoryTabList.value = [
+					{ id: '', name: '全部' },
+					...((second.thirdCategoryList || []).map((t) => ({ id: t.id, name: t.name })))
+				]
+				return
+			}
+		}
+	}
+}
+
+// 加载商品列表（核心：调用 pms/categorySearch v2）
+async function loadProductList({ reset = false } = {}) {
+	if (reset) {
+		resultPage.value = 1
+	}
+	loadingMore.value = true
+	try {
+		const { code, response } = await request.post({
+			url: API.PMS_CATEGORY_SEARCH,
+			data: {
+				categoryId: activeCategoryId.value,
+				sortMode: sortMode.value,
+				priceDirection: priceSortDirection.value,
+				pageNum: reset ? 1 : resultPage.value,
+				pageSize: searchMock.pageSize
+			}
+		})
+		if (code !== 200) return
+		if (response?.state !== 'OK') return
+		if (response?.state !== 'OK') return
+		const page = extractPage(response.content)
+		const list = page.records.map(adaptProductItem)
+		if (reset) {
+			productSourceList.value = list
+		} else {
+			productSourceList.value = productSourceList.value.concat(list)
+		}
+		resultPage.value = (reset ? 1 : resultPage.value) + 1
+	} finally {
+		loadingMore.value = false
+	}
+}
 
 onBeforeUnmount(() => {
 	loadingMore.value = false

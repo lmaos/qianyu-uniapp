@@ -87,6 +87,11 @@ const instance = useRequest({
     (config) => {
       const loginInfo = getCurrentLoginInfo()
       if (loginInfo && loginInfo.token) {
+        // 同时发两个 header 字段，兼容不同后端约定：
+        //   - `Authorization: Bearer xxx` — 旧业务 / OAuth 风格
+        //   - `token: <raw>`                — clmcat @Token / @LoginVerify 注解默认读取的字段
+        //   （后端 clmcat-webmvc LoginVerifyService.getToken 走
+        //   request.getHeader(loginVerify.token())，默认 "token" 字段）
         config.header = {
           ...config.header,
           token: loginInfo.token,

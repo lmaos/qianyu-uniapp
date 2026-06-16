@@ -69,9 +69,14 @@ const props = defineProps({
 	}
 })
 
-// 分类内容直接复用分类页的一级/二级/三级 mock，保证首页类型页与分类页数据口径一致。
+// 【MOCK-DISABLED】临时观察真实数据：原数据完全来自 getMallCategoryHomeMock，先置空观察
 const categoryHomeMock = computed(() => {
-	return getMallCategoryHomeMock(props.categoryId, props.sectionCount)
+	return {
+		firstCategoryName: '',
+		thirdCategoryList: [],
+		newProductList: [],
+		feedProductList: []
+	}
 })
 
 // 分类内容标题改为当前映射后的一级分类名称。

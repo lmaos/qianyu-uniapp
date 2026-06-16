@@ -25,16 +25,16 @@
 				</ShopSubPageHeader>
 			</template>
 
-			<view class="shop-store-cover" :style="{ background: pageMock.storeInfo.coverBackground }">
+			<view class="shop-store-cover" :style="{ background: storeInfo.coverBackground }">
 				<view class="shop-store-cover-main">
-					<view class="shop-store-avatar" :style="{ background: pageMock.storeInfo.avatarBackground }">
-						{{ pageMock.storeInfo.avatarText }}
+					<view class="shop-store-avatar" :style="{ background: storeInfo.avatarBackground }">
+						{{ storeInfo.avatarText }}
 					</view>
 
 					<view class="shop-store-meta">
-						<text class="shop-store-name">{{ pageMock.storeInfo.name }}</text>
-						<text class="shop-store-desc">{{ pageMock.storeInfo.desc }}</text>
-						<text class="shop-store-follow">{{ pageMock.storeInfo.followerText }} · 店铺评分 {{ pageMock.storeInfo.scoreText }}</text>
+						<text class="shop-store-name">{{ storeInfo.name }}</text>
+						<text class="shop-store-desc">{{ storeInfo.desc }}</text>
+						<text class="shop-store-follow">{{ storeInfo.followerText }} · 店铺评分 {{ storeInfo.scoreText }}</text>
 					</view>
 				</view>
 
@@ -45,31 +45,31 @@
 
 			<view class="shop-store-summary-grid">
 				<view class="shop-store-summary-card">
-					<text class="shop-store-summary-value">{{ pageMock.storeInfo.scoreText }}</text>
+					<text class="shop-store-summary-value">{{ storeInfo.scoreText }}</text>
 					<text class="shop-store-summary-label">综合评分</text>
 				</view>
 				<view class="shop-store-summary-card">
-					<text class="shop-store-summary-value">{{ pageMock.storeInfo.replyRateText }}</text>
+					<text class="shop-store-summary-value">{{ storeInfo.replyRateText || '暂无' }}</text>
 					<text class="shop-store-summary-label">客服回复率</text>
 				</view>
 				<view class="shop-store-summary-card">
-					<text class="shop-store-summary-value">{{ pageMock.storeInfo.goodsCountText }}</text>
+					<text class="shop-store-summary-value">{{ storeInfo.goodsCountText }}</text>
 					<text class="shop-store-summary-label">在售商品</text>
 				</view>
 			</view>
 
-			<scroll-view class="shop-store-coupon-scroll" scroll-x show-scrollbar="false">
+			<scroll-view v-if="couponList.length" class="shop-store-coupon-scroll" scroll-x show-scrollbar="false">
 				<view class="shop-store-coupon-row">
-					<view v-for="item in pageMock.couponList" :key="item" class="shop-store-coupon">
+					<view v-for="item in couponList" :key="item" class="shop-store-coupon">
 						{{ item }}
 					</view>
 				</view>
 			</scroll-view>
 
-			<view class="shop-store-guarantee-card">
+			<view v-if="guaranteeList.length" class="shop-store-guarantee-card">
 				<text class="shop-store-section-title">服务保障</text>
 				<view class="shop-store-guarantee-row">
-					<view v-for="item in pageMock.guaranteeList" :key="item" class="shop-store-guarantee-tag">
+					<view v-for="item in guaranteeList" :key="item" class="shop-store-guarantee-tag">
 						{{ item }}
 					</view>
 				</view>
@@ -77,7 +77,7 @@
 
 			<view class="shop-store-tab-row">
 				<view
-					v-for="item in pageMock.tabList"
+					v-for="item in tabList"
 					:key="item.key"
 					:class="['shop-store-tab', activeTab === item.key ? 'shop-store-tab-active' : '']"
 					@tap="handleTabChange(item)"
@@ -86,21 +86,22 @@
 				</view>
 			</view>
 
-			<view v-if="activeTab === 'home'" class="shop-store-feature-card">
+			<view v-if="activeTab === 'home' && hotProducts.length > 0" class="shop-store-feature-card">
 				<view class="shop-store-section-head">
-					<text class="shop-store-section-title">店铺主推</text>
-					<text class="shop-store-section-desc">优先承接活动与直播同款</text>
+					<text class="shop-store-section-title">店铺热销</text>
+					<text class="shop-store-section-desc">人气精选，本周最热</text>
 				</view>
 
 				<view class="shop-store-feature-list">
 					<view
-						v-for="item in pageMock.featuredProductList"
+						v-for="item in hotProducts.slice(0, 4)"
 						:key="item.id"
 						class="shop-store-feature-item"
 						@tap="handleProductOpen(item)"
 					>
-						<view class="shop-store-feature-cover" :style="{ background: item.coverBackground }">
-							{{ item.coverText }}
+						<view class="shop-store-feature-cover" :style="{ background: '#f0f3f7' }">
+							<image v-if="item.coverImage" :src="item.coverImage" mode="aspectFill" class="shop-store-feature-image" />
+							<text v-else class="shop-store-feature-cover-text">{{ item.coverText }}</text>
 						</view>
 						<text class="shop-store-feature-title">{{ item.title }}</text>
 						<text class="shop-store-feature-price">¥{{ item.price }}</text>
@@ -121,7 +122,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import FullScreenPageLayout from '@/components/common/FullScreenPageLayout.vue'
 import ShopHeaderIconButton from '@/components/shop/common/ShopHeaderIconButton.vue'
@@ -133,11 +134,23 @@ import {
 	SHOP_PAGE_BACKGROUND,
 	SHOP_TOP_CART_ICON
 } from '@/components/shop/common/shopSurface.js'
-import { getShopStoreHomeMock } from '@/components/shop/common/shopFlowMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptProductItem, adaptStoreHome, extractPage } from '@/utils/shopAdapter'
 
-const pageMock = ref(getShopStoreHomeMock())
+// 当前店铺数据
+const storeInfo = ref({})
+const hotProducts = ref([])
+const newProducts = ref([])
 const activeTab = ref('home')
+// 优惠券 / 服务保障：后端暂无数据源（P2 缺失），前端占位为空数组
+const couponList = ref([])
+const guaranteeList = ref([])
 const followed = ref(false)
+const merchantId = ref('')
+const storeId = ref('')
+const goodsList = ref([])   // 当前 Tab 商品列表
+const goodsLoading = ref(false)
 
 const contentProps = {
 	'scroll-y': true
@@ -149,21 +162,76 @@ const contentStyle = {
 	paddingBottom: '36rpx'
 }
 
+const tabList = [
+  { key: 'home', label: '推荐' },
+  { key: 'hot', label: '热销' },
+  { key: 'new', label: '新品' }
+]
+
 const displayGoodsList = computed(() => {
-	return pageMock.value.goodsMap?.[activeTab.value] || []
+	if (activeTab.value === 'hot') return hotProducts.value
+	if (activeTab.value === 'new') return newProducts.value
+	return goodsList.value
 })
 
 const activeTabLabel = computed(() => {
-	return pageMock.value.tabList?.find((item) => item.key === activeTab.value)?.label || '店铺商品'
+	return tabList.find((item) => item.key === activeTab.value)?.label || '店铺商品'
 })
 
-onLoad((options) => {
-	pageMock.value = getShopStoreHomeMock({
-		storeId: options?.storeId,
-		storeName: options?.storeName ? decodeURIComponent(options.storeName) : '',
-		productId: options?.productId
+// 加载店铺首页聚合数据（mch/storeHome）
+async function loadStoreHome() {
+	const { code, response } = await request.post({
+		url: API.MCH_STORE_HOME,
+		data: { merchantId: merchantId.value, hotLimit: 6, newLimit: 6 }
 	})
+	if (code !== 200) return
+		if (response?.state !== 'OK') return
+	const adapted = adaptStoreHome(response.content || {})
+	storeInfo.value = adapted
+	hotProducts.value = adapted.hotProducts
+	newProducts.value = adapted.newProducts
+	storeId.value = adapted.storeId
+}
+
+// 加载店铺商品列表（mch/shopProductList）
+async function loadShopProductList() {
+	goodsLoading.value = true
+	try {
+		const sortField = activeTab.value === 'hot' ? 'sales' : 'createTime'
+		const { code, response } = await request.post({
+			url: API.MCH_SHOP_PRODUCT_LIST,
+			data: { merchantId: merchantId.value, sortField, pageNum: 1, pageSize: 20 }
+		})
+		if (code !== 200) return
+		if (response?.state !== 'OK') return
+		if (response?.state !== 'OK') return
+		const page = extractPage(response.content)
+		goodsList.value = page.records.map(adaptProductItem)
+	} finally {
+		goodsLoading.value = false
+	}
+}
+
+// 加载关注状态（fav/favStatus）
+async function loadFavStatus() {
+	if (!storeId.value) return
+	const { code, response } = await request.post({
+		url: API.FAV_STATUS,
+		data: { targetType: 2, targetId: storeId.value }
+	})
+	if (code === 200) {
+		followed.value = !!response.content?.isFav
+	}
+}
+
+onLoad(async (options) => {
+	merchantId.value = options?.merchantId || ''
+	storeId.value = options?.storeId || ''
+	await loadStoreHome()
+	await Promise.all([loadFavStatus(), loadShopProductList()])
 })
+
+watch(activeTab, () => loadShopProductList())
 
 function handleBack() {
 	uni.navigateBack({
@@ -172,18 +240,22 @@ function handleBack() {
 }
 
 function handleCartOpen() {
-	onCartOpen(pageMock.value.storeId)
 	uni.navigateTo({
 		url: '/pages/shop/cart'
 	})
 }
 
-function handleFollowToggle() {
-	followed.value = !followed.value
-	onFollowToggle({
-		storeId: pageMock.value.storeId,
-		followed: followed.value
+async function handleFollowToggle() {
+	if (!storeId.value) return
+	const nextFollowed = !followed.value
+	const { code } = await request.post({
+		url: nextFollowed ? API.FAV_ADD : API.FAV_CANCEL,
+		data: { targetType: 2, targetId: storeId.value },
 	})
+	if (code === 200) {
+		followed.value = nextFollowed
+		uni.showToast({ title: nextFollowed ? '已关注' : '已取消', icon: 'none' })
+	}
 }
 
 function handleTabChange(tabItem) {

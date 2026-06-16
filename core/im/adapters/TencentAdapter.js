@@ -229,11 +229,19 @@ export class TencentAdapter extends IIMAdapter {
     let targetId = ''
     let chatType = ChatType.SINGLE
 
+    // 腾讯云 IM SDK 较新版本（v2.x+）的 conversationID 格式是 "private_{userId}" / "group_{groupId}"，
+    // 旧版本是 "C2C{userId}" / "GROUP{groupId}"。同时兼容两种前缀。
     if (sdkConvId.startsWith('C2C')) {
       targetId = sdkConvId.slice(3)
       chatType = ChatType.SINGLE
+    } else if (sdkConvId.startsWith('private_')) {
+      targetId = sdkConvId.slice(8)
+      chatType = ChatType.SINGLE
     } else if (sdkConvId.startsWith('GROUP')) {
       targetId = sdkConvId.slice(5)
+      chatType = ChatType.GROUP
+    } else if (sdkConvId.startsWith('group_')) {
+      targetId = sdkConvId.slice(6)
       chatType = ChatType.GROUP
     }
 

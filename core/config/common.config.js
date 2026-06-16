@@ -9,5 +9,5 @@ export default {
   imChannel: 'tencent',
 
   /** 服务端 API 基础地址 */
-  imBaseUrl: 'http://qianyu-api.clmcat.com:8080',
+  imBaseUrl: 'http://127.0.0.1:8080',
 }

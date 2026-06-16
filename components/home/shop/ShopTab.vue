@@ -24,8 +24,9 @@ const props = defineProps({
 	}
 })
 
+// 【MOCK-DISABLED】临时观察真实数据：原 maxPage=3 控制"无更多"触发时机，先置大避免误触发
 const shopMock = {
-	maxPage: 3
+	maxPage: Number.MAX_SAFE_INTEGER
 }
 
 const loadingMore = ref(false)

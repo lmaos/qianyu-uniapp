@@ -9,29 +9,28 @@
 					@cart-click="emit('cart-click')"
 				/>
 			</view>
-
-			<view class="shop-header-category-row">
-				<ShopCategoryBar
-					compact
-					:category-list="categoryList"
-					:active-id="activeId"
-					@category-change="emit('category-change', $event)"
-					@category-page-click="emit('category-page-click')"
-				/>
-			</view>
 		</view>
 	</view>
 </template>
 
 <script setup>
+// ════════════════════════════════════════════════════════════
+// ShopSubNavExtra.vue — 商城顶部扩展导航（仅搜索框 + 购物车）
+// ════════════════════════════════════════════════════════════
+//
+// 原设计：搜索框 + 三级分类条。
+// 新设计：分类条已迁到 MallScene 内（根据 cms-homePage 的 tabList 渲染 + defaultTabKey 高亮），
+//        此处只保留搜索框 / 购物车入口。categoryList / activeId / category-change /
+//        category-page-click 等 prop & event 仍声明以便兼容上层 extraProps，但不再渲染。
+
 import ShopTopBar from '@/components/home/shop/ShopTopBar.vue'
-import ShopCategoryBar from '@/components/home/shop/ShopCategoryBar.vue'
 
 defineProps({
 	searchPlaceholder: {
 		type: String,
 		default: '搜索商品'
 	},
+	// 保留以兼容 index.vue 的 extraProps，但当前不再渲染
 	categoryList: {
 		type: Array,
 		default: () => []
@@ -42,7 +41,6 @@ defineProps({
 	}
 })
 
-// 将商城搜索、购物车和三级分类点击统一向外透传，方便首页壳层集中处理。
 const emit = defineEmits(['search-click', 'cart-click', 'category-change', 'category-page-click'])
 </script>
 
@@ -66,14 +64,6 @@ const emit = defineEmits(['search-click', 'cart-click', 'category-change', 'cate
 	align-items: center;
 	min-height: 64rpx;
 	padding: 12rpx 32rpx 0rpx;
-	box-sizing: border-box;
-}
-
-.shop-header-category-row {
-	display: flex;
-	align-items: center;
-	width: 100%;
-	padding: 0rpx 32rpx 8rpx 32rpx;
 	box-sizing: border-box;
 }
 </style>

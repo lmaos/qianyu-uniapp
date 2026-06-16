@@ -66,10 +66,10 @@ export const NAV_CONFIG = {
 					componentKey: 'HomeMallSceneHost',
 					theme: 'light',
 					contentGapRpx: 6,
-					defaultLevel3: 'recommend',  // 默认激活的三级分类 key
+					defaultLevel3: 'recommend',  // 默认激活的三级分类 key（运行时会被 cms-homePage 的 defaultTabKey 覆盖）
 					extraNav: {
 						componentKey: 'ShopSubNavExtra',
-						heightRpx: 176       // extraNav 占据的高度，会影响内容区 top padding
+						heightRpx: 80        // 【调整】原 176 包含了分类条的高度；分类条已迁到 MallScene 内，此处只剩搜索框
 					}
 				},
 				// 【直播】场景 — componentKey 组件型，深色主题

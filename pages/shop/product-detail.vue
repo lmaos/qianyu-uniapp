@@ -166,7 +166,6 @@ import {
 	SHOP_TOP_FAVORITE_ICON
 } from '@/components/shop/common/shopSurface.js'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
-import { getGoodsDetailMock } from '@/components/shop/detail/shopDetailMock.js'
 import {
 	buildShopCustomerServiceSheetPreview,
 	buildShopStoreHomeUrl,
@@ -176,6 +175,14 @@ import {
 	buildShopProductDetailPreview,
 	resolveShopProductDetailPreview
 } from '@/components/home/shop/shopProductMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import {
+	adaptSpuDetail,
+	adaptReviewItem,
+	adaptReviewStat,
+	adaptShopSimpleVo
+} from '@/utils/shopAdapter'
 
 const { windowHeightPx } = useSafeAreaMetrics()
 const skuPopupHeightPx = computed(() => Math.floor(windowHeightPx.value * 0.75))
@@ -283,22 +290,62 @@ function applyGoodsDetail(nextDetail, { resetActionState = false, resetQuantity 
 	}
 }
 
-// 根据商品 ID 加载详情页完整 mock 数据。
-function loadGoodsDetail(productId) {
-	const targetId = `${productId || 'recommend-product-1-1'}`.trim() || 'recommend-product-1-1'
-	const nextDetail = getGoodsDetailMock(targetId)
-	applyGoodsDetail(nextDetail, {
-		resetQuantity: true
-	})
+// 根据商品 ID 加载详情页完整数据（4 路并行）
+async function loadGoodsDetail(productId) {
+	const spuId = Number(productId) || 0
+	if (!spuId) return
+
+	// 4 路并行：详情 / 评价 / 收藏状态 / 购物车数量
+	const [spuRes, reviewRes, favRes, cartRes] = await Promise.all([
+		request.post({ url: API.PMS_SPU_DETAIL, data: { spuId } }),
+		request.post({ url: API.REV_REVIEW_LIST, data: { spuId, pageNum: 1, pageSize: 3 } }),
+		request.post({ url: API.FAV_STATUS, data: { targetType: 1, targetId: spuId } }),
+		request.post({ url: API.OMS_CART_LIST }),
+	])
+
+	// 主数据
+	if (spuRes.code === 200) {
+		if (spuRes.response?.state !== 'OK') return
+		const spu = spuRes.response.content || {}
+		const nextDetail = adaptSpuDetail(spu)
+		// SPU 级销量补到 SKU.soldCount
+		nextDetail.skuList = (nextDetail.skuList || []).map((sku) => ({
+			...sku,
+			soldCount: spu.sales || 0,
+		}))
+		applyGoodsDetail(nextDetail, { resetQuantity: true })
+	}
+
+	// 收藏状态
+	if (favRes.code === 200) {
+		if (favRes.response?.state !== 'OK') return
+		collected.value = !!favRes.response.content?.isFav
+	}
+
+	// 评价列表（首屏 3 条）
+	if (reviewRes.code === 200) {
+		if (reviewRes.response?.state !== 'OK') return
+		const records = reviewRes.response.content?.records || []
+		const nextDetail = { ...goodsDetail.value }
+		nextDetail.reviewList = records.map(adaptReviewItem)
+		goodsDetail.value = nextDetail
+	}
+
+	// 购物车角标
+	if (cartRes.code === 200) {
+		if (cartRes.response?.state !== 'OK') return
+		cartCount.value = cartRes.response.content?.totalCount || 0
+	}
+
+	// 浏览历史（静默）
+	request.post({ url: API.HIS_BROWSE_RECORD, data: { spuId } })
+
 	shopFollowed.value = false
-	collected.value = false
 	serviceSheetData.value = getShopCustomerServiceSheetMock({
 		contextType: 'product',
-		productId: targetId
+		productId: spuId
 	})
-	onProductDetailLoad({
-		productId: targetId
-	})
+	onProductDetailLoad({ productId: spuId })
 }
 
 // 返回上一页。
@@ -310,10 +357,20 @@ function handleBack() {
 }
 
 // 点击收藏按钮后的基础交互。
-function handleFavoriteClick() {
-	collected.value = !collected.value
+async function handleFavoriteClick() {
+	const spuId = Number(goodsDetail.value.id) || 0
+	if (!spuId) return
+	const nextCollected = !collected.value
+	const { code } = await request.post({
+		url: nextCollected ? API.FAV_ADD : API.FAV_CANCEL,
+		data: { targetType: 1, targetId: spuId },
+	})
+	if (code === 200) {
+		collected.value = nextCollected
+		uni.showToast({ title: nextCollected ? '已收藏' : '已取消', icon: 'none' })
+	}
 	onFavoriteClick({
-		productId: goodsDetail.value.productId,
+		productId: spuId,
 		collected: collected.value
 	})
 }

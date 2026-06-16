@@ -1,25 +1,29 @@
 <template>
-	<ShopTab
+	<MallScene
 		ref="sceneRef"
 		:active="active"
-		:active-category-id="activeCategoryId"
 	/>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import ShopTab from '@/components/home/shop/ShopTab.vue'
+// ════════════════════════════════════════════════════════════
+// HomeMallSceneHost.vue — 商城场景壳层
+// ════════════════════════════════════════════════════════════
+//
+// 新设计：直接渲染自包含的 MallScene 组件（tabList + zoneList + spuList 一站式）。
+// 对外仍暴露 handleParentRefresh / handleParentReachLower，由 IndexContentShell 调度。
 
-defineProps({
+import { ref } from 'vue'
+import MallScene from '@/components/home/shop/MallScene.vue'
+
+const props = defineProps({
 	active: {
 		type: Boolean,
 		default: false
-	},
-	activeCategoryId: {
-		type: String,
-		default: 'recommend'
 	}
 })
+
+console.log('[HomeMallSceneHost] setup, active =', props.active)
 
 const sceneRef = ref(null)
 
