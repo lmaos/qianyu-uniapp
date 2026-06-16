@@ -50,7 +50,11 @@
 								placeholder="请输入验证码"
 								placeholder-class="input-placeholder"
 							/>
-							<view class="code-button" @tap="handleCodeButtonClick">
+							<view
+								class="code-button"
+								:class="{ 'code-button-disabled': countdown > 0 }"
+								@tap="handleCodeButtonClick"
+							>
 								{{ codeButtonText }}
 							</view>
 						</view>
@@ -134,6 +138,8 @@ const passwordForm = ref({
 })
 const redirectUrl = ref('')
 const submitting = ref(false)
+const codeSending = ref(false)
+let isUnmounted = false
 
 let countdownTimer = null
 
@@ -214,8 +220,7 @@ function redirectAfterAuth() {
 // ── 发送验证码 ──────────────────────────────────
 
 async function handleCodeButtonClick() {
-	if (countdown.value > 0) {
-		uni.showToast({ title: '验证码已发送', icon: 'none' })
+	if (countdown.value > 0 || codeSending.value) {
 		return
 	}
 
@@ -224,6 +229,7 @@ async function handleCodeButtonClick() {
 		return
 	}
 
+	codeSending.value = true
 	const phone = formatPhoneToApi(codeForm.value.phone)
 
 	try {
@@ -234,6 +240,8 @@ async function handleCodeButtonClick() {
 			data: { phone }
 		})
 		console.log('[phone-login] 发送验证码响应:', { code: res.code, status: res.response?.status, message: res.response?.message })
+
+		if (isUnmounted) return
 
 		// HTTP 层面失败（4xx/5xx）— baseRequest 已 toast，这里不再重复提示
 		if (res.code !== 200) {
@@ -249,12 +257,15 @@ async function handleCodeButtonClick() {
 			return
 		}
 
-		// 成功 → 开始倒计时
+		// 成功 → 收起键盘 + 开始倒计时
+		uni.hideKeyboard()
 		startCountdown()
 		onCodeRequest({ phone })
 	} catch (err) {
 		// 5xx / 网络异常 — baseRequest 已 toast
 		console.error('[send-verify-code]', err)
+	} finally {
+		codeSending.value = false
 	}
 }
 
@@ -318,7 +329,7 @@ async function submitCodeLogin() {
 			type: 'json',
 			data: loginData
 		})
-		console.log('[phone-login] 验证码登录响应:', { code: res.code, status: res.response?.status, message: res.response?.message })
+		console.log('[phone-login] 验证码登录响应:', res)
 
 		if (res.code !== 200) {
 			submitting.value = false
@@ -430,6 +441,7 @@ function onPasswordLogin(payload) {
 }
 
 onUnmounted(() => {
+	isUnmounted = true
 	clearCountdown()
 })
 </script>
@@ -588,6 +600,12 @@ onUnmounted(() => {
 	font-size: 24rpx;
 	font-weight: 600;
 	color: #334155;
+}
+
+.code-button-disabled {
+	background: rgba(0, 0, 0, 0.06);
+	color: #98a2b3;
+	pointer-events: none;
 }
 
 .agreement-row {

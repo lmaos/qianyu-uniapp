@@ -16,6 +16,12 @@
 					@tap="emit('item-click', item)"
 				>
 					<view class="user-work-thumb" :style="{ background: item.coverBackground }">
+						<image
+							v-if="item.coverUrl"
+							class="user-work-thumb-img"
+							:src="item.coverUrl"
+							mode="aspectFill"
+						/>
 						<view class="user-work-play-meta">
 							<view class="user-work-stat">
 								<image class="user-work-stat-icon" :src="userViewStatIconSvg" mode="aspectFit" />
@@ -85,6 +91,13 @@ const emit = defineEmits(['item-click'])
 	position: relative;
 	height: 100%;
 	border-radius: 16rpx;
+}
+
+.user-work-thumb-img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
 }
 
 .user-work-play-meta {

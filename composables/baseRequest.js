@@ -8,7 +8,7 @@ import { env } from '@/config/env'
  * baseURL 由 config/env.js 统一管理，切环境只改那里
  *
  * ── 请求前 ────────────────────
- * 自动从 useLoginSession 读取 token 追加到 Authorization header
+ * 自动从 useLoginSession 读取 token 追加到 token header
  *
  * ── 响应后 ────────────────────
  * 4xx → 统一 Toast 提示
@@ -89,7 +89,7 @@ const instance = useRequest({
       if (loginInfo && loginInfo.token) {
         config.header = {
           ...config.header,
-          Authorization: 'Bearer ' + loginInfo.token,
+          token: loginInfo.token,
         }
       }
       return config

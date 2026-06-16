@@ -14,6 +14,12 @@
 						class="user-dynamic-thumb"
 						:style="{ background: layoutItem.item.coverBackground, height: `${layoutItem.thumbHeightRpx}rpx` }"
 					>
+						<image
+							v-if="layoutItem.item.coverUrl"
+							class="user-dynamic-thumb-img"
+							:src="layoutItem.item.coverUrl"
+							mode="aspectFill"
+						/>
 					</view>
 
 					<view v-else class="user-dynamic-plain" :style="{ background: layoutItem.item.coverBackground }">
@@ -221,6 +227,13 @@ function resolveLayoutStyle(layoutItem) {
 .user-dynamic-thumb {
 	position: relative;
 	border-radius: 16rpx;
+}
+
+.user-dynamic-thumb-img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
 }
 
 .user-dynamic-meta {

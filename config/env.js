@@ -24,16 +24,22 @@ const ENV_MAP = {
 		...GLOBAL,
 		debug: true,
 		// #ifdef APP
-		baseURL: 'http://192.168.0.103:8080',
+		baseURL: 'http://192.168.0.104:8080',
 		// #endif
 		// #ifndef APP
 		baseURL: 'http://127.0.0.1:8080',
 		// #endif
+		wechat: {
+			appId: '', // 微信开放平台 AppID（H5 微信登录用，APP 端配在 manifest.json）
+		},
 	},
 	// 生产环境
 	prod: {
 		...GLOBAL,
 		baseURL: 'https://qianyu-api.clmcat.com',
+		wechat: {
+			appId: '', // 生产环境微信 AppID
+		},
 	}
 }
 

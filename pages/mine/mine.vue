@@ -52,7 +52,7 @@
 					</view>
 
 					<view class="mine-sheet-section mine-sheet-section--identity">
-						<view class="mine-nest-card">
+						<view v-if="showNestCard" class="mine-nest-card">
 							<text class="mine-nest-title">{{ profileInfo.nestTitle }}</text>
 							<text class="mine-signature-text">{{ profileInfo.signature }}</text>
 							<text class="mine-mood-text">{{ profileInfo.moodPromptText }}</text>
@@ -61,16 +61,27 @@
 								<view
 									v-for="item in profileInfo.signalSummaryList || []"
 									:key="item.key"
-									class="mine-signal-item"
+									:class="['mine-signal-item', item.key === 'location' ? 'mine-signal-item--location' : '']"
 								>
-									<text class="mine-signal-value">{{ item.value }}</text>
-									<text class="mine-signal-label">{{ item.label }}</text>
+									<template v-if="item.key === 'location'">
+										<image class="mine-signal-location-icon" :src="locationPinSvg" mode="aspectFit" />
+										<text class="mine-signal-location-value">{{ item.value }}</text>
+									</template>
+									<template v-else>
+										<text class="mine-signal-value">{{ item.value }}</text>
+										<text class="mine-signal-label">{{ item.label }}</text>
+									</template>
 								</view>
 							</view>
-
-							<view class="mine-location-row">
-								<text class="mine-location-label">所在地</text>
-								<text class="mine-location-value">{{ profileInfo.locationText }}</text>
+						</view>
+						<view v-else class="mine-bio-strip">
+							<view class="mine-bio-row">
+								<image class="mine-bio-icon" :src="signatureIconSvg" mode="aspectFit" />
+								<text class="mine-bio-text">{{ profileInfo.signature }}</text>
+							</view>
+							<view class="mine-bio-row mine-bio-row--location">
+								<image class="mine-bio-icon" :src="locationPinSvg" mode="aspectFit" />
+								<text class="mine-bio-text">{{ profileInfo.locationText }}</text>
 							</view>
 						</view>
 					</view>
@@ -116,7 +127,7 @@
 						@item-click="handleLikeItemClick"
 					/>
 
-					<UserHistoryList
+					<UserDynamicList
 						v-else
 						:row-list="historyRowList"
 						:parent-scroll-top-px="parentScrollTopPx"
@@ -136,12 +147,14 @@ import PullPagingShell from '@/components/common/PullPagingShell.vue'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import UserContentTabBar from '@/components/user-center/main/UserContentTabBar.vue'
 import UserDynamicList from '@/components/user-center/main/UserDynamicList.vue'
-import UserHistoryList from '@/components/user-center/main/UserHistoryList.vue'
 import UserQuickActionRow from '@/components/user-center/main/UserQuickActionRow.vue'
 import UserStatsRow from '@/components/user-center/main/UserStatsRow.vue'
 import UserTopCard from '@/components/user-center/main/UserTopCard.vue'
 import UserWorkGrid from '@/components/user-center/main/UserWorkGrid.vue'
+import { createSvgDataUri } from '@/composables/useSvgIcon.js'
 import { createMainTabPageState, getUserCenterMainMock } from '@/components/user-center/userCenterMock.js'
+import { fetchPersonalCenter, fetchContentList } from '@/composables/useMineApi.js'
+import { dispatchNavigationAction } from '@/components/common/navigation/navigationActionRouter.js'
 
 const props = defineProps({
 	active: {
@@ -165,13 +178,36 @@ const minePageConfig = {
 	bottomPullCollapseDurationMs: 380
 }
 
+const locationPinSvg = createSvgDataUri(`
+	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+		<path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z" stroke="#667085" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+		<circle cx="12" cy="10" r="3" stroke="#667085" stroke-width="1.6"/>
+	</svg>
+`)
+
+// 小窝功能未上线，暂用轻量 bio strip；上线后改为 true
+const showNestCard = ref(false)
+
+// 游标分页状态（tabKey → cursor / hasMore）
+const tabCursorMap = { dynamic: 0, works: 0, likes: 0, history: 0 }
+const tabHasMoreMap = { dynamic: true, works: true, likes: true, history: true }
+const tabLoadedMap = { dynamic: false, works: false, likes: false, history: false }
+
+const signatureIconSvg = createSvgDataUri(`
+	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+		<path d="m7 17.3 7.7-7.7 2.3 2.3-7.7 7.7L6 19l1-1.7z" stroke="#94a3b8" stroke-width="1.6" stroke-linejoin="round"/>
+		<path d="m13.8 7.8 1.5-1.5a1.8 1.8 0 0 1 2.5 0l.9.9a1.8 1.8 0 0 1 0 2.5L17.2 11" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>
+	</svg>
+`)
+
+
 const profileInfo = ref({ ...minePageMock.profileInfo })
 const quickActionList = ref([...minePageMock.quickActionList])
 const tabList = ref([...minePageMock.tabList])
-const dynamicSourceList = ref([...minePageMock.dynamicSourceList])
-const workSourceList = ref([...minePageMock.workSourceList])
-const likeSourceList = ref([...minePageMock.likeSourceList])
-const historySourceList = ref([...minePageMock.historySourceList])
+const dynamicSourceList = ref([])
+const workSourceList = ref([])
+const likeSourceList = ref([])
+const historySourceList = ref([])
 
 const activeTab = ref('dynamic')
 const dynamicPage = ref(1)
@@ -184,8 +220,8 @@ const topCoverBaseHeightPx = ref(0)
 const listStartOffsetPx = ref(0)
 const loadingMore = ref(false)
 const tabLoadingKey = ref('')
-const dynamicNoMore = ref(dynamicSourceList.value.length <= minePageConfig.pageSize)
-const workNoMore = ref(workSourceList.value.length <= minePageConfig.pageSize)
+const dynamicNoMore = ref(false)
+const workNoMore = ref(false)
 const bottomPullState = ref('idle')
 const bottomPullVisible = ref(false)
 const bottomPullPendingRelease = ref(false)
@@ -223,7 +259,7 @@ const displayWorkList = computed(() =>
 const dynamicRowList = computed(() => buildRows(displayDynamicList.value, 2))
 const workRowList = computed(() => buildRows(displayWorkList.value, 3))
 const likeRowList = computed(() => buildRows(likeSourceList.value, 2))
-const historyRowList = computed(() => buildRows(historySourceList.value, 1))
+const historyRowList = computed(() => buildRows(historySourceList.value, 2))
 
 const contentInnerStyle = computed(() => ({
 	paddingBottom: `${minePageConfig.contentBottomPaddingRpx + (bottomPullVisible.value ? minePageConfig.bottomPullSlotHeightRpx : 0)}rpx`,
@@ -303,14 +339,51 @@ watch(
 	}
 )
 
-onMounted(() => {
+onMounted(async () => {
 	scheduleMeasureTopCardBottom()
 	scheduleMeasureListAnchor()
+	await initPageData()
 })
 
 onBeforeUnmount(() => {
 	resetTransientState()
 })
+
+async function initPageData() {
+	try {
+		const { profileInfo: apiProfile, quickActionList: apiActions } = await fetchPersonalCenter()
+		profileInfo.value = { ...profileInfo.value, ...apiProfile }
+		quickActionList.value = apiActions
+		// 预加载当前 tab 第一页
+		const tabKey = activeTab.value
+		const { items, nextCursor, hasMore } = await fetchContentList(tabKey, 0)
+		setTabSourceList(tabKey, items)
+		tabCursorMap[tabKey] = nextCursor
+		tabHasMoreMap[tabKey] = hasMore
+		setTabNoMore(tabKey, !hasMore)
+		tabLoadedMap[tabKey] = true
+	} catch (err) {
+		console.error('mine-init-error', err)
+	}
+}
+
+async function loadTabContent(tabKey) {
+	if (tabLoadedMap[tabKey]) return
+	if (tabKey === 'history' && !tabHasMoreMap[tabKey]) return
+	try {
+		setTabLoadingState(tabKey)
+		const { items, nextCursor, hasMore } = await fetchContentList(tabKey, 0)
+		setTabSourceList(tabKey, items)
+		tabCursorMap[tabKey] = nextCursor
+		tabHasMoreMap[tabKey] = hasMore
+		setTabNoMore(tabKey, !hasMore)
+		tabLoadedMap[tabKey] = true
+	} catch (err) {
+		console.error('mine-tab-load-error', tabKey, err)
+	} finally {
+		clearTabLoadingState()
+	}
+}
 
 function handleAddFriendClick() {
 	onAddFriendClick({ userId: profileInfo.value.userId })
@@ -366,13 +439,7 @@ function handleEditProfileClick() {
 
 function handleQuickActionClick(actionItem) {
 	onQuickActionClick(actionItem)
-	if (!actionItem?.url) {
-		return
-	}
-
-	uni.navigateTo({
-		url: actionItem.url
-	})
+	navigateByUrl(actionItem?.url)
 }
 
 function handleTabChange(tabItem) {
@@ -389,6 +456,7 @@ function handleTabChange(tabItem) {
 	resetRefreshHint()
 	scheduleMeasureListAnchor()
 	onTabChange(tabItem)
+	loadTabContent(tabItem.key)
 }
 
 function handleDynamicItemClick(item) {
@@ -1026,9 +1094,11 @@ function navigateByUrl(url) {
 		return
 	}
 
-	uni.navigateTo({
-		url
-	})
+	const result = dispatchNavigationAction(url)
+	// 普通路径（非 page:// 协议）兜底
+	if (!result.handled && url.startsWith("/")) {
+		uni.navigateTo({ url })
+	}
 }
 
 function onAddFriendClick(payload) {
@@ -1097,18 +1167,39 @@ function onHistoryItemClick(item) {
 }
 
 async function onMineRefresh(payload) {
-	// TODO：替换个人中心刷新接口
-	// TODO：请求成功后可直接调用 payload.applyReplace(apiList, { hasMore: true })
-	console.log('mine-refresh', payload)
-	await waitTask(460)
+	const { tabKey } = payload
+	try {
+		const { items, nextCursor, hasMore } = await fetchContentList(tabKey, 0)
+		tabCursorMap[tabKey] = nextCursor
+		tabHasMoreMap[tabKey] = hasMore
+		tabLoadedMap[tabKey] = true
+		payload.applyReplace(items, { hasMore })
+	} catch (err) {
+		console.error('mine-refresh-error', tabKey, err)
+		throw err
+	}
 }
 
 async function onMineLoadMore(payload) {
-	// TODO：替换个人中心分页加载接口
-	// TODO：请求成功后可直接调用 payload.applyAppend(apiList, { hasMore: true })
-	// TODO：如果后端明确无更多数据，可直接调用 payload.markNoMore()
-	console.log('mine-load-more', payload)
-	await waitTask(420)
+	const { tabKey } = payload
+	if (!tabHasMoreMap[tabKey]) {
+		payload.markNoMore()
+		return
+	}
+	try {
+		const cursor = tabCursorMap[tabKey] || 0
+		const { items, nextCursor, hasMore } = await fetchContentList(tabKey, cursor)
+		tabCursorMap[tabKey] = nextCursor
+		tabHasMoreMap[tabKey] = hasMore
+		if (items.length === 0) {
+			payload.markNoMore()
+		} else {
+			payload.applyAppend(items, { hasMore })
+		}
+	} catch (err) {
+		console.error('mine-load-more-error', tabKey, err)
+		throw err
+	}
 }
 </script>
 
@@ -1297,29 +1388,56 @@ async function onMineLoadMore(payload) {
 	color: #667085;
 }
 
-.mine-location-row {
+.mine-signal-item--location {
+	grid-column: 1 / -1;
 	display: flex;
+	flex-direction: row;
 	align-items: center;
-	justify-content: space-between;
-	gap: 20rpx;
-	margin-top: 20rpx;
-	padding: 20rpx 22rpx;
-	border-radius: 28rpx;
-	background: rgba(255, 255, 255, 0.74);
+	justify-content: flex-start;
+	gap: 10rpx;
+	padding: 14rpx 22rpx;
 }
 
-.mine-location-label {
-	font-size: 24rpx;
-	line-height: 32rpx;
-	color: #64748b;
+.mine-signal-location-icon {
+	width: 32rpx;
+	height: 32rpx;
+	flex-shrink: 0;
 }
 
-.mine-location-value {
+.mine-signal-location-value {
+	font-size: 22rpx;
+	line-height: 30rpx;
+	color: #334155;
+}
+
+.mine-bio-strip {
+	display: flex;
+	flex-direction: column;
+	gap: 18rpx;
+	padding: 24rpx 22rpx;
+	border-radius: 30rpx;
+	background: linear-gradient(135deg, rgba(255, 151, 174, 0.06) 0%, rgba(199, 214, 255, 0.1) 100%);
+}
+
+.mine-bio-row {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	gap: 14rpx;
+}
+
+.mine-bio-icon {
+	width: 28rpx;
+	height: 28rpx;
+	flex-shrink: 0;
+	margin-top: 4rpx;
+}
+
+.mine-bio-text {
 	flex: 1;
-	text-align: right;
-	font-size: 24rpx;
-	line-height: 32rpx;
-	color: #0f172a;
+	font-size: 22rpx;
+	line-height: 34rpx;
+	color: #475569;
 }
 
 .mine-sheet-section--tabs :deep(.user-content-tab-bar) {

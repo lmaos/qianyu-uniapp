@@ -42,7 +42,8 @@ const PROFILE_INFO = {
 	signalSummaryList: [
 		{ key: 'echo', label: '今日回响', value: '18' },
 		{ key: 'collection', label: '小窝收藏', value: '42' },
-		{ key: 'playmate', label: '玩伴线索', value: '9' }
+		{ key: 'playmate', label: '玩伴线索', value: '9' },
+		{ key: 'location', label: '', value: LOCATION_TEXT }
 	],
 	signature:
 		'认真记录生活里的每一点灵感，也在直播、电商和内容创作里持续尝试新的表达。这里的所有数据均为 MOCK，占位方便后续替换接口。',

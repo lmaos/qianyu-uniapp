@@ -32,6 +32,7 @@ import UserSubPageLayout from '@/components/user-center/common/UserSubPageLayout
 import { userCenterArrowIconSvg } from '@/components/user-center/main/userCenterIcons.js'
 import UserQuickActionRow from '@/components/user-center/main/UserQuickActionRow.vue'
 import { getAllFunctionsPageMock } from '@/components/user-center/userCenterMock.js'
+import { dispatchNavigationAction } from '@/components/common/navigation/navigationActionRouter.js'
 
 const pageMock = ref(getAllFunctionsPageMock())
 
@@ -46,9 +47,7 @@ function handleBack() {
 function handleActionClick(item) {
 	onActionClick(item)
 	if (item.url) {
-		uni.navigateTo({
-			url: item.url
-		})
+		dispatchNavigationAction(item.url)
 		return
 	}
 
@@ -61,9 +60,7 @@ function handleActionClick(item) {
 function handleMenuSelect(item) {
 	onMenuSelect(item)
 	if (item.url) {
-		uni.navigateTo({
-			url: item.url
-		})
+		dispatchNavigationAction(item.url)
 		return
 	}
 

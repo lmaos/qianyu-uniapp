@@ -7,6 +7,37 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 
+def _build_mock_contents(tab):
+    """生成 mock 内容列表，每个 tab 返回固定数据"""
+    items = {
+        'moment': [
+            {'momentId': 5257117397155845, 'coverUrl': 'https://picsum.photos/seed/m1/400/600', 'title': '记录今天的日落 🌇', 'type': 'video', 'commentCount': 3, 'likeCount': 15, 'viewCount': 2300},
+            {'momentId': 5257117397155844, 'coverUrl': 'https://picsum.photos/seed/m2/400/500', 'title': '', 'type': 'image', 'commentCount': 0, 'likeCount': 5, 'viewCount': 0},
+            {'momentId': 5257117397155843, 'coverUrl': 'https://picsum.photos/seed/m3/400/400', 'title': '周末探店分享 ☕', 'type': 'image', 'commentCount': 8, 'likeCount': 42, 'viewCount': 0},
+            {'momentId': 5257117397155842, 'coverUrl': 'https://picsum.photos/seed/m4/400/700', 'title': '新入手的相机开箱', 'type': 'video', 'commentCount': 12, 'likeCount': 67, 'viewCount': 5600},
+            {'momentId': 5257117397155841, 'coverUrl': 'https://picsum.photos/seed/m5/400/550', 'title': '深夜书房 📚', 'type': 'image', 'commentCount': 2, 'likeCount': 18, 'viewCount': 0},
+            {'momentId': 5257117397155840, 'coverUrl': 'https://picsum.photos/seed/m6/400/480', 'title': '春日骑行路线分享 🚴', 'type': 'video', 'commentCount': 5, 'likeCount': 31, 'viewCount': 1800},
+            {'momentId': 5257117397155839, 'coverUrl': 'https://picsum.photos/seed/m7/400/600', 'title': '', 'type': 'image', 'commentCount': 0, 'likeCount': 9, 'viewCount': 0},
+            {'momentId': 5257117397155838, 'coverUrl': 'https://picsum.photos/seed/m8/400/420', 'title': '手工皮具制作过程', 'type': 'video', 'commentCount': 20, 'likeCount': 89, 'viewCount': 12000},
+        ],
+        'work': [
+            {'momentId': 6257117397155845, 'coverUrl': 'https://picsum.photos/seed/w1/400/400', 'title': '作品1', 'type': 'video', 'commentCount': 10, 'likeCount': 120, 'viewCount': 8600},
+            {'momentId': 6257117397155844, 'coverUrl': 'https://picsum.photos/seed/w2/400/400', 'title': '作品2', 'type': 'video', 'commentCount': 5, 'likeCount': 86, 'viewCount': 4200},
+            {'momentId': 6257117397155843, 'coverUrl': 'https://picsum.photos/seed/w3/400/400', 'title': '作品3', 'type': 'video', 'commentCount': 2, 'likeCount': 34, 'viewCount': 1200},
+            {'momentId': 6257117397155842, 'coverUrl': 'https://picsum.photos/seed/w4/400/400', 'title': '作品4', 'type': 'video', 'commentCount': 8, 'likeCount': 95, 'viewCount': 6800},
+            {'momentId': 6257117397155841, 'coverUrl': 'https://picsum.photos/seed/w5/400/400', 'title': '作品5', 'type': 'video', 'commentCount': 15, 'likeCount': 210, 'viewCount': 15000},
+            {'momentId': 6257117397155840, 'coverUrl': 'https://picsum.photos/seed/w6/400/400', 'title': '作品6', 'type': 'video', 'commentCount': 0, 'likeCount': 12, 'viewCount': 800},
+        ],
+        'like': [
+            {'momentId': 7257117397155843, 'coverUrl': 'https://picsum.photos/seed/l1/400/550', 'title': '喜欢的咖啡拉花教程', 'type': 'video', 'commentCount': 4, 'likeCount': 56, 'viewCount': 3400},
+            {'momentId': 7257117397155842, 'coverUrl': 'https://picsum.photos/seed/l2/400/500', 'title': '北欧家居灵感 🏠', 'type': 'image', 'commentCount': 1, 'likeCount': 23, 'viewCount': 0},
+            {'momentId': 7257117397155841, 'coverUrl': 'https://picsum.photos/seed/l3/400/480', 'title': '一人食晚餐记录', 'type': 'image', 'commentCount': 6, 'likeCount': 78, 'viewCount': 0},
+        ],
+        'history': [],  # 历史未上线
+    }
+    return items.get(tab, [])
+
+
 class TestHandler(BaseHTTPRequestHandler):
 
     def _send_json(self, code, body):
@@ -72,6 +103,99 @@ class TestHandler(BaseHTTPRequestHandler):
         elif path == '/api/timeout':
             time.sleep(3)
             self._send_json(200, {'code': 200, 'message': 'ok', 'data': None})
+
+        # ── 个人中心 API ─────────────────────────────────
+
+        elif path == '/api/app/personal/center':
+            self._send_json(200, {
+                'requestId': 'test-pc-req-id',
+                'status': 0,
+                'state': 'OK',
+                'content': {
+                    'userProfile': {
+                        'avatar': None,
+                        'nickname': '千隅同学',
+                        'userNo': 'QY13800138000',
+                        'signature': '认真记录生活里的每一点灵感。',
+                        'location': '广东省-深圳市-南山区',
+                    },
+                    'userStats': {
+                        'likeCount': 12800,
+                        'followCount': 326,
+                        'fansCount': 8600,
+                        'visitorCount': 28,
+                    },
+                    'shortcuts': [
+                        {
+                            'key': 'wallet',
+                            'name': '我的钱包',
+                            'visible': True,
+                            'badgeCount': 0,
+                            'linkUrl': 'page://open?page=/pages/user/wallet',
+                        },
+                        {
+                            'key': 'orders',
+                            'name': '订单中心',
+                            'visible': True,
+                            'badgeCount': 0,
+                            'linkUrl': 'page://open?page=/pages/user/order-list',
+                        },
+                        {
+                            'key': 'anchor',
+                            'name': '主播中心',
+                            'visible': True,
+                            'badgeCount': 0,
+                            'linkUrl': 'page://open?page=/pages/user/anchor-center',
+                        },
+                        {
+                            'key': 'merchant',
+                            'name': '商家管理',
+                            'visible': True,
+                            'badgeCount': 0,
+                            'linkUrl': 'page://open?page=/pages/user/merchant-center',
+                        },
+                    ],
+                },
+                'message': 'OK',
+            })
+
+        elif path == '/api/app/personal/center/contents':
+            tab = qp.get('tab', [None])[0] or ''
+            cursor = int(qp.get('cursor', [0])[0] or '0')
+            limit = int(qp.get('limit', [20])[0] or '20')
+
+            if tab not in ('moment', 'work', 'like', 'history'):
+                return self._send_json(422, {
+                    'requestId': 'test-pc-req-id',
+                    'status': 400020,
+                    'state': 'R_NOT_SUPPORTED',
+                    'content': None,
+                    'message': '不支持的 tab 类型: ' + tab,
+                })
+
+            # 生成 mock 内容列表
+            all_items = _build_mock_contents(tab)
+            start = 0
+            for i, item in enumerate(all_items):
+                if cursor > 0 and item['momentId'] <= cursor:
+                    start = i + 1
+                else:
+                    break
+            page = all_items[start:start + limit]
+            next_cursor = page[-1]['momentId'] if page else 0
+            has_more = start + limit < len(all_items)
+
+            self._send_json(200, {
+                'requestId': 'test-pc-req-id',
+                'status': 0,
+                'state': 'OK',
+                'content': {
+                    'items': page,
+                    'nextCursor': next_cursor,
+                    'hasMore': has_more,
+                },
+                'message': 'OK',
+            })
 
         else:
             self._send_json(404, {'code': 404, 'message': 'not found'})

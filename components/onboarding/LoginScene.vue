@@ -63,6 +63,7 @@ import {
 	redirectAfterLogin,
 	saveLoginInfo
 } from '@/composables/useLoginSession.js'
+import { wechatLoginFull } from '@/composables/useWechatLogin.js'
 
 const props = defineProps({
 	active: {
@@ -123,7 +124,7 @@ async function handleWechatLoginClick() {
 	}
 
 	onWechatLogin()
-	mockSocialLoginSuccess('微信登录成功', 'wechat')
+	await doWechatLogin('wechat')
 }
 
 async function handleSocialLoginClick(item) {
@@ -144,7 +145,7 @@ async function handleSocialLoginClick(item) {
 	}
 
 	onWechatLogin()
-	mockSocialLoginSuccess('微信登录成功', 'wechat-lite')
+	await doWechatLogin('wechat-lite')
 }
 
 function handleAgreementLinkClick(type) {
@@ -179,6 +180,40 @@ function mockSocialLoginSuccess(title, provider) {
 			redirect
 		})
 	}, 800)
+}
+
+/**
+ * 微信登录真实流程
+ * 提取成公共方法，供 big button 和 social grid 共用
+ */
+async function doWechatLogin(loginType) {
+	try {
+		const result = await wechatLoginFull()
+		if (!result) {
+			// 用户取消授权，不做任何事
+			return
+		}
+		const { token, userInfo } = result
+		const redirect = getLoginRedirectFromCurrentPage()
+		saveLoginInfo({
+			token,
+			expireMs: Date.now() + 7 * 24 * 60 * 60 * 1000,
+			nickname: userInfo.nickname,
+			userNo: userInfo.userNo,
+			userId: userInfo.userId,
+			avatar: userInfo.avatar || '',
+			liveAuth: true,
+			shopAuth: true,
+			loginType
+		})
+		uni.showToast({ title: '登录成功', icon: 'none' })
+		setTimeout(() => {
+			redirectAfterLogin({ redirect })
+		}, 800)
+	} catch (err) {
+		console.error('[wechat-login]', err)
+		uni.showToast({ title: err.message || '微信登录失败', icon: 'none' })
+	}
 }
 
 function onPhoneLogin() {

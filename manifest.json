@@ -49,7 +49,9 @@
                 "dSYMs" : false
             },
             /* SDK配置 */
-            "sdkConfigs" : {},
+            "sdkConfigs" : {
+                "oauth" : {}
+            },
             "splashscreen" : {
                 "useOriginalMsgbox" : true
             }
