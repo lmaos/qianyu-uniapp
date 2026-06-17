@@ -92,10 +92,11 @@ async function loadCartList() {
 		const { code, response } = await request.post({ url: API.OMS_CART_LIST })
 		if (code !== 200) return
 		if (response?.state !== 'OK') return
-		if (response?.state !== 'OK') return
 		const content = response.content || {}
 		cartList.value = (content.list || []).map(adaptCartItem)
 		totalPrice.value = content.totalPrice || '0.00'
+	} catch (e) {
+		console.error('[cart] loadCartList error:', e)
 	} finally {
 		loading.value = false
 	}

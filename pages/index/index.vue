@@ -220,7 +220,6 @@ const mallExtraListeners = computed(() => {
 			uni.navigateTo({ url: '/pages/shop/cart' })
 		},
 		'category-change': (category) => {
-			console.log('[index.vue] category-change:', category)
 			if (category?.id) {
 				activeLevel3.value = category.id
 			}
@@ -244,14 +243,12 @@ onLoad(options => {
 	activeLevel1.value = targetLevel1
 	activeLevel2.value = targetLevel2
 	activeLevel3.value = targetLevel3
-	console.log('[index.vue] onLoad, route:', { level1: targetLevel1, level2: targetLevel2, level3: targetLevel3 })
 	// 商城 tabList / zoneList / spuList 的请求已迁到 MallScene 内部自管，此处无需触发
 })
 
 onShow(() => {
 	const info = getCurrentLoginInfo()
 	const userId = info.userId || info.userNo || ''
-	console.log('[index.vue] onShow, current route:', { level1: activeLevel1.value, level2: activeLevel2.value, level3: activeLevel3.value })
 	startAll(userId)
 })
 

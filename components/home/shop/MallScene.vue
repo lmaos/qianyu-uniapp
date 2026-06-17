@@ -77,7 +77,7 @@ import ShopCategoryBar from '@/components/home/shop/ShopCategoryBar.vue'
 import ShopRecommendBanner from '@/components/home/shop/ShopRecommendBanner.vue'
 import ShopRecommendZone from '@/components/home/shop/ShopRecommendZone.vue'
 import ShopProductList from '@/components/home/shop/ShopProductList.vue'
-import { buildShopProductDetailUrl } from '@/components/home/shop/shopProductMock.js'
+import { buildShopProductDetailUrl } from '@/pages/shop/_productUrl.js'
 
 const props = defineProps({
 	active: { type: Boolean, default: false }
@@ -96,11 +96,10 @@ const hasMore = ref(true)
 
 // ── 加载首页聚合数据 ──────────────────────────────────
 async function loadHomePage() {
-	console.log('[MallScene] loadHomePage 发起')
 	try {
 		const { code, response } = await request.post({ url: API.CMS_HOME_PAGE })
-		if (code !== 200) { console.log('[MallScene] loadHomePage code !== 200:', code); return }
-		if (response?.state !== 'OK') { console.log('[MallScene] loadHomePage state !== OK:', response?.state); return }
+		if (code !== 200) return
+		if (response?.state !== 'OK') return
 		const content = response.content || {}
 		bannerList.value = content.bannerList || []
 		tabList.value = content.tabList || []
@@ -122,15 +121,8 @@ async function loadHomePage() {
 		if (selectedTabId.value) {
 			await loadProductList(true)
 		}
-		console.log('[MallScene] loadHomePage 完成:', {
-			bannerCount: bannerList.value.length,
-			tabCount: tabList.value.length,
-			zoneCount: zoneList.value.length,
-			selectedTabId: selectedTabId.value,
-			defaultTabKey: content.defaultTabKey
-		})
 	} catch (e) {
-		console.error('[MallScene] loadHomePage 异常:', e)
+		console.error('[MallScene] loadHomePage error:', e)
 	}
 }
 
@@ -139,23 +131,21 @@ async function loadHomePage() {
 //   - categoryId 取自 tabList[i].categoryId（与 spuList 用的同一个值）
 //   - 后端规则：categoryId == 0 / null → 返回 recommend 默认 zoneList（与 homePage 一致）
 async function loadTabZoneList(tabCategoryId) {
-	console.log('[MallScene] loadTabZoneList 发起, categoryId=', tabCategoryId)
 	zoneListLoading.value = true
 	try {
 		const { code, response } = await request.post({
 			url: API.CMS_TAB_ZONE_LIST,
 			data: { categoryId: tabCategoryId || 0 }
 		})
-		if (code !== 200) { console.log('[MallScene] loadTabZoneList code !== 200:', code); return }
-		if (response?.state !== 'OK') { console.log('[MallScene] loadTabZoneList state !== OK:', response?.state); return }
+		if (code !== 200) return
+		if (response?.state !== 'OK') return
 		const rawZones = response.content?.zoneList || []
 		zoneList.value = rawZones.map((zone) => ({
 			...zone,
 			productList: (zone.productList || []).map(adaptProductItem)
 		}))
-		console.log('[MallScene] loadTabZoneList 完成:', { zoneCount: zoneList.value.length })
 	} catch (e) {
-		console.error('[MallScene] loadTabZoneList 异常:', e)
+		console.error('[MallScene] loadTabZoneList error:', e)
 	} finally {
 		zoneListLoading.value = false
 	}
@@ -172,7 +162,6 @@ async function loadProductList(reset = false) {
 	// 从 tabList 里查当前选中项的 categoryId
 	const activeTab = tabList.value.find((t) => t.id === selectedTabId.value)
 	const apiCategoryId = activeTab ? (activeTab.categoryId || null) : null
-	console.log('[MallScene] loadProductList 发起, reset=', reset, 'tabId=', selectedTabId.value, 'apiCategoryId=', apiCategoryId)
 	loading.value = true
 	try {
 		const currentPage = reset ? 1 : pageNum.value
@@ -180,8 +169,8 @@ async function loadProductList(reset = false) {
 			url: API.PMS_SPU_LIST,
 			data: { pageNum: currentPage, pageSize: 20, categoryId: apiCategoryId }
 		})
-		if (code !== 200) { console.log('[MallScene] loadProductList code !== 200:', code); return }
-		if (response?.state !== 'OK') { console.log('[MallScene] loadProductList state !== OK:', response?.state); return }
+		if (code !== 200) return
+		if (response?.state !== 'OK') return
 		const page = extractPage(response.content)
 		const list = (page.records || []).map(adaptProductItem)
 		if (reset) {
@@ -192,13 +181,8 @@ async function loadProductList(reset = false) {
 			pageNum.value = currentPage + 1
 		}
 		hasMore.value = list.length > 0 && currentPage < page.totalPage
-		console.log('[MallScene] loadProductList 完成:', {
-			count: list.length,
-			total: productList.value.length,
-			hasMore: hasMore.value
-		})
 	} catch (e) {
-		console.error('[MallScene] loadProductList 异常:', e)
+		console.error('[MallScene] loadProductList error:', e)
 	} finally {
 		loading.value = false
 	}
@@ -208,7 +192,6 @@ async function loadProductList(reset = false) {
 function handleCategoryChange(category) {
 	if (!category?.id) return
 	if (category.id === selectedTabId.value) return
-	console.log('[MallScene] tab 切换:', category)
 	selectedTabId.value = category.id
 	pageNum.value = 1
 	hasMore.value = true
@@ -227,17 +210,14 @@ function handleProductClick(product) {
 
 function handleZoneMore(zone) {
 	// TODO：替换楼层专区"更多"跳转逻辑
-	console.log('[MallScene] zone more:', zone?.id)
 }
 
 function handleBannerClick(banner) {
 	// TODO：替换 Banner 点击跳转逻辑
-	console.log('[MallScene] banner click:', banner?.id, 'linkType:', banner?.linkType)
 }
 
 function handleBannerChange(banner) {
 	// TODO：替换 Banner 切换埋点逻辑
-	console.log('[MallScene] banner change:', banner?.id)
 }
 
 // ── 对外暴露：下拉刷新 / 触底分页 ─────────────────────
@@ -254,10 +234,7 @@ async function handleParentReachLower() {
 
 // ── 生命周期：scene 变可见时初始化 ─────────────────────
 // 同时挂 onMounted + watch，保证不管 props 何时就绪都能触发首次加载。
-console.log('[MallScene] setup 启动, props.active =', props.active, 'tabList.length =', tabList.value.length)
-
 onMounted(() => {
-	console.log('[MallScene] onMounted, props.active =', props.active, 'tabList.length =', tabList.value.length)
 	if (tabList.value.length === 0) {
 		loadHomePage()
 	}
@@ -266,7 +243,6 @@ onMounted(() => {
 watch(
 	() => props.active,
 	(isActive) => {
-		console.log('[MallScene] watch active 变化:', isActive, 'tabList.length =', tabList.value.length)
 		if (isActive && tabList.value.length === 0) {
 			loadHomePage()
 		}

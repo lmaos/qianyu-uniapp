@@ -204,9 +204,10 @@ async function loadShopProductList() {
 		})
 		if (code !== 200) return
 		if (response?.state !== 'OK') return
-		if (response?.state !== 'OK') return
 		const page = extractPage(response.content)
 		goodsList.value = page.records.map(adaptProductItem)
+	} catch (e) {
+		console.error('[store-home] loadShopProductList error:', e)
 	} finally {
 		goodsLoading.value = false
 	}

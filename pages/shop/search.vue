@@ -23,7 +23,7 @@
 							class="shop-search-input"
 							type="text"
 							:value="inputKeyword"
-							:placeholder="discoveryMock.searchPlaceholder"
+							:placeholder="searchPlaceholder"
 							confirm-type="search"
 							@input="handleKeywordInput"
 							@confirm="handleSearchSubmit"
@@ -105,7 +105,7 @@
 						</view>
 						<view class="shop-search-chip-list">
 							<view
-								v-for="item in discoveryMock.historyList"
+								v-for="item in historyList"
 								:key="item"
 								class="shop-search-chip"
 								@tap="handleKeywordShortcut(item)"
@@ -119,7 +119,7 @@
 						<text class="shop-search-section-title">热门搜索</text>
 						<view class="shop-search-chip-list">
 							<view
-								v-for="item in discoveryMock.hotKeywordList"
+								v-for="item in hotKeywordList"
 								:key="item"
 								class="shop-search-chip shop-search-chip-hot"
 								@tap="handleKeywordShortcut(item)"
@@ -132,7 +132,7 @@
 					<view class="shop-search-section-card">
 						<text class="shop-search-section-title">推荐捷径</text>
 						<view
-							v-for="item in discoveryMock.shortcutList"
+							v-for="item in shortcutList"
 							:key="item.key"
 							class="shop-search-shortcut-item"
 							@tap="handleShortcutClick(item)"
@@ -149,7 +149,7 @@
 				<view v-else-if="searchState === 'suggest'" class="shop-search-section-card">
 					<text class="shop-search-section-title">搜索建议</text>
 					<view
-						v-for="item in discoveryMock.suggestionList"
+						v-for="item in suggestionList"
 						:key="item.id"
 						class="shop-search-suggestion-item"
 						@tap="handleSuggestionClick(item)"
@@ -173,8 +173,8 @@
 			:visible="filterSidebarVisible"
 			:bottom-gap-rpx="18"
 			:filter-state="appliedFilterState"
-			:brand-list="resultMock.brandList"
-			:spec-group-list="resultMock.specGroupList"
+			:brand-list="brandList"
+			:spec-group-list="specGroupList"
 			@close="handleFilterSidebarClose"
 			@confirm="handleFilterSidebarConfirm"
 		/>
@@ -196,7 +196,9 @@ import {
 	SHOP_TOP_SEARCH_ICON
 } from '@/components/shop/common/shopSurface.js'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
-import { getShopSearchPageMock } from '@/components/shop/common/shopFlowMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptProductItem, extractPage } from '@/utils/shopAdapter'
 
 const { safeBottomPx, windowHeightPx, rpxToPx } = useSafeAreaMetrics()
 
@@ -205,20 +207,45 @@ const recommendOptionList = [
 	{ id: 'comment', label: '评论数从高到低' }
 ]
 
+// 布局常量（与 API 无关，保留）
 const searchPageMock = {
-	pageSize: 8,
+	pageSize: 20,                  // 服务端分页大小
 	lowerThresholdPx: 220,
 	contentSidePaddingPx: rpxToPx(24),
 	contentBottomPaddingPx: rpxToPx(24),
 	bottomPullSlotHeightPx: rpxToPx(72)
 }
 
+// ── 用户输入 ──────────────────────────────────────────────
 const inputKeyword = ref('')
 const submittedKeyword = ref('')
 const entryCategoryId = ref('recommend')
+
+// ── Discovery 数据（来自 HIS 接口）──────────────────────
+const searchPlaceholder = ref('搜索商品 / 店铺 / 品牌')
+const historyList = ref([])
+const hotKeywordList = ref([])
+const shortcutList = ref([
+	{ key: 'subsidy', label: '补贴会场', desc: '官方补贴与品牌直降' },
+	{ key: 'coupon', label: '优惠券专区', desc: '店铺券、跨店满减' },
+	{ key: 'live', label: '直播热卖', desc: '直播间同款商品集合' }
+])
+const suggestionList = ref([])   // 暂不接（P2 缺失）
+
+// ── 搜索结果数据（来自 PMS_SPU_SEARCH）──────────────────
+const searchResultList = ref([])
+const brandList = ref([])
+const specGroupList = ref([])
+const resultPage = ref(1)
+const resultTotalPage = ref(1)
+const resultHasMore = ref(true)
+const searchLoading = ref(false)
+const loadingMore = ref(false)
+
+// ── 排序 & 筛选 ──────────────────────────────────────────
 const recommendOptionId = ref('comprehensive')
-const sortMode = ref('recommend')
-const priceSortDirection = ref('')
+const sortMode = ref('recommend')   // 'recommend' | 'sales' | 'price'
+const priceSortDirection = ref('')  // '' | 'asc' | 'desc'
 const recommendDropdownVisible = ref(false)
 const filterSidebarVisible = ref(false)
 const appliedFilterState = ref({
@@ -227,8 +254,8 @@ const appliedFilterState = ref({
 	selectedBrandIdList: [],
 	selectedSpecMap: {}
 })
-const resultPage = ref(1)
-const loadingMore = ref(false)
+
+// ── PullPagingShell 滚动状态 ────────────────────────────
 const bottomPullState = ref('idle')
 const bottomPullVisible = ref(false)
 const parentScrollTopPx = ref(0)
@@ -259,18 +286,6 @@ const searchFilterbarAreaStyle = {
 	...STATIC_FROST_AREA_STYLE
 }
 
-const discoveryMock = computed(() =>
-	getShopSearchPageMock({
-		keyword: inputKeyword.value,
-		categoryId: entryCategoryId.value
-	})
-)
-const resultMock = computed(() =>
-	getShopSearchPageMock({
-		keyword: submittedKeyword.value,
-		categoryId: entryCategoryId.value
-	})
-)
 const searchState = computed(() => {
 	const normalizedInputKeyword = inputKeyword.value.trim()
 	if (submittedKeyword.value.trim() && normalizedInputKeyword === submittedKeyword.value.trim()) {
@@ -293,49 +308,8 @@ const priceSortDirectionLabel = computed(() => {
 
 	return priceSortDirection.value === 'asc' ? '↑' : '↓'
 })
-const filteredProductList = computed(() => {
-	let nextProductList = [...resultMock.value.productResultList]
-	const minPrice = Number(appliedFilterState.value.minPrice || 0)
-	const maxPrice = Number(appliedFilterState.value.maxPrice || 0)
-
-	if (minPrice > 0) {
-		nextProductList = nextProductList.filter((item) => Number(item.price) >= minPrice)
-	}
-
-	if (maxPrice > 0) {
-		nextProductList = nextProductList.filter((item) => Number(item.price) <= maxPrice)
-	}
-
-	if (appliedFilterState.value.selectedBrandIdList.length) {
-		nextProductList = nextProductList.filter((item) =>
-			appliedFilterState.value.selectedBrandIdList.includes(item.brandId)
-		)
-	}
-
-	const selectedSpecMap = appliedFilterState.value.selectedSpecMap || {}
-	const activeSpecGroupIdList = Object.keys(selectedSpecMap).filter((key) => selectedSpecMap[key])
-	if (activeSpecGroupIdList.length) {
-		nextProductList = nextProductList.filter((item) =>
-			activeSpecGroupIdList.every((groupId) => item.specValues?.[groupId] === selectedSpecMap[groupId])
-		)
-	}
-
-	if (sortMode.value === 'sales') {
-		return nextProductList.sort((left, right) => Number(right.salesCount || 0) - Number(left.salesCount || 0))
-	}
-
-	if (sortMode.value === 'price') {
-		const direction = priceSortDirection.value === 'asc' ? 1 : -1
-		return nextProductList.sort((left, right) => (Number(left.price || 0) - Number(right.price || 0)) * direction)
-	}
-
-	if (recommendOptionId.value === 'comment') {
-		return nextProductList.sort((left, right) => Number(right.commentCount || 0) - Number(left.commentCount || 0))
-	}
-
-	return nextProductList.sort((left, right) => Number(right.recommendScore || 0) - Number(left.recommendScore || 0))
-})
-const displayProductList = computed(() => filteredProductList.value.slice(0, resultPage.value * searchPageMock.pageSize))
+// 显示用列表 = 服务端分页累加结果，客户端不再做筛选/排序
+const displayProductList = computed(() => searchResultList.value)
 const contentInnerStyle = computed(() => {
 	const bottomPaddingPx =
 		searchPageMock.contentBottomPaddingPx +
@@ -358,21 +332,145 @@ const bottomPullSlotStyle = computed(() => ({
 	background: 'linear-gradient(180deg, rgba(255, 249, 251, 0) 0%, rgba(255, 246, 249, 0.92) 48%, rgba(248, 250, 252, 0.96) 100%)'
 }))
 
-onLoad((options) => {
+onLoad(async (options) => {
 	entryCategoryId.value = `${options?.categoryId || 'recommend'}`.trim() || 'recommend'
 	const routeKeyword = decodeURIComponent(`${options?.keyword || ''}`.trim())
-	if (!routeKeyword) {
-		return
+	if (routeKeyword) {
+		inputKeyword.value = routeKeyword
+		submittedKeyword.value = routeKeyword
 	}
-
-	inputKeyword.value = routeKeyword
-	submittedKeyword.value = routeKeyword
+	await loadDiscovery()
+	if (routeKeyword) {
+		await loadSearchResults({ reset: true })
+	}
 })
 
 onBeforeUnmount(() => {
 	clearBottomPullTimer()
 	clearScrollTopResetTimer()
 })
+
+// ════════════════════════════════════════════════════════════
+// Discovery 数据加载（history + hot keywords）
+// ════════════════════════════════════════════════════════════
+async function loadDiscovery() {
+	await Promise.all([loadHistoryList(), loadHotKeywords()])
+}
+
+async function loadHistoryList() {
+	const { code, response } = await request.post({ url: API.HIS_BROWSE_LIST })
+	if (code !== 200 || response?.state !== 'OK') return
+	// 兼容后端返回两种形态：list<{keyword}> 或 list<string>
+	const rawList = response.content?.list || response.content || []
+	historyList.value = rawList
+		.map((item) => (typeof item === 'string' ? item : (item?.keyword || '')))
+		.filter(Boolean)
+}
+
+async function loadHotKeywords() {
+	const { code, response } = await request.post({ url: API.HIS_SEARCH_HOT })
+	if (code !== 200 || response?.state !== 'OK') return
+	const rawList = response.content?.list || response.content || []
+	hotKeywordList.value = rawList
+		.map((item) => (typeof item === 'string' ? item : (item?.keyword || item?.name || '')))
+		.filter(Boolean)
+}
+
+async function recordSearchKeyword(keyword) {
+	if (!keyword) return
+	await request.post({ url: API.HIS_SEARCH_RECORD, data: { keyword } })
+	await loadHistoryList()
+}
+
+async function handleClearHistory() {
+	const { code } = await request.post({ url: API.HIS_BROWSE_DELETE })
+	if (code === 200) {
+		historyList.value = []
+	}
+}
+
+// ════════════════════════════════════════════════════════════
+// 搜索结果加载（pms/spuSearch）
+// ════════════════════════════════════════════════════════════
+function buildSearchParams(pageNum) {
+	const params = {
+		keyword: submittedKeyword.value,
+		pageNum,
+		pageSize: searchPageMock.pageSize,
+		categoryId: entryCategoryId.value
+	}
+	// 排序
+	if (sortMode.value === 'sales') {
+		params.sortField = 'sales'
+		params.sortOrder = 'desc'
+	} else if (sortMode.value === 'price') {
+		params.sortField = 'price'
+		params.sortOrder = priceSortDirection.value === 'asc' ? 'asc' : 'desc'
+	} else if (recommendOptionId.value === 'comment') {
+		params.sortField = 'commentCount'
+		params.sortOrder = 'desc'
+	}
+	// 价格区间
+	if (appliedFilterState.value.minPrice !== '') {
+		params.minPrice = Number(appliedFilterState.value.minPrice)
+	}
+	if (appliedFilterState.value.maxPrice !== '') {
+		params.maxPrice = Number(appliedFilterState.value.maxPrice)
+	}
+	// 品牌
+	if (appliedFilterState.value.selectedBrandIdList.length) {
+		params.brandIds = [...appliedFilterState.value.selectedBrandIdList]
+	}
+	// 规格
+	const specMap = appliedFilterState.value.selectedSpecMap || {}
+	const specPairList = Object.keys(specMap)
+		.filter((key) => specMap[key])
+		.map((groupId) => ({ groupId, value: specMap[groupId] }))
+	if (specPairList.length) {
+		params.specValues = specPairList
+	}
+	return params
+}
+
+async function loadSearchResults({ reset = true } = {}) {
+	if (reset) {
+		if (searchLoading.value) return
+		searchLoading.value = true
+	} else {
+		if (loadingMore.value) return
+		if (!resultHasMore.value) return
+		loadingMore.value = true
+	}
+	try {
+		const targetPage = reset ? 1 : resultPage.value + 1
+		const { code, response } = await request.post({
+			url: API.PMS_SPU_SEARCH,
+			data: buildSearchParams(targetPage)
+		})
+		if (code !== 200 || response?.state !== 'OK') return
+		const content = response.content || {}
+		const page = extractPage(content)
+		const newRecords = (page.records || []).map(adaptProductItem)
+		if (reset) {
+			searchResultList.value = newRecords
+			resultPage.value = 1
+		} else {
+			searchResultList.value = searchResultList.value.concat(newRecords)
+			resultPage.value = targetPage
+		}
+		resultTotalPage.value = page.totalPage || 0
+		resultHasMore.value = targetPage < page.totalPage
+		if (reset) {
+			brandList.value = content.brandList || []
+			specGroupList.value = content.specGroupList || []
+		}
+	} catch (e) {
+		console.error('[search] loadSearchResults error:', e)
+	} finally {
+		searchLoading.value = false
+		loadingMore.value = false
+	}
+}
 
 function handleBack() {
 	uni.navigateBack({
@@ -401,12 +499,11 @@ function handleSearchSubmit() {
 	if (!inputKeyword.value.trim()) {
 		return
 	}
-
 	submittedKeyword.value = inputKeyword.value.trim()
-	onSearchSubmit(submittedKeyword.value)
 	recommendDropdownVisible.value = false
 	filterSidebarVisible.value = false
 	resetSearchResultState({ resetSort: true, resetFilter: false })
+	recordSearchKeyword(submittedKeyword.value)
 }
 
 function handleKeywordShortcut(keyword) {
@@ -420,16 +517,19 @@ function handleSuggestionClick(item) {
 }
 
 function handleShortcutClick(item) {
-	onShortcutClick(item)
 	inputKeyword.value = item.label
 	handleSearchSubmit()
 }
 
 function handleHistoryClear() {
-	onHistoryClear()
-	uni.showToast({
-		title: '搜索历史清空占位',
-		icon: 'none'
+	uni.showModal({
+		title: '清空搜索历史',
+		content: '确定要清空所有搜索历史吗？',
+		success: (result) => {
+			if (result.confirm) {
+				handleClearHistory()
+			}
+		}
 	})
 }
 
@@ -439,28 +539,28 @@ function handleRecommendFilterToggle() {
 }
 
 function handleRecommendOptionSelect(item) {
-	onRecommendSortChange(item)
 	recommendOptionId.value = item.id
 	sortMode.value = 'recommend'
 	priceSortDirection.value = ''
 	recommendDropdownVisible.value = false
 	resetSearchResultState()
+	loadSearchResults({ reset: true })
 }
 
 function handleSalesSortClick() {
-	onSalesSortClick()
 	sortMode.value = 'sales'
 	priceSortDirection.value = ''
 	recommendDropdownVisible.value = false
 	resetSearchResultState()
+	loadSearchResults({ reset: true })
 }
 
 function handlePriceSortClick() {
-	onPriceSortClick(priceSortDirection.value)
 	sortMode.value = 'price'
 	priceSortDirection.value = priceSortDirection.value === 'desc' ? 'asc' : 'desc'
 	recommendDropdownVisible.value = false
 	resetSearchResultState()
+	loadSearchResults({ reset: true })
 }
 
 function handleFilterSidebarOpen() {
@@ -473,7 +573,6 @@ function handleFilterSidebarClose() {
 }
 
 function handleFilterSidebarConfirm(filterState) {
-	onFilterConfirm(filterState)
 	appliedFilterState.value = {
 		minPrice: filterState.minPrice || '',
 		maxPrice: filterState.maxPrice || '',
@@ -482,16 +581,13 @@ function handleFilterSidebarConfirm(filterState) {
 	}
 	filterSidebarVisible.value = false
 	resetSearchResultState()
+	loadSearchResults({ reset: true })
 }
 
 function handleGoodsOpen(item) {
-	onGoodsOpen(item)
-	if (!item?.detailUrl) {
-		return
-	}
-
+	if (!item?.id) return
 	uni.navigateTo({
-		url: item.detailUrl
+		url: `/pages/shop/product-detail?productId=${item.id}`
 	})
 }
 
@@ -500,30 +596,22 @@ function handleParentScroll(event) {
 }
 
 async function handleParentReachLower() {
-	if (searchState.value !== 'result' || loadingMore.value || bottomPullState.value === 'loading') {
+	if (searchState.value !== 'result' || loadingMore.value) {
 		return
 	}
-
 	const requestId = ++reachLowerRequestId
-	loadingMore.value = true
 	showBottomPullState('loading')
-	await wait(380)
-
+	await loadSearchResults({ reset: false })
 	if (requestId !== reachLowerRequestId) {
 		return
 	}
-
-	if (displayProductList.value.length >= filteredProductList.value.length) {
-		loadingMore.value = false
+	if (resultHasMore.value) {
+		bottomPullState.value = 'loaded'
+		scheduleBottomPullCollapse(420)
+	} else {
 		bottomPullState.value = 'no-more'
 		scheduleBottomPullCollapse(520)
-		return
 	}
-
-	resultPage.value += 1
-	loadingMore.value = false
-	bottomPullState.value = 'loaded'
-	scheduleBottomPullCollapse(420)
 }
 
 function resetSearchResultState({ resetSort = false, resetFilter = false } = {}) {
@@ -532,6 +620,8 @@ function resetSearchResultState({ resetSort = false, resetFilter = false } = {})
 	recommendDropdownVisible.value = false
 	resetBottomPullState(true)
 	resultPage.value = 1
+	resultHasMore.value = true
+	searchResultList.value = []
 
 	if (resetSort) {
 		recommendOptionId.value = 'comprehensive'
@@ -600,54 +690,6 @@ function scrollResultListToTop() {
 		scrollTopResetTimer = null
 	}, 0)
 	parentScrollTopPx.value = 0
-}
-
-function wait(delay) {
-	return new Promise((resolve) => {
-		const timer = setTimeout(() => {
-			resolve()
-		}, delay)
-	})
-}
-
-function onSearchSubmit(keyword) {
-	// TODO：替换搜索提交逻辑
-	console.log('shop-search-submit', keyword, entryCategoryId.value)
-}
-
-function onShortcutClick(item) {
-	// TODO：替换搜索捷径点击逻辑
-	console.log('shop-search-shortcut-click', item.key)
-}
-
-function onHistoryClear() {
-	// TODO：替换搜索历史清空逻辑
-	console.log('shop-search-history-clear')
-}
-
-function onRecommendSortChange(item) {
-	// TODO：替换搜索综合排序切换逻辑
-	console.log('shop-search-recommend-sort-change', item.id)
-}
-
-function onSalesSortClick() {
-	// TODO：替换搜索销量排序逻辑
-	console.log('shop-search-sales-sort')
-}
-
-function onPriceSortClick(direction) {
-	// TODO：替换搜索价格排序逻辑
-	console.log('shop-search-price-sort', direction)
-}
-
-function onFilterConfirm(filterState) {
-	// TODO：替换搜索筛选确认逻辑
-	console.log('shop-search-filter-confirm', filterState)
-}
-
-function onGoodsOpen(item) {
-	// TODO：替换搜索结果商品点击前置逻辑
-	console.log('shop-search-goods-open', item.id)
 }
 </script>
 
