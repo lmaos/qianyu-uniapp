@@ -5,7 +5,7 @@
  */
 
 /**
- * 从后端响应创建 UserInfo 对象
+ * 从后端响应创建 UserInfo 对象~
  * @param {Object} data 后端返回的用户信息 JSON
  * @returns {UserInfo}
  */
