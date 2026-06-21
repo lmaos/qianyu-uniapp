@@ -30,6 +30,11 @@
 				<view class="order-card-actions">
 					<view class="order-card-button order-card-button--light" @tap="handleOrderAction(item, 'service')">联系客服</view>
 					<view class="order-card-button" @tap="handleOrderAction(item, 'detail')">查看详情</view>
+					<view
+						v-if="isOrderDeletable(item)"
+						class="order-card-button order-card-button--ghost"
+						@tap="handleOrderAction(item, 'delete')"
+					>删除</view>
 				</view>
 			</view>
 		</UserSectionCard>
@@ -87,6 +92,7 @@ const activeStatus = ref('all')
 const loading = ref(false)
 const total = ref(0)
 const currentUserId = ref('mine-self')
+const deletingOrderId = ref(null)
 const serviceSheetVisible = ref(false)
 const serviceSheetData = ref(getShopCustomerServiceSheetMock({ contextType: 'order' }))
 
@@ -113,6 +119,55 @@ async function loadOrderList() {
 	} finally {
 		loading.value = false
 	}
+}
+
+// 删除订单（oms/orderDelete，仅 status ∈ {40, 50, 60} 允许）
+async function deleteOrder(orderId) {
+	if (!orderId || deletingOrderId.value) return
+	deletingOrderId.value = orderId
+
+	// 乐观删除
+	const snapshot = orderList.value
+	orderList.value = orderList.value.filter((item) => item.id !== orderId)
+	total.value = Math.max(0, total.value - 1)
+
+	try {
+		const { code, response } = await request.post({
+			url: API.OMS_ORDER_DELETE,
+			data: { orderId }
+		})
+		if (code !== 200 || response?.state !== 'OK') {
+			// 回滚 + 由 baseRequest 自动 toast 业务 message
+			orderList.value = snapshot
+			total.value = total.value + 1
+			return
+		}
+		uni.showToast({ title: '删除成功', icon: 'none' })
+	} catch (e) {
+		// 网络异常：回滚 + 提示
+		orderList.value = snapshot
+		total.value = total.value + 1
+		uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+	} finally {
+		deletingOrderId.value = null
+	}
+}
+
+function handleOrderDelete(item) {
+	uni.showModal({
+		title: '删除订单',
+		content: '确定删除该订单吗？删除后不可恢复。',
+		success: (result) => {
+			if (result.confirm) {
+				deleteOrder(item.id)
+			}
+		}
+	})
+}
+
+function isOrderDeletable(item) {
+	const status = Number(item?.status)
+	return status === 40 || status === 50 || status === 60
 }
 
 onLoad((options) => {
@@ -150,6 +205,10 @@ function handleOrderAction(item, actionKey) {
 			userId: currentUserId.value
 		})
 		serviceSheetVisible.value = true
+		return
+	}
+	if (actionKey === 'delete') {
+		handleOrderDelete(item)
 		return
 	}
 
@@ -334,5 +393,11 @@ function onServiceSecondary() {
 .order-card-button--light {
 	background: #f8fafc;
 	color: #0f172a;
+}
+
+.order-card-button--ghost {
+	background: #ffffff;
+	color: #ef4444;
+	border: 1rpx solid #fecaca;
 }
 </style>

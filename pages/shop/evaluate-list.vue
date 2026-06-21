@@ -71,7 +71,7 @@ const navBarHeightPx = safeTopPx + rpxToPx(88)
 
 // 评价数据
 const spuInfo = ref({ name: '', image: '' })
-const evaluateData = ref({ summary: {}, reviewList: [] })
+const evaluateData = ref({ evaluateSummary: {}, reviewList: [] })
 const reviewPage = ref({ records: [], totalRow: 0, pageNumber: 1, pageSize: 10, totalPage: 0 })
 const loading = ref(false)
 const currentSpuId = ref(0)
@@ -104,7 +104,7 @@ async function loadEvaluatePage() {
 	const content = response.content || {}
 	spuInfo.value = { name: content.spuName || '', image: content.spuImage || '' }
 	evaluateData.value = {
-		summary: adaptReviewStat(content.reviewStat),
+		evaluateSummary: adaptReviewStat(content.reviewStat),
 		reviewList: (content.reviewList?.records || []).map(adaptReviewItem)
 	}
 	reviewPage.value = extractPage(content.reviewList)

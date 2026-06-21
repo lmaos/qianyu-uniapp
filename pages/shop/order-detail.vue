@@ -23,74 +23,93 @@
 				<ShopSubPageHeader title="订单详情" @back="handleBack" />
 			</template>
 
-			<view class="shop-order-detail-summary-card">
-				<text class="shop-order-detail-summary-status">{{ pageMock.summaryCard.statusText }}</text>
-				<text class="shop-order-detail-summary-desc">{{ pageMock.summaryCard.statusDesc }}</text>
-				<text class="shop-order-detail-summary-helper">{{ pageMock.summaryCard.helperText }}</text>
-			</view>
+			<view v-if="loading" class="shop-order-detail-loading">加载中…</view>
+			<view v-else-if="errorText" class="shop-order-detail-error">{{ errorText }}</view>
+			<template v-else-if="orderDetail">
+				<view class="shop-order-detail-summary-card">
+					<text class="shop-order-detail-summary-status">{{ orderDetail.summaryCard.statusText }}</text>
+					<text class="shop-order-detail-summary-desc">{{ orderDetail.summaryCard.statusDesc }}</text>
+					<text class="shop-order-detail-summary-helper">{{ orderDetail.summaryCard.helperText }}</text>
+				</view>
 
-			<view class="shop-order-detail-card">
-				<text class="shop-order-detail-card-title">物流进度</text>
-				<view
-					v-for="item in pageMock.timelineList"
-					:key="item.key"
-					class="shop-order-detail-timeline-item"
-				>
-					<view :class="['shop-order-detail-timeline-dot', item.active ? 'shop-order-detail-timeline-dot-active' : '']"></view>
-					<view class="shop-order-detail-timeline-main">
-						<text class="shop-order-detail-timeline-title">{{ item.title }}</text>
-						<text class="shop-order-detail-timeline-desc">{{ item.desc }}</text>
+				<view v-if="orderDetail.timelineList.length" class="shop-order-detail-card">
+					<text class="shop-order-detail-card-title">物流进度</text>
+					<view
+						v-for="item in orderDetail.timelineList"
+						:key="item.key"
+						class="shop-order-detail-timeline-item"
+					>
+						<view :class="['shop-order-detail-timeline-dot', item.active ? 'shop-order-detail-timeline-dot-active' : '']"></view>
+						<view class="shop-order-detail-timeline-main">
+							<text class="shop-order-detail-timeline-title">{{ item.title }}</text>
+							<text class="shop-order-detail-timeline-desc">{{ item.desc }}</text>
+						</view>
 					</view>
 				</view>
-			</view>
 
-			<view class="shop-order-detail-card">
-				<text class="shop-order-detail-card-title">收货地址</text>
-				<text class="shop-order-detail-address-line">{{ pageMock.addressCard.name }} {{ pageMock.addressCard.phone }}</text>
-				<text class="shop-order-detail-address-line">{{ pageMock.addressCard.address }}</text>
-			</view>
-
-			<view class="shop-order-detail-card shop-order-detail-goods-card" @tap="handleProductOpen">
-				<view class="shop-order-detail-goods-cover" :style="{ background: pageMock.goodsCard.coverBackground }">
-					{{ pageMock.goodsCard.coverText }}
+				<view class="shop-order-detail-card">
+					<text class="shop-order-detail-card-title">收货地址</text>
+					<text class="shop-order-detail-address-line">{{ orderDetail.addressCard.name }} {{ orderDetail.addressCard.phone }}</text>
+					<text class="shop-order-detail-address-line">{{ orderDetail.addressCard.address }}</text>
 				</view>
-				<view class="shop-order-detail-goods-main">
-					<text class="shop-order-detail-goods-title">{{ pageMock.goodsCard.title }}</text>
-					<text class="shop-order-detail-goods-spec">{{ pageMock.goodsCard.specText }}</text>
-					<text class="shop-order-detail-goods-price">¥{{ pageMock.goodsCard.price }} x {{ pageMock.goodsCard.quantity }}</text>
-				</view>
-			</view>
 
-			<view class="shop-order-detail-card">
-				<text class="shop-order-detail-card-title">金额明细</text>
 				<view
-					v-for="item in pageMock.amountList"
-					:key="item.key"
-					class="shop-order-detail-row"
+					v-for="goods in orderDetail.goodsList"
+					:key="goods.key"
+					class="shop-order-detail-card shop-order-detail-goods-card"
+					@tap="handleProductOpen(goods)"
 				>
-					<text class="shop-order-detail-row-label">{{ item.label }}</text>
-					<text :class="['shop-order-detail-row-value', item.highlight ? 'shop-order-detail-row-value-highlight' : '']">
-						{{ item.value }}
-					</text>
+					<image
+						v-if="goods.coverImage"
+						class="shop-order-detail-goods-cover"
+						:src="goods.coverImage"
+						mode="aspectFill"
+					/>
+					<view v-else class="shop-order-detail-goods-cover" :style="{ background: goods.coverBackground }">
+						{{ goods.coverText }}
+					</view>
+					<view class="shop-order-detail-goods-main">
+						<text class="shop-order-detail-goods-title">{{ goods.title }}</text>
+						<text class="shop-order-detail-goods-spec">{{ goods.specText }}</text>
+						<text class="shop-order-detail-goods-price">¥{{ goods.price }} x {{ goods.quantity }}</text>
+					</view>
 				</view>
-			</view>
 
-			<view class="shop-order-detail-card">
-				<text class="shop-order-detail-card-title">订单信息</text>
-				<view
-					v-for="item in pageMock.infoList"
-					:key="item.key"
-					class="shop-order-detail-row"
-				>
-					<text class="shop-order-detail-row-label">{{ item.label }}</text>
-					<text class="shop-order-detail-row-value">{{ item.value }}</text>
+				<view v-if="!orderDetail.goodsList.length" class="shop-order-detail-card">
+					<text class="shop-order-detail-card-title">订单无商品</text>
 				</view>
-			</view>
+
+				<view class="shop-order-detail-card">
+					<text class="shop-order-detail-card-title">金额明细</text>
+					<view
+						v-for="item in orderDetail.amountList"
+						:key="item.key"
+						class="shop-order-detail-row"
+					>
+						<text class="shop-order-detail-row-label">{{ item.label }}</text>
+						<text :class="['shop-order-detail-row-value', item.highlight ? 'shop-order-detail-row-value-highlight' : '']">
+							{{ item.value }}
+						</text>
+					</view>
+				</view>
+
+				<view class="shop-order-detail-card">
+					<text class="shop-order-detail-card-title">订单信息</text>
+					<view
+						v-for="item in orderDetail.infoList"
+						:key="item.key"
+						class="shop-order-detail-row"
+					>
+						<text class="shop-order-detail-row-label">{{ item.label }}</text>
+						<text class="shop-order-detail-row-value">{{ item.value }}</text>
+					</view>
+				</view>
+			</template>
 
 			<template #footer>
-				<view class="shop-order-detail-footer">
+				<view v-if="orderDetail" class="shop-order-detail-footer">
 					<view
-						v-for="item in pageMock.actionList"
+						v-for="item in orderDetail.actionList"
 						:key="item.key"
 						:class="['shop-order-detail-footer-button', item.light ? 'shop-order-detail-footer-button-light' : '']"
 						@tap="handleFooterAction(item)"
@@ -124,12 +143,14 @@ import {
 	SHOP_HEADER_BACKGROUND,
 	SHOP_PAGE_BACKGROUND
 } from '@/components/shop/common/shopSurface.js'
-import {
-	getShopCustomerServiceSheetMock,
-	getShopOrderDetailMock
-} from '@/components/shop/common/shopFlowMock.js'
+import { getShopCustomerServiceSheetMock } from '@/components/shop/common/shopFlowMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptOrderDetail } from '@/utils/shopAdapter'
 
-const pageMock = ref(getShopOrderDetailMock())
+const orderDetail = ref(null)
+const loading = ref(false)
+const errorText = ref('')
 const serviceSheetVisible = ref(false)
 const serviceSheetData = ref(getShopCustomerServiceSheetMock({ contextType: 'order' }))
 
@@ -143,18 +164,32 @@ const contentStyle = {
 	paddingBottom: '36rpx'
 }
 
-onLoad((options) => {
-	pageMock.value = getShopOrderDetailMock({
-		orderId: options?.orderId,
-		userId: options?.userId,
-		productId: options?.productId
-	})
-	serviceSheetData.value = getShopCustomerServiceSheetMock({
-		contextType: 'order',
-		orderId: pageMock.value.orderId,
-		userId: options?.userId,
-		productId: pageMock.value.productId
-	})
+onLoad(async (options) => {
+	const orderId = options?.orderId
+	if (!orderId) {
+		errorText.value = '订单 ID 缺失'
+		return
+	}
+	loading.value = true
+	try {
+		const { code, response } = await request.post({
+			url: API.OMS_ORDER_DETAIL,
+			data: { orderId }
+		})
+		if (code !== 200 || response?.state !== 'OK') {
+			errorText.value = response?.message || '加载失败'
+			return
+		}
+		orderDetail.value = adaptOrderDetail(response.content)
+		serviceSheetData.value = getShopCustomerServiceSheetMock({
+			contextType: 'order',
+			orderId: orderDetail.value?.orderId
+		})
+	} catch (e) {
+		errorText.value = e?.message || '网络异常'
+	} finally {
+		loading.value = false
+	}
 })
 
 function handleBack() {
@@ -163,14 +198,14 @@ function handleBack() {
 	})
 }
 
-function handleProductOpen() {
-	onProductOpen(pageMock.value.goodsCard)
-	if (!pageMock.value.goodsCard.detailUrl) {
+function handleProductOpen(goods) {
+	onProductOpen(goods)
+	if (!goods?.detailUrl) {
 		return
 	}
 
 	uni.navigateTo({
-		url: pageMock.value.goodsCard.detailUrl
+		url: goods.detailUrl
 	})
 }
 
@@ -181,8 +216,8 @@ function handleFooterAction(actionItem) {
 		return
 	}
 
-	if (actionItem.key === 'rebuy') {
-		handleProductOpen()
+	if (actionItem.key === 'rebuy' && orderDetail.value?.goodsList?.length) {
+		handleProductOpen(orderDetail.value.goodsList[0])
 		return
 	}
 
@@ -213,7 +248,7 @@ function handleServiceMenuClick(menuItem) {
 }
 
 function handleServicePrimary() {
-	onServicePrimary(pageMock.value.orderId)
+	onServicePrimary(orderDetail.value?.orderId)
 	uni.showToast({
 		title: '开始咨询占位',
 		icon: 'none'
@@ -221,31 +256,31 @@ function handleServicePrimary() {
 }
 
 function handleServiceSecondary() {
-	onServiceSecondary(pageMock.value.orderId)
+	onServiceSecondary(orderDetail.value?.orderId)
 	uni.showToast({
 		title: '投诉反馈占位',
 		icon: 'none'
 	})
 }
 
-function onProductOpen(goodsCard) {
+function onProductOpen(goods) {
 	// TODO：替换订单详情商品点击前置逻辑
-	console.log('shop-order-detail-product-open', goodsCard.title)
+	console.log('shop-order-detail-product-open', goods?.spuId)
 }
 
 function onFooterAction(actionItem) {
 	// TODO：替换订单详情底部操作逻辑
-	console.log('shop-order-detail-footer-action', pageMock.value.orderId, actionItem.key)
+	console.log('shop-order-detail-footer-action', orderDetail.value?.orderId, actionItem.key)
 }
 
 function onServiceQuestionClick(question) {
 	// TODO：替换订单客服快捷问题逻辑
-	console.log('shop-order-detail-service-question', pageMock.value.orderId, question)
+	console.log('shop-order-detail-service-question', orderDetail.value?.orderId, question)
 }
 
 function onServiceMenuClick(menuItem) {
 	// TODO：替换订单客服菜单逻辑
-	console.log('shop-order-detail-service-menu', pageMock.value.orderId, menuItem.key)
+	console.log('shop-order-detail-service-menu', orderDetail.value?.orderId, menuItem.key)
 }
 
 function onServicePrimary(orderId) {
@@ -421,5 +456,18 @@ function onServiceSecondary(orderId) {
 .shop-order-detail-footer-button-light {
 	background: #f8fafc;
 	color: #0f172a;
+}
+
+.shop-order-detail-loading,
+.shop-order-detail-error {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 200rpx;
+	padding: 48rpx 24rpx;
+	font-size: 26rpx;
+	line-height: 36rpx;
+	color: #64748b;
+	text-align: center;
 }
 </style>

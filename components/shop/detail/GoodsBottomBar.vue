@@ -41,11 +41,11 @@ import {
 
 const props = defineProps({
 	orderPrice: {
-		type: Number,
+		type: [Number, String],
 		default: 0
 	},
 	cartCount: {
-		type: Number,
+		type: [Number, String],
 		default: 0
 	}
 })

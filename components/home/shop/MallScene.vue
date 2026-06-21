@@ -35,6 +35,7 @@
 				v-for="zone in zoneList"
 				:key="zone.id"
 				:zone-info="zone"
+				@product-click="handleProductClick"
 				@more-click="handleZoneMore"
 			/>
 		</view>
@@ -133,9 +134,9 @@ async function loadHomePage() {
 async function loadTabZoneList(tabCategoryId) {
 	zoneListLoading.value = true
 	try {
+		const categoryId = tabCategoryId || 0
 		const { code, response } = await request.post({
-			url: API.CMS_TAB_ZONE_LIST,
-			data: { categoryId: tabCategoryId || 0 }
+			url: `${API.CMS_TAB_ZONE_LIST}?categoryId=${encodeURIComponent(categoryId)}`,
 		})
 		if (code !== 200) return
 		if (response?.state !== 'OK') return

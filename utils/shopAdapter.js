@@ -44,6 +44,7 @@ export function adaptSpuDetail(vo) {
   if (!vo) return null
   return {
     id: vo.id,
+    productId: vo.id,
     title: vo.name,
     subTitle: vo.subTitle,
     price: vo.price,
@@ -259,7 +260,74 @@ export const ORDER_STATUS_MAP = {
   30: 'pending-receive',
   40: 'completed',
   50: 'cancelled',
+  60: 'closed',
 }
+
+// ===== TODO: 后端 OrderDetailVO 补字段后移除（summaryCard / timeline / actionList 降级映射）=====
+/**
+ * status → 顶部状态摘要（前端临时降级，等后端 OrderDetailVO 补 summaryCard 字段后删除）
+ * status 取值对齐 OmsOrder 实体常量：10/20/30/40/50/60
+ */
+const ORDER_STATUS_SUMMARY_MAP = {
+  10: {
+    text: '待付款',
+    desc: '请尽快完成支付，超过时限将自动取消订单',
+    helper: '',
+    actions: ['service', 'pay'],
+  },
+  20: {
+    text: '待发货',
+    desc: '商家正在备货，发货后会第一时间同步物流',
+    helper: '',
+    actions: ['service', 'rebuy'],
+  },
+  30: {
+    text: '待收货',
+    desc: '物流正在派送中，请保持电话畅通',
+    helper: '签收后可进行评价与售后',
+    actions: ['service', 'confirm-receive'],
+  },
+  40: {
+    text: '已完成',
+    desc: '订单已完成，商品支持再次购买',
+    helper: '',
+    actions: ['service', 'rebuy'],
+  },
+  50: {
+    text: '已取消',
+    desc: '订单已取消',
+    helper: '',
+    actions: ['service'],
+  },
+  60: {
+    text: '已关闭',
+    desc: '订单已关闭',
+    helper: '',
+    actions: ['service'],
+  },
+}
+
+const ORDER_FOOTER_ACTION_LABEL_MAP = {
+  service: '联系客服',
+  pay: '继续支付',
+  rebuy: '再次购买',
+  'confirm-receive': '确认收货',
+  'refund-progress': '查看进度',
+}
+
+/**
+ * 订单详情底部按钮项
+ * @param {string} key
+ * @returns {{ key: string, label: string, light: boolean }}
+ */
+function buildOrderFooterAction(key) {
+  return {
+    key,
+    label: ORDER_FOOTER_ACTION_LABEL_MAP[key] || '查看详情',
+    light: key === 'service',
+  }
+}
+// ===== TODO: 后端 OrderDetailVO 补字段后移除（结束）=====
 
 /**
  * 通用：分页结构提取
@@ -273,4 +341,207 @@ export function extractPage(content) {
     pageSize: content.pageSize || 10,
     totalPage: content.totalPage || 0,
   }
+}
+
+/**
+ * OrderDetailVO → 前端 orderDetailView
+ *
+ * 输出 7 块：summaryCard / timelineList / addressCard / goodsList / amountList / infoList / actionList
+ *
+ * 当前 summaryCard / timelineList / actionList 为前端临时降级映射，
+ * 后端 OrderDetailVO 补完字段后改为直接透传 vo.summaryCard / vo.timelineList / vo.actionList。
+ *
+ * @param {object} vo OrderDetailVO
+ */
+export function adaptOrderDetail(vo) {
+  if (!vo) return null
+
+  const status = Number(vo.status)
+  const statusKey = Number.isFinite(status) ? status : null
+  const summary = ORDER_STATUS_SUMMARY_MAP[statusKey]
+  if (!summary && statusKey !== null) {
+    console.warn('未知 status:', vo.status)
+  }
+
+  // —— 1. summaryCard（前端临时降级）——
+  const summaryCard = summary
+    ? {
+        statusText: summary.text,
+        statusDesc: summary.desc,
+        helperText: summary.helper,
+      }
+    : {
+        statusText: vo.displayStatus || '',
+        statusDesc: '',
+        helperText: '',
+      }
+
+  // —— 2. timelineList（前端临时降级，依据时间字段派生）——
+  const timelineList = buildOrderDetailTimeline(vo)
+
+  // —— 3. addressCard（前端拼接 address 字符串）——
+  const addressCard = adaptOrderDetailAddress(vo.address)
+
+  // —— 4. goodsList（多商品，遍历 items[]）——
+  const goodsList = (vo.items || []).map((item) => adaptOrderDetailGoods(item)).filter(Boolean)
+
+  // —— 5. amountList（用 discountDetail 展开）——
+  const amountList = buildOrderDetailAmountList(vo)
+
+  // —— 6. infoList（订单信息，按需追加有时间值的节点）——
+  const infoList = buildOrderDetailInfoList(vo)
+
+  // —— 7. actionList（前端临时降级）——
+  const actionList = (summary?.actions || ['service']).map(buildOrderFooterAction)
+
+  return {
+    orderId: vo.orderId,
+    orderSn: vo.orderSn,
+    status: vo.status,
+    displayStatus: vo.displayStatus,
+    afterSaleStatus: vo.afterSaleStatus,
+    afterSaleType: vo.afterSaleType,
+    remark: vo.remark,
+
+    summaryCard,
+    timelineList,
+    addressCard,
+    goodsList,
+    amountList,
+    infoList,
+    actionList,
+  }
+}
+
+/**
+ * AddressSnapshotVO → addressCard
+ * 拼接 province/city/district/detail 为单行 address，便于模板直接渲染
+ */
+function adaptOrderDetailAddress(address) {
+  if (!address) {
+    return { name: '', phone: '', address: '无收货地址' }
+  }
+  const segments = [address.province, address.city, address.district, address.detail].filter(
+    (seg) => seg !== null && seg !== undefined && `${seg}`.trim() !== ''
+  )
+  return {
+    name: address.name || '',
+    phone: address.phone || '',
+    address: segments.length ? segments.join(' ') : '无收货地址',
+  }
+}
+
+/**
+ * OrderItemDetailVO → goodsList item
+ */
+function adaptOrderDetailGoods(item) {
+  if (!item) return null
+  const title = item.spuName || ''
+  return {
+    key: `${item.skuId ?? item.id ?? ''}-${item.spuId ?? ''}`,
+    spuId: item.spuId,
+    skuId: item.skuId,
+    title,
+    specText: item.skuSpecs || '',
+    coverImage: item.skuImage || '',
+    coverText: title ? title.slice(0, 1) : '品',
+    coverBackground: '',
+    price: item.price,
+    quantity: item.quantity,
+    subtotal: item.subtotal,
+    detailUrl: item.spuId ? `/pages/shop/product-detail?productId=${item.spuId}` : '',
+  }
+}
+
+/**
+ * 由 OrderDetailVO 派生 amountList：
+ *   - 商品金额（items 小计合计，回退 totalAmount）
+ *   - 运费
+ *   - 遍历 discountDetail[]
+ *   - 实付金额（高亮）
+ */
+function buildOrderDetailAmountList(vo) {
+  const itemsTotal = (vo.items || []).reduce((sum, item) => {
+    const sub = Number(item?.subtotal)
+    if (Number.isFinite(sub) && sub > 0) return sum + sub
+    const price = Number(item?.price)
+    const qty = Number(item?.quantity)
+    if (Number.isFinite(price) && Number.isFinite(qty)) return sum + price * qty
+    return sum
+  }, 0)
+  const goodsAmount = itemsTotal > 0 ? itemsTotal : Number(vo.totalAmount || 0)
+
+  const list = [
+    { key: 'goods', label: '商品金额', value: formatYuan(goodsAmount) },
+    { key: 'freight', label: '运费', value: formatYuan(vo.freightAmount) },
+  ]
+
+  ;(vo.discountDetail || []).forEach((d) => {
+    if (!d) return
+    const amount = Number(d.amount)
+    if (!Number.isFinite(amount) || amount === 0) return
+    list.push({
+      key: `discount-${d.type || ''}-${d.id ?? ''}`,
+      label: d.name || '优惠抵扣',
+      value: `-¥${Math.abs(amount).toFixed(2)}`,
+    })
+  })
+
+  list.push({
+    key: 'pay',
+    label: '实付金额',
+    value: formatYuan(vo.payAmount),
+    highlight: true,
+  })
+  return list
+}
+
+/**
+ * 由 OrderDetailVO 派生 infoList，仅追加有时间/留言值的节点
+ */
+function buildOrderDetailInfoList(vo) {
+  const list = [
+    { key: 'order-sn', label: '订单编号', value: vo.orderSn || '' },
+    { key: 'create-time', label: '下单时间', value: vo.createTime || '' },
+  ]
+  if (vo.payTime) {
+    list.push({ key: 'pay-time', label: '支付时间', value: vo.payTime })
+  }
+  if (vo.shipTime) {
+    list.push({ key: 'ship-time', label: '发货时间', value: vo.shipTime })
+  }
+  if (vo.payment?.payChannel) {
+    list.push({ key: 'pay-channel', label: '支付方式', value: vo.payment.payChannel })
+  }
+  if (vo.remark) {
+    list.push({ key: 'remark', label: '买家留言', value: vo.remark })
+  }
+  return list
+}
+
+/**
+ * 由 createTime/payTime/shipTime/receiveTime 派生 timelineList（前端临时降级）
+ * 每个有值的时间字段生成一个节点，最后一个为 active
+ */
+function buildOrderDetailTimeline(vo) {
+  const nodes = [
+    { key: 'created', title: '订单创建成功', time: vo.createTime },
+    { key: 'paid', title: '支付完成', time: vo.payTime },
+    { key: 'shipping', title: '商家已发货', time: vo.shipTime },
+    { key: 'received', title: '确认收货', time: vo.receiveTime },
+  ]
+  const present = nodes.filter((n) => n.time)
+  if (present.length === 0) return []
+  return present.map((n, idx) => ({
+    key: n.key,
+    title: n.title,
+    desc: n.time,
+    active: idx === present.length - 1,
+  }))
+}
+
+function formatYuan(value) {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '¥0.00'
+  return `¥${num.toFixed(2)}`
 }
