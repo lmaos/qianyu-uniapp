@@ -86,29 +86,6 @@
 				</view>
 			</view>
 
-			<view v-if="activeTab === 'home' && hotProducts.length > 0" class="shop-store-feature-card">
-				<view class="shop-store-section-head">
-					<text class="shop-store-section-title">店铺热销</text>
-					<text class="shop-store-section-desc">人气精选，本周最热</text>
-				</view>
-
-				<view class="shop-store-feature-list">
-					<view
-						v-for="item in hotProducts.slice(0, 4)"
-						:key="item.id"
-						class="shop-store-feature-item"
-						@tap="handleProductOpen(item)"
-					>
-						<view class="shop-store-feature-cover" :style="{ background: '#f0f3f7' }">
-							<image v-if="item.coverImage" :src="item.coverImage" mode="aspectFill" class="shop-store-feature-image" />
-							<text v-else class="shop-store-feature-cover-text">{{ item.coverText }}</text>
-						</view>
-						<text class="shop-store-feature-title">{{ item.title }}</text>
-						<text class="shop-store-feature-price">¥{{ item.price }}</text>
-					</view>
-				</view>
-			</view>
-
 			<view class="shop-store-goods-card">
 				<view class="shop-store-section-head">
 					<text class="shop-store-section-title">{{ activeTabLabel }}</text>
@@ -137,6 +114,7 @@ import {
 import request from '@/composables/baseRequest'
 import API from '@/utils/api'
 import { adaptProductItem, adaptStoreHome, extractPage } from '@/utils/shopAdapter'
+import { buildShopProductDetailUrl } from '@/pages/shop/_productUrl'
 
 // 当前店铺数据
 const storeInfo = ref({})
@@ -180,17 +158,21 @@ const activeTabLabel = computed(() => {
 
 // 加载店铺首页聚合数据（mch/storeHome）
 async function loadStoreHome() {
-	const { code, response } = await request.post({
-		url: API.MCH_STORE_HOME,
-		data: { merchantId: merchantId.value, hotLimit: 6, newLimit: 6 }
-	})
-	if (code !== 200) return
+	try {
+		const { code, response } = await request.post({
+			url: API.MCH_STORE_HOME,
+			data: { merchantId: merchantId.value, hotLimit: 6, newLimit: 6 }
+		})
+		if (code !== 200) return
 		if (response?.state !== 'OK') return
-	const adapted = adaptStoreHome(response.content || {})
-	storeInfo.value = adapted
-	hotProducts.value = adapted.hotProducts
-	newProducts.value = adapted.newProducts
-	storeId.value = adapted.storeId
+		const adapted = adaptStoreHome(response.content || {}) || {}
+		storeInfo.value = adapted
+		hotProducts.value = adapted.hotProducts || []
+		newProducts.value = adapted.newProducts || []
+		if (adapted.storeId) storeId.value = adapted.storeId
+	} catch (e) {
+		console.error('[store-home] loadStoreHome error:', e)
+	}
 }
 
 // 加载店铺商品列表（mch/shopProductList）
@@ -215,21 +197,27 @@ async function loadShopProductList() {
 
 // 加载关注状态（fav/favStatus）
 async function loadFavStatus() {
-	if (!storeId.value) return
-	const { code, response } = await request.post({
-		url: API.FAV_STATUS,
-		data: { targetType: 2, targetId: storeId.value }
-	})
-	if (code === 200) {
-		followed.value = !!response.content?.isFav
+	try {
+		if (!storeId.value) return
+		const { code, response } = await request.post({
+			url: API.FAV_STATUS,
+			data: { targetType: 2, targetId: storeId.value }
+		})
+		if (code === 200) {
+			followed.value = !!response.content?.isFav
+		}
+	} catch (e) {
+		console.error('[store-home] loadFavStatus error:', e)
 	}
 }
 
-onLoad(async (options) => {
+onLoad((options) => {
 	merchantId.value = options?.merchantId || ''
 	storeId.value = options?.storeId || ''
-	await loadStoreHome()
-	await Promise.all([loadFavStatus(), loadShopProductList()])
+	// loadShopProductList 只依赖 merchantId，独立跑，不被 loadStoreHome 阻塞
+	// loadFavStatus 需要 loadStoreHome 更新后的真实 storeId，必须串行
+	loadStoreHome().then(() => loadFavStatus())
+	loadShopProductList()
 })
 
 watch(activeTab, () => loadShopProductList())
@@ -271,12 +259,8 @@ function handleTabChange(tabItem) {
 
 function handleProductOpen(productInfo) {
 	onProductOpen(productInfo)
-	if (!productInfo?.detailUrl) {
-		return
-	}
-
 	uni.navigateTo({
-		url: productInfo.detailUrl
+		url: buildShopProductDetailUrl(productInfo)
 	})
 }
 
@@ -353,9 +337,7 @@ function onProductOpen(productInfo) {
 .shop-store-summary-value,
 .shop-store-summary-label,
 .shop-store-section-title,
-.shop-store-section-desc,
-.shop-store-feature-title,
-.shop-store-feature-price {
+.shop-store-section-desc {
 	display: block;
 }
 
@@ -398,7 +380,6 @@ function onProductOpen(productInfo) {
 
 .shop-store-summary-card,
 .shop-store-guarantee-card,
-.shop-store-feature-card,
 .shop-store-goods-card {
 	padding: 24rpx;
 	border-radius: 32rpx;
@@ -444,7 +425,6 @@ function onProductOpen(productInfo) {
 }
 
 .shop-store-guarantee-card,
-.shop-store-feature-card,
 .shop-store-goods-card {
 	margin-top: 22rpx;
 }
@@ -507,41 +487,4 @@ function onProductOpen(productInfo) {
 	color: #111827;
 }
 
-.shop-store-feature-list {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 18rpx;
-}
-
-.shop-store-feature-item {
-	padding: 18rpx;
-	border-radius: 28rpx;
-	background: #fff8fb;
-}
-
-.shop-store-feature-cover {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 180rpx;
-	border-radius: 24rpx;
-	font-size: 30rpx;
-	font-weight: 700;
-	color: rgba(17, 24, 39, 0.72);
-}
-
-.shop-store-feature-title {
-	margin-top: 16rpx;
-	font-size: 24rpx;
-	line-height: 34rpx;
-	color: #111827;
-}
-
-.shop-store-feature-price {
-	margin-top: 10rpx;
-	font-size: 28rpx;
-	font-weight: 700;
-	line-height: 36rpx;
-	color: #ef4444;
-}
 </style>

@@ -14,6 +14,8 @@
 export function buildShopProductDetailUrl(productInfo = {}) {
 	const params = []
 	appendParam(params, 'productId', productInfo.id)
+	appendParam(params, 'merchantId', productInfo.merchantId)
+	appendParam(params, 'storeId', productInfo.storeId)
 	appendParam(params, 'title', productInfo.title || productInfo.name)
 	appendParam(params, 'price', productInfo.price)
 	appendParam(params, 'originalPrice', productInfo.originalPrice)

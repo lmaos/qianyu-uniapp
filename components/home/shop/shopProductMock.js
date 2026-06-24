@@ -183,6 +183,8 @@ export function buildCategoryNewProductList(categoryId = 'recommend') {
 export function buildShopProductDetailUrl(productInfo = {}) {
 	return buildShopProductDetailPageUrl('/pages/shop/product-detail', {
 		productId: productInfo.id || '',
+		merchantId: productInfo.merchantId || '',
+		storeId: productInfo.storeId || '',
 		title: productInfo.title || '',
 		price: productInfo.price || '',
 		originalPrice: productInfo.originalPrice || '',
@@ -221,6 +223,15 @@ export function resolveShopProductById(productId = '') {
 	})[itemIndex - 1]
 }
 
+// 详情页商品图文介绍 mock（与 pms_spu.description 真实数据格式一致：HTML 富文本）
+function buildPreviewDescription(product = {}) {
+	const title = product.title || '千语精选好物'
+	return `<p><img src="https://lmaos2019.oss-cn-beijing.aliyuncs.com/mock/2026/06/19/5084e3d8369a4538a38cb0a62fa38a09.jpg"/></p>` +
+		`<p>${title} · 7天无理由 · 全国联保</p>` +
+		`<p><img src="https://lmaos2019.oss-cn-beijing.aliyuncs.com/mock/2026/06/19/6005bbabeda24ba085f22ca4b48a81ae.jpg"/></p>` +
+		`<p>正品保证 · 极速发货 · 售后无忧</p>`
+}
+
 // 将路由参数恢复成详情页可直接消费的商品对象。
 export function buildShopProductFromQuery(query = {}) {
 	const title = readQueryText(query.title)
@@ -231,6 +242,8 @@ export function buildShopProductFromQuery(query = {}) {
 
 	return {
 		id: `${query.productId || ''}`.trim() || 'shop-product-detail',
+		merchantId: readQueryText(query.merchantId),
+		storeId: readQueryText(query.storeId),
 		title: title || '商品详情占位',
 		price: normalizePrice(query.price, 199),
 		originalPrice: normalizePrice(query.originalPrice, 259),
@@ -257,6 +270,8 @@ export function buildShopProductDetailPreview(productInfo = {}) {
 
 	return {
 		productId: baseProduct.id,
+		merchantId: baseProduct.merchantId,
+		storeId: baseProduct.storeId,
 		baseProduct,
 		skuList,
 		evaluateSummary: {
@@ -268,6 +283,7 @@ export function buildShopProductDetailPreview(productInfo = {}) {
 		},
 		reviewList: [],
 		shopInfo: buildPreviewShopInfo(baseProduct),
+		description: buildPreviewDescription(baseProduct),
 		introBlocks: [],
 		serviceMarkdown: '',
 		cartCount: 0
@@ -393,6 +409,8 @@ function normalizePreviewProduct(productInfo = {}) {
 	if (productInfo?.id) {
 		return {
 			id: `${productInfo.id}`.trim() || 'recommend-product-1-1',
+			merchantId: `${productInfo.merchantId || ''}`.trim(),
+			storeId: `${productInfo.storeId || ''}`.trim(),
 			title: `${productInfo.title || '商品详情占位'}`.trim() || '商品详情占位',
 			price: normalizePrice(productInfo.price, 199),
 			originalPrice: normalizePrice(productInfo.originalPrice, normalizePrice(productInfo.price, 199) + 40),

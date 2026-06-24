@@ -74,7 +74,7 @@ const spuInfo = ref({ name: '', image: '' })
 const evaluateData = ref({ evaluateSummary: {}, reviewList: [] })
 const reviewPage = ref({ records: [], totalRow: 0, pageNumber: 1, pageSize: 10, totalPage: 0 })
 const loading = ref(false)
-const currentSpuId = ref(0)
+const currentSpuId = ref('')
 
 const navStyle = computed(() => {
 	return {
@@ -134,8 +134,8 @@ async function loadMoreReview() {
 }
 
 onLoad((options) => {
-	currentSpuId.value = Number(options?.productId || options?.spuId) || 0
-	if (currentSpuId.value > 0) {
+	currentSpuId.value = `${options?.productId || options?.spuId || ''}`.trim()
+	if (currentSpuId.value) {
 		loadEvaluatePage()
 	}
 })

@@ -22,8 +22,13 @@
 
 			<view class="shop-order-card">
 				<text class="shop-order-card-title">收货信息</text>
-				<text class="shop-order-card-desc">张三 13800000000</text>
-				<text class="shop-order-card-desc">广东省深圳市南山区科技园 mock 地址 1001 室</text>
+				<view v-if="addressInfo.id">
+					<text class="shop-order-card-desc">{{ addressInfo.name }} {{ addressInfo.phone }}</text>
+					<text class="shop-order-card-desc">{{ addressInfo.address }}</text>
+				</view>
+				<view v-else>
+					<text class="shop-order-card-desc shop-order-card-desc-empty">暂无收货地址，请先添加</text>
+				</view>
 			</view>
 
 			<view class="shop-order-card">
@@ -86,8 +91,13 @@ import {
 } from '@/components/shop/common/shopSurface.js'
 import { getGoodsDetailMock } from '@/components/shop/detail/shopDetailMock.js'
 import { buildShopOrderDetailUrl } from '@/components/shop/common/shopFlowMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptAddressItem } from '@/utils/shopAdapter'
 
 const orderItemList = ref([])
+const addressInfo = ref({ id: '', name: '', phone: '', address: '' })
+const submitting = ref(false)
 const orderContentStyle = {
 	paddingRight: '24rpx',
 	paddingLeft: '24rpx'
@@ -122,7 +132,32 @@ onLoad((options) => {
 			quantity: item.quantity
 		}))
 	})
+	loadDefaultAddress()
 })
+
+async function loadDefaultAddress() {
+	const { code, response } = await request.post({
+		url: API.ADS_ADDRESS_LIST,
+		data: { pageNum: 1, pageSize: 20 }
+	})
+	if (code !== 200 || response?.state !== 'OK') {
+		return
+	}
+	const list = response.content?.records || response.content?.list || response.content || []
+	const rawList = Array.isArray(list) ? list : []
+	if (!rawList.length) return
+	// pick default address, else first one
+	const defaultItem = rawList.find((it) => it.isDefault) || rawList[0]
+	const adapted = adaptAddressItem(defaultItem)
+	if (adapted) {
+		addressInfo.value = {
+			id: `${adapted.id ?? ''}`,
+			name: adapted.name || '',
+			phone: adapted.phone || '',
+			address: adapted.address || [adapted.province, adapted.city, adapted.district, adapted.detail].filter(Boolean).join(' ')
+		}
+	}
+}
 
 function handleBack() {
 	uni.navigateBack({
@@ -130,7 +165,18 @@ function handleBack() {
 	})
 }
 
-function handleSubmitOrder() {
+async function handleSubmitOrder() {
+	if (submitting.value) return
+	if (!addressInfo.value.id) {
+		uni.showToast({ title: '请先添加收货地址', icon: 'none' })
+		return
+	}
+	if (!orderItemList.value.length) {
+		uni.showToast({ title: '没有可下单的商品', icon: 'none' })
+		return
+	}
+
+	submitting.value = true
 	onSubmitOrder({
 		itemList: orderItemList.value.map((item) => ({
 			productId: item.productId,
@@ -138,12 +184,40 @@ function handleSubmitOrder() {
 			quantity: item.quantity
 		}))
 	})
-	uni.navigateTo({
-		url: buildShopOrderDetailUrl({
-			orderId: 'submit-preview-order',
-			productId: orderItemList.value[0]?.productId
+
+	try {
+		const { code, response } = await request.post({
+			url: API.OMS_ORDER_CREATE,
+			data: {
+				addressId: addressInfo.value.id,
+				items: orderItemList.value.map((item) => ({
+					skuId: item.skuId,
+					quantity: item.quantity
+				}))
+			}
 		})
-	})
+		if (code !== 200 || response?.state !== 'OK') {
+			uni.showToast({ title: response?.message || '下单失败', icon: 'none' })
+			return
+		}
+		const orderId = response.content?.orderId
+		if (!orderId) {
+			uni.showToast({ title: '下单失败：订单 ID 缺失', icon: 'none' })
+			return
+		}
+		uni.showToast({ title: '下单成功', icon: 'success' })
+		// redirect to order-detail, replacing current page so back returns to shop
+		uni.redirectTo({
+			url: buildShopOrderDetailUrl({
+				orderId: `${orderId}`,
+				productId: orderItemList.value[0]?.productId
+			})
+		})
+	} catch (e) {
+		uni.showToast({ title: e?.message || '网络异常', icon: 'none' })
+	} finally {
+		submitting.value = false
+	}
 }
 
 function resolveOrderItemList(options) {
@@ -164,12 +238,13 @@ function resolveOrderItemList(options) {
 }
 
 function buildOrderItem(productId, skuId, quantity) {
+	const safeSkuId = `${skuId ?? ''}`.trim()
 	const detailMock = getGoodsDetailMock(productId)
-	const skuInfo = detailMock.skuList.find((item) => item.id === skuId) || detailMock.skuList[0]
+	const skuInfo = detailMock.skuList.find((item) => `${item.id}` === safeSkuId) || detailMock.skuList[0] || {}
 	return {
-		productId,
-		skuId: skuInfo.id,
-		title: skuInfo.title,
+		productId: `${productId ?? ''}`.trim(),
+		skuId: safeSkuId,
+		title: skuInfo.title || '',
 		price: Number(skuInfo.price) || 0,
 		quantity: Math.max(1, Number(quantity) || 1),
 		shipTime: skuInfo.logisticsInfo?.shipTime || '24小时发货',
@@ -226,6 +301,10 @@ function formatPrice(value) {
 	font-size: 24rpx;
 	line-height: 34rpx;
 	color: #475467;
+}
+
+.shop-order-card-desc-empty {
+	color: #ef4444;
 }
 
 .shop-order-goods-row {

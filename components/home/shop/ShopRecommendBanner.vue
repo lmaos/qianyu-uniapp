@@ -11,13 +11,6 @@
 			<swiper-item v-for="item in bannerList" :key="item.id">
 				<view class="shop-recommend-banner-item" @tap="handleBannerTap(item)">
 					<image class="shop-recommend-banner-image" :src="item.image" mode="aspectFill" />
-					<view class="shop-recommend-banner-overlay">
-						<view class="shop-recommend-banner-content">
-							<view v-if="item.tagText" class="shop-recommend-banner-tag">{{ item.tagText }}</view>
-							<text class="shop-recommend-banner-title">{{ item.title }}</text>
-							<text class="shop-recommend-banner-desc">{{ item.desc }}</text>
-						</view>
-					</view>
 				</view>
 			</swiper-item>
 		</swiper>
@@ -88,52 +81,6 @@ function handleBannerTap(item) {
 	display: block;
 	width: 100%;
 	height: 100%;
-}
-
-.shop-recommend-banner-overlay {
-	position: absolute;
-	inset: 0;
-	background: linear-gradient(90deg, rgba(15, 23, 42, 0.22) 0%, rgba(15, 23, 42, 0.08) 52%, rgba(15, 23, 42, 0.04) 100%);
-}
-
-.shop-recommend-banner-content {
-	position: relative;
-	z-index: 1;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	height: 100%;
-	padding: 0 26rpx;
-	box-sizing: border-box;
-}
-
-.shop-recommend-banner-tag {
-	display: inline-flex;
-	align-items: center;
-	align-self: flex-start;
-	height: 38rpx;
-	padding: 0 16rpx;
-	margin-bottom: 10rpx;
-	border-radius: 999rpx;
-	background: rgba(15, 23, 42, 0.34);
-	font-size: 18rpx;
-	font-weight: 600;
-	line-height: 24rpx;
-	color: rgba(255, 255, 255, 0.96);
-}
-
-.shop-recommend-banner-title {
-	font-size: 30rpx;
-	font-weight: 700;
-	line-height: 38rpx;
-	color: #ffffff;
-}
-
-.shop-recommend-banner-desc {
-	margin-top: 10rpx;
-	font-size: 22rpx;
-	line-height: 30rpx;
-	color: rgba(255, 255, 255, 0.88);
 }
 
 .shop-recommend-banner-indicator {

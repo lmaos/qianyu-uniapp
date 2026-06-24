@@ -16,8 +16,9 @@ export function buildShopSearchUrl({ keyword = '', categoryId = '' } = {}) {
 	})
 }
 
-export function buildShopStoreHomeUrl({ storeId = '', storeName = '', productId = '' } = {}) {
+export function buildShopStoreHomeUrl({ merchantId = '', storeId = '', storeName = '', productId = '' } = {}) {
 	return buildPageUrl('/pages/shop/store-home', {
+		merchantId,
 		storeId,
 		storeName,
 		productId
@@ -64,6 +65,7 @@ export function getShopSearchPageMock({ keyword = '', categoryId = '' } = {}) {
 			followerText: `${12 + index * 3}.6万关注`,
 			tagList: ['官方', '包邮', index === 0 ? '24小时发货' : '客服秒回'],
 			storeUrl: buildShopStoreHomeUrl({
+				merchantId: leadProduct.merchantId,
 				storeId: `search-store-${index + 1}`,
 				storeName: leadProduct.shopName,
 				productId: leadProduct.id

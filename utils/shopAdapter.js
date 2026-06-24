@@ -135,7 +135,7 @@ export function adaptReviewItem(vo) {
     content: vo.content,
     score: vo.score,
     imageList: (vo.images || []).map((url) => ({ background: url, label: '' })),
-    specText: vo.skuSpecs,
+    specText: formatSkuSpecs(vo.skuSpecs),
     merchantReply: vo.merchantReply?.content || null,
     memberLevel: vo.memberLevel || '',
     createTime: vo.createTime,
@@ -152,7 +152,7 @@ export function adaptCartItem(vo) {
     productId: vo.spuId,
     skuId: vo.skuId,
     title: vo.spuName,
-    specText: vo.skuSpecs,
+    specText: formatSkuSpecs(vo.skuSpecs),
     coverImage: vo.skuImage,
     coverText: (vo.spuName || '').slice(0, 1),
     price: vo.price,
@@ -185,7 +185,7 @@ export function adaptOrderSimple(vo) {
     title: firstItem.spuName,
     coverBackground: firstItem.skuImage,
     coverText: (firstItem.spuName || '').slice(0, 1),
-    specText: firstItem.skuSpecs,
+    specText: formatSkuSpecs(firstItem.skuSpecs),
     price: firstItem.price,
     quantity: firstItem.quantity,
     timeText: vo.createTime,
@@ -234,6 +234,46 @@ export function adaptAddressItem(vo) {
     isDefault: vo.isDefault,
     tag: '',
   }
+}
+
+/**
+ * 解析后端 skuSpecs 字段为前端可读文本
+ * 后端返回格式可能为：
+ *   - JSON 字符串：'[{"k":"规格","v":"30ml"}]'  → '规格: 30ml'
+ *   - 逗号分隔：'红色,XL'                       → '红色 XL'
+ *   - 空值 / 其他：原样返回
+ */
+export function formatSkuSpecs(specs) {
+  if (specs === null || specs === undefined) return ''
+  const raw = typeof specs === 'string' ? specs.trim() : ''
+  if (!raw) return ''
+  // 优先尝试 JSON 解析
+  if (raw.startsWith('[') || raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw)
+      const arr = Array.isArray(parsed) ? parsed : [parsed]
+      const parts = arr
+        .filter((it) => it && typeof it === 'object')
+        .map((it) => {
+          const k = it.k ?? it.name ?? it.key ?? ''
+          const v = it.v ?? it.value ?? ''
+          return k && v ? `${k}: ${v}` : `${k}${v}`
+        })
+        .filter(Boolean)
+      if (parts.length) return parts.join('  ')
+    } catch (e) {
+      // 解析失败按原始字符串处理
+    }
+  }
+  // 兼容旧版逗号分隔格式
+  if (raw.includes(',')) {
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join('  ')
+  }
+  return raw
 }
 
 /**
@@ -442,7 +482,7 @@ function adaptOrderDetailGoods(item) {
     spuId: item.spuId,
     skuId: item.skuId,
     title,
-    specText: item.skuSpecs || '',
+    specText: formatSkuSpecs(item.skuSpecs),
     coverImage: item.skuImage || '',
     coverText: title ? title.slice(0, 1) : '品',
     coverBackground: '',

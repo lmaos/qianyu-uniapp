@@ -67,24 +67,19 @@ import API from '@/utils/api'
 import { adaptOrderSimple, extractPage } from '@/utils/shopAdapter'
 
 // status 映射：前端 tab key → 后端 status
+// 已从 7 个精简到 4 个：待发货/已完成/已取消 属于低频状态，用户在「全部」里查看即可
 const STATUS_TO_BACKEND = {
   'all': 0,
   'pending-pay': 1,
-  'pending-send': 2,
   'pending-receive': 3,
-  'completed': 4,
-  'refund': 5,
-  'cancelled': 6
+  'refund': 5
 }
 
 const statusTabList = [
   { key: 'all', label: '全部' },
   { key: 'pending-pay', label: '待付款' },
-  { key: 'pending-send', label: '待发货' },
   { key: 'pending-receive', label: '待收货' },
-  { key: 'completed', label: '已完成' },
-  { key: 'refund', label: '退款/售后' },
-  { key: 'cancelled', label: '已取消' }
+  { key: 'refund', label: '退款售后' }
 ]
 
 const orderList = ref([])

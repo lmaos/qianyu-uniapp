@@ -125,7 +125,7 @@ defineExpose({
 
 .goods-media-swiper-host {
 	height: 620rpx;
-	border-radius: 36rpx;
+	border-radius: 0 0 36rpx 36rpx;
 	overflow: hidden;
 }
 

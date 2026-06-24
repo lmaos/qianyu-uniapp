@@ -2,8 +2,7 @@
 	<view class="shop-detail-page">
 		<FullScreenPageLayout
 			:page-background="SHOP_PAGE_BACKGROUND"
-			:content-style="detailContentStyle"
-			:content-top-offset-px="12"
+			:content-top-offset-px="0"
 			:header-height-rpx="88"
 			:header-side-padding-rpx="24"
 			:header-background="SHOP_HEADER_BACKGROUND"
@@ -42,12 +41,14 @@
 				</ShopSubPageHeader>
 			</template>
 
-			<GoodsMediaSwiper
-				ref="goodsMediaSwiperRef"
-				:media-list="currentMediaList"
-				@media-change="handleMediaChange"
-				@media-click="handleMediaClick"
-			/>
+			<view class="detail-media-bleed" :style="{ marginTop: `-${mediaBleedOffsetPx}px` }">
+				<GoodsMediaSwiper
+					ref="goodsMediaSwiperRef"
+					:media-list="currentMediaList"
+					@media-change="handleMediaChange"
+					@media-click="handleMediaClick"
+				/>
+			</view>
 
 			<GoodsSkuHotBar
 				v-if="skuList.length > 1"
@@ -97,7 +98,10 @@
 
 			<GoodsSpecParamArea :param-list="currentSku.paramList" />
 
-			<GoodsIntroContent :block-list="goodsDetail.introBlocks" />
+			<GoodsIntroContent
+				:html-content="goodsDetail.description"
+				:block-list="goodsDetail.introBlocks"
+			/>
 
 			<GoodsServiceTextArea :markdown-text="goodsDetail.serviceMarkdown" />
 
@@ -184,8 +188,9 @@ import {
 	adaptShopSimpleVo
 } from '@/utils/shopAdapter'
 
-const { windowHeightPx } = useSafeAreaMetrics()
+const { windowHeightPx, safeTopPx, rpxToPx } = useSafeAreaMetrics()
 const skuPopupHeightPx = computed(() => Math.floor(windowHeightPx.value * 0.75))
+const mediaBleedOffsetPx = computed(() => safeTopPx.value + rpxToPx(88))
 
 const goodsDetail = ref(buildShopProductDetailPreview())
 const goodsMediaSwiperRef = ref(null)
@@ -198,10 +203,6 @@ const shopFollowed = ref(false)
 const cartCount = ref(goodsDetail.value.cartCount || 0)
 const serviceSheetVisible = ref(false)
 const serviceSheetData = ref(buildShopCustomerServiceSheetPreview(goodsDetail.value.baseProduct))
-const detailContentStyle = {
-	paddingRight: '24rpx',
-	paddingLeft: '24rpx'
-}
 let fullDetailTimer = null
 let detailLoadRequestId = 0
 
@@ -241,6 +242,17 @@ onUnload(() => {
 // 先用列表传入的轻量首屏数据完成页面布局，再异步替换为完整详情数据。
 function initializeGoodsDetail(options = {}) {
 	const previewDetail = resolveShopProductDetailPreview(options)
+	// 路由传入的真实 productId（snowflake 长整型）优先于 mock 预览生成的 ID，
+	// 否则收藏 / 加购 / 详情 / 评价 / 收藏状态等接口会拿到 recommend-product-1-1 这类 mock ID，
+	// 后端 Long 字段反序列化会报 parseLong error。
+	const realProductId = `${options?.productId || ''}`.trim()
+	if (realProductId) {
+		previewDetail.productId = realProductId
+		previewDetail.id = realProductId
+		if (previewDetail.baseProduct) {
+			previewDetail.baseProduct.id = realProductId
+		}
+	}
 	applyGoodsDetail(previewDetail, {
 		resetActionState: true,
 		resetQuantity: true
@@ -292,7 +304,8 @@ function applyGoodsDetail(nextDetail, { resetActionState = false, resetQuantity 
 
 // 根据商品 ID 加载详情页完整数据（4 路并行）
 async function loadGoodsDetail(productId) {
-	const spuId = Number(productId) || 0
+	// 保留字符串，避免 Number() 对 snowflake ID 精度丢失（后端 Long 可直接解析数字字符串）
+	const spuId = `${productId || ''}`.trim()
 	if (!spuId) return
 
 	// 4 路并行：详情 / 评价 / 收藏状态 / 购物车数量
@@ -334,7 +347,7 @@ async function loadGoodsDetail(productId) {
 	// 购物车角标
 	if (cartRes.code === 200) {
 		if (cartRes.response?.state !== 'OK') return
-		cartCount.value = cartRes.response.content?.totalCount || 0
+		cartCount.value = Number(cartRes.response.content?.totalCount) || 0
 	}
 
 	// 浏览历史（静默）
@@ -358,7 +371,7 @@ function handleBack() {
 
 // 点击收藏按钮后的基础交互。
 async function handleFavoriteClick() {
-	const spuId = Number(goodsDetail.value.id) || 0
+	const spuId = `${goodsDetail.value.id || ''}`.trim()
 	if (!spuId) return
 	const nextCollected = !collected.value
 	const { code } = await request.post({
@@ -427,14 +440,14 @@ function handlePopupQuantityChange(nextQuantity) {
 }
 
 // SKU 弹窗确认后的统一处理入口。
-function handleSkuPopupConfirm(payload) {
+async function handleSkuPopupConfirm(payload) {
 	if (!currentSku.value.stock) {
 		showNoStockToast()
 		return
 	}
 
 	if (payload.mode === 'buy') {
-		const addSuccess = addCurrentSkuToCart('popup-buy')
+		const addSuccess = await addCurrentSkuToCart('popup-buy')
 		if (!addSuccess) {
 			return
 		}
@@ -482,7 +495,8 @@ function handleEnterShopClick() {
 	})
 	uni.navigateTo({
 		url: buildShopStoreHomeUrl({
-			storeId: `${goodsDetail.value.productId}-store`,
+			merchantId: goodsDetail.value.merchantId,
+			storeId: goodsDetail.value.storeId,
 			storeName: goodsDetail.value.shopInfo?.name,
 			productId: goodsDetail.value.productId
 		})
@@ -496,7 +510,8 @@ function handleBottomShopClick() {
 	})
 	uni.navigateTo({
 		url: buildShopStoreHomeUrl({
-			storeId: `${goodsDetail.value.productId}-store`,
+			merchantId: goodsDetail.value.merchantId,
+			storeId: goodsDetail.value.storeId,
 			storeName: goodsDetail.value.shopInfo?.name,
 			productId: goodsDetail.value.productId
 		})
@@ -517,8 +532,8 @@ function handleBottomCartClick() {
 }
 
 // 底部加入购物车：直接使用当前 SKU，不再额外弹窗。
-function handleBottomAddCartClick() {
-	addCurrentSkuToCart('bottom-add-cart')
+async function handleBottomAddCartClick() {
+	await addCurrentSkuToCart('bottom-add-cart')
 }
 
 // 底部下单：拉起 SKU 弹窗，默认选中当前 SKU。
@@ -545,13 +560,29 @@ function selectSku(skuItem) {
 	onSkuChange(skuItem)
 }
 
-function addCurrentSkuToCart(source) {
+async function addCurrentSkuToCart(source) {
 	if (!currentSku.value.stock) {
 		showNoStockToast()
 		return false
 	}
 
-	cartCount.value += skuQuantity.value
+	const { code, response } = await request.post({
+		url: API.OMS_CART_ADD,
+		data: {
+			spuId: goodsDetail.value.productId,
+			skuId: currentSku.value.id,
+			quantity: skuQuantity.value
+		}
+	})
+	if (code !== 200 || response?.state !== 'OK') {
+		uni.showToast({
+			title: response?.message || '加入购物车失败',
+			icon: 'none'
+		})
+		return false
+	}
+
+	cartCount.value = Number(cartCount.value) + skuQuantity.value
 	onAddCartClick({
 		productId: goodsDetail.value.productId,
 		skuId: currentSku.value.id,

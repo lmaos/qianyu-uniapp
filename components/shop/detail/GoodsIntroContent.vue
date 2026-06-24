@@ -1,22 +1,39 @@
 <template>
-	<view class="goods-intro-card">
+	<view v-if="htmlContent || blockList.length" class="goods-intro-card">
 		<text class="goods-intro-title">商品图文介绍</text>
-		<view v-for="item in blockList" :key="item.id" class="goods-intro-block">
-			<text v-if="item.type === 'title'" class="goods-intro-block-title">{{ item.text }}</text>
-			<text v-else-if="item.type === 'text'" class="goods-intro-block-text">{{ item.text }}</text>
-			<view v-else class="goods-intro-block-image" :style="{ background: item.background }">
-				<text class="goods-intro-block-image-text">{{ item.label }}</text>
+		<rich-text v-if="htmlContent" class="goods-intro-rich" :nodes="processedHtml"></rich-text>
+		<view v-else>
+			<view v-for="item in blockList" :key="item.id" class="goods-intro-block">
+				<text v-if="item.type === 'title'" class="goods-intro-block-title">{{ item.text }}</text>
+				<text v-else-if="item.type === 'text'" class="goods-intro-block-text">{{ item.text }}</text>
+				<view v-else class="goods-intro-block-image" :style="{ background: item.background }">
+					<text class="goods-intro-block-image-text">{{ item.label }}</text>
+				</view>
 			</view>
 		</view>
 	</view>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
+	htmlContent: {
+		type: String,
+		default: ''
+	},
 	blockList: {
 		type: Array,
 		default: () => []
 	}
+})
+
+const processedHtml = computed(() => {
+	if (!props.htmlContent) return ''
+	return props.htmlContent.replace(
+		/<img/gi,
+		'<img style="max-width:100%;height:auto;display:block;"'
+	)
 })
 </script>
 
@@ -31,10 +48,15 @@ defineProps({
 
 .goods-intro-title {
 	display: block;
+	margin-bottom: 20rpx;
 	font-size: 30rpx;
 	font-weight: 600;
 	line-height: 40rpx;
 	color: #111827;
+}
+
+.goods-intro-rich {
+	width: 100%;
 }
 
 .goods-intro-block + .goods-intro-block {
