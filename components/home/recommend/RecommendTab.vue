@@ -1,7 +1,7 @@
 <template>
 	<view class="recommend-tab">
 		<RecommendFeedMasonry
-			:item-list="renderList"
+			:item-list="feedItems"
 			:active="active"
 			:parent-scroll-top-px="parentScrollTop"
 			:container-width-rpx="containerWidthRpx"
@@ -16,9 +16,10 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import RecommendFeedMasonry from '@/components/home/recommend/RecommendFeedMasonry.vue'
-import { buildRecommendFeedSource, recommendFeedMock } from '@/components/home/recommend/recommendFeedMock.js'
+import { fetchRecommendCards } from '@/composables/useRecommendApi.js'
+import { dispatchNavigationAction } from '@/components/common/navigation/navigationActionRouter.js'
 
 const props = defineProps({
 	active: {
@@ -35,41 +36,49 @@ const props = defineProps({
 	}
 })
 
-const sourceList = buildRecommendFeedSource(40)
-const currentPage = ref(1)
-const refreshCursor = ref(0)
+const PAGE_LIMIT = 20
+
+const feedItems = ref([])
+const cursor = ref(0)
+const hasMore = ref(true)
 const loadingMore = ref(false)
-const pendingTaskList = new Set()
+const loaded = ref(false)
 
-const rotatedSourceList = computed(() => {
-	if (!sourceList.length) {
-		return []
-	}
-
-	const offset = refreshCursor.value % sourceList.length
-	return offset ? [...sourceList.slice(offset), ...sourceList.slice(0, offset)] : sourceList
-})
-
-const renderList = computed(() => {
-	return rotatedSourceList.value.slice(0, currentPage.value * recommendFeedMock.pageSize)
-})
 
 /**
  * 推荐频道自己的尾部文案只保留“继续上滑”这种静态引导。
  * 真正的“加载中 / 已到底 / 无更多内容”统一交给首页外层 PullPagingShell，
  * 这样不会和通用触底提示条出现双份文案。
  */
-const hasMoreItems = computed(() => {
-	return renderList.value.length < rotatedSourceList.value.length
-})
+// hasMore 由 API 返回的游标字段控制
+
 
 const footerText = computed(() => {
-	if (!hasMoreItems.value || loadingMore.value) {
+	if (!hasMore.value || loadingMore.value || !loaded.value) {
 		return ''
 	}
 
 	return '继续上滑，查看更多推荐'
 })
+
+// ── 初始加载 ─────────────────────────────────────
+
+onMounted(() => {
+	loadFirstPage()
+})
+
+async function loadFirstPage() {
+	try {
+		const result = await fetchRecommendCards(0, PAGE_LIMIT)
+		feedItems.value = result.items
+		cursor.value = result.nextCursor
+		hasMore.value = result.hasMore
+	} catch (err) {
+		console.error('[RecommendTab] initial load failed', err)
+	} finally {
+		loaded.value = true
+	}
+}
 
 function handleItemClick(item) {
 	onRecommendItemClick(item)
@@ -77,9 +86,11 @@ function handleItemClick(item) {
 		return
 	}
 
-	uni.navigateTo({
-		url: item.detailUrl
-	})
+	if (item.detailUrl.startsWith('page://')) {
+		dispatchNavigationAction(item.detailUrl)
+	} else {
+		uni.navigateTo({ url: item.detailUrl })
+	}
 }
 
 function handleAuthorClick(item) {
@@ -93,47 +104,54 @@ function handleAuthorClick(item) {
 	})
 }
 
-function handleParentReachLower() {
+async function handleParentReachLower() {
 	if (!props.active || loadingMore.value) {
-		return Promise.resolve({ status: 'busy' })
+		return { status: 'busy' }
 	}
 
-	// 已经到尾页时直接交给外层展示“无更多内容”，不再走一轮伪加载。
-	if (!hasMoreItems.value) {
-		return Promise.resolve({ status: 'no-more' })
+	if (!hasMore.value) {
+		return { status: 'no-more' }
 	}
 
 	loadingMore.value = true
 	onLoadMore()
-	return scheduleTask({
-		delay: recommendFeedMock.loadDelayMs,
-		cancelValue: { status: 'busy' },
-		run: (resolve) => {
-			currentPage.value += 1
-			loadingMore.value = false
-			resolve({ status: 'loaded' })
-		}
-	})
-}
 
-function handleParentRefresh() {
+	try {
+		const result = await fetchRecommendCards(cursor.value, PAGE_LIMIT)
+		if (!props.active) {
+			return { status: 'loaded' }
+		}
+		feedItems.value = [...feedItems.value, ...result.items]
+		cursor.value = result.nextCursor
+		hasMore.value = result.hasMore
+		return { status: 'loaded' }
+	} catch (err) {
+		console.error('[RecommendTab] load more failed', err)
+		return { status: 'loaded' }
+	} finally {
+		loadingMore.value = false
+	}
+}
+async function handleParentRefresh() {
 	if (!props.active) {
-		return Promise.resolve()
+		return
 	}
 
 	onRefresh()
-	return scheduleTask({
-		delay: recommendFeedMock.refreshDelayMs,
-		cancelValue: undefined,
-		run: (resolve) => {
-			// 下拉刷新只重置推荐流的分页游标，不改动通用首页壳的滚动协议。
-			refreshCursor.value =
-				(refreshCursor.value + recommendFeedMock.refreshRotateStep) % Math.max(1, sourceList.length)
-			currentPage.value = 1
-			loadingMore.value = false
-			resolve()
+	loadingMore.value = false
+	cursor.value = 0
+
+	try {
+		const result = await fetchRecommendCards(0, PAGE_LIMIT)
+		if (!props.active) {
+			return
 		}
-	})
+		feedItems.value = result.items
+		cursor.value = result.nextCursor
+		hasMore.value = result.hasMore
+	} catch (err) {
+		console.error('[RecommendTab] refresh failed', err)
+	}
 }
 
 watch(
@@ -141,58 +159,25 @@ watch(
 	(value) => {
 		if (!value) {
 			loadingMore.value = false
-			clearPendingTasks()
 		}
 	},
 )
 
-onBeforeUnmount(() => {
-	clearPendingTasks()
-})
-
-function scheduleTask({ delay = 0, cancelValue, run }) {
-	return new Promise((resolve) => {
-		const task = {
-			timer: null,
-			resolve,
-			cancelValue
-		}
-
-		task.timer = setTimeout(() => {
-			pendingTaskList.delete(task)
-			run(resolve)
-		}, delay)
-
-		pendingTaskList.add(task)
-	})
-}
-
-function clearPendingTasks() {
-	pendingTaskList.forEach((task) => {
-		clearTimeout(task.timer)
-		task.resolve(task.cancelValue)
-	})
-	pendingTaskList.clear()
-}
 
 function onRefresh() {
-	// TODO：替换推荐流下拉刷新接口
-	console.log('recommend-refresh')
+	// 暂无埋点
 }
 
 function onLoadMore() {
-	// TODO：替换推荐流分页加载接口
-	console.log('recommend-load-more')
+	// 暂无埋点
 }
 
 function onRecommendItemClick(item) {
-	// TODO：替换推荐流卡片点击埋点或路由协议
-	console.log('recommend-item-click', item?.id , item?.detailUrl)
+	// 暂无埋点
 }
 
 function onRecommendAuthorClick(item) {
-	// TODO：替换推荐流作者点击埋点或主页跳转协议
-	console.log('recommend-author-click', item?.id , item?.detailUrl)
+	// 暂无埋点
 }
 
 defineExpose({

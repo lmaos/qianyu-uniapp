@@ -7,6 +7,54 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 
+def _build_mock_feed_cards():
+    """生成 mock 推荐 FeedCardVo 列表（轻量卡片）"""
+    authors = [
+        {'authorId': 100001, 'nickname': '千隅同学', 'avatar': 'https://picsum.photos/seed/fa1/100/100'},
+        {'authorId': 100002, 'nickname': '阿青轻生活', 'avatar': 'https://picsum.photos/seed/fa2/100/100'},
+        {'authorId': 100003, 'nickname': '逗咖萌主', 'avatar': 'https://picsum.photos/seed/fa3/100/100'},
+        {'authorId': 100004, 'nickname': '白金今天穿什么', 'avatar': 'https://picsum.photos/seed/fa4/100/100'},
+        {'authorId': 100005, 'nickname': '周末散步计划', 'avatar': ''},
+        {'authorId': 100006, 'nickname': '奶油房间日记', 'avatar': None},
+    ]
+    titles = [
+        ('今天的日落 🌇', 'video'),
+        ('周末 city walk 的轻松穿搭灵感', 'image'),
+        ('直播间里顺手挖到的新款单品', 'video'),
+        ('把卧室角落布置成舒服又耐看的样子', 'image'),
+        ('最近反复回看的护肤和居家清单', 'image'),
+        ('下班后随手记录的一条图文笔记', 'image'),
+        ('用一条宠物视频测试 nvue 滑轨', 'video'),
+        ('复古胶片感手机摄影技巧分享', 'image'),
+        ('一人食晚餐记录 🍜', 'video'),
+        ('北欧家居灵感 🏠', 'image'),
+    ]
+
+    cards = []
+    base_moment_id = 6257117397155800
+    for i in range(40):
+        author = authors[i % len(authors)]
+        title_info = titles[i % len(titles)]
+        is_video = title_info[1] == 'video'
+        moment_id = base_moment_id - i
+        cards.append({
+            'momentId': moment_id,
+            'authorId': author['authorId'],
+            'nickname': author['nickname'],
+            'avatar': author['avatar'] or '',
+            'coverUrl': f'https://picsum.photos/seed/fc{i}/400/{600 if is_video else 500}',
+            'title': title_info[0],
+            'type': title_info[1],
+            'likeCount': 42 + i * 7,
+            'commentCount': 7 + i * 2,
+            'viewCount': 2300 + i * 130 if is_video else 0,
+            'hasLike': i % 3 == 0,
+        })
+    return cards
+
+
+FEED_CARDS = _build_mock_feed_cards()
+
 def _build_mock_contents(tab):
     """生成 mock 内容列表，每个 tab 返回固定数据"""
     items = {
@@ -197,6 +245,130 @@ class TestHandler(BaseHTTPRequestHandler):
                 'message': 'OK',
             })
 
+        # ── 推荐 Feed 卡片 API ──────────────────────────────
+
+        elif path == '/api/social/feed/recommend/cards' or path == '/api/social/feed/following/cards':
+            cursor = int(qp.get('cursor', [0])[0] or '0')
+            limit = int(qp.get('limit', [20])[0] or '20')
+
+            start = 0
+            if cursor > 0:
+                for i, card in enumerate(FEED_CARDS):
+                    if card['momentId'] < cursor:
+                        start = i
+                        break
+            page = FEED_CARDS[start:start + limit]
+            next_cursor = page[-1]['momentId'] if page else 0
+            has_more = start + limit < len(FEED_CARDS)
+
+            self._send_json(200, {
+                'requestId': 'test-feed-req-id',
+                'status': 0,
+                'state': 'OK',
+                'content': {
+                    'datas': page,
+                    'nextCursor': next_cursor,
+                    'hasMore': has_more,
+                },
+                'message': 'OK',
+            })
+
+        # ── 动态详情 ─────────────────────────────────
+
+        elif path == '/api/social/moment/get':
+            import time
+            now_ms = int(time.time() * 1000)
+            moment_id = int(qp.get('momentId', [0])[0] or '0')
+            self._send_json(200, {
+                'requestId': 'test-moment-req-id', 'status': 0, 'state': 'OK',
+                'content': {
+                    'momentId': moment_id, 'authorId': 100001,
+                    'nickname': '千隅同学', 'avatar': 'https://picsum.photos/seed/detail_avatar/200/200',
+                    'content': {
+                        'type': 'image',
+                        'text': {'text': '今天的日落 🌇 记录生活里的美好瞬间，分享给每一个热爱生活的你。', 'atIds': []},
+                        'image': [{'imageId': 'img_001', 'imageUrl': 'https://picsum.photos/seed/detail1/800/600', 'width': 800, 'height': 600}],
+                    },
+                    'latitude': 22.5431, 'longitude': 114.0579, 'country': 'CN',
+                    'likes': 42, 'comments': 7, 'hasLike': False, 'status': 0, 'createTime': now_ms,
+                }, 'message': 'OK',
+            })
+
+        # ── 评论列表（游标分页）───────────────────────
+
+        elif path == '/api/social/comment/moment/list':
+            import time
+            now_ms = int(time.time() * 1000)
+            moment_id = int(qp.get('momentId', [0])[0] or '0')
+            next_cid = int(qp.get('nextCommentId', [0])[0] or '0')
+            limit = int(qp.get('limit', [20])[0] or '20')
+            mock_comments = [
+                {'commentId': 9001, 'momentId': moment_id, 'momentAuthorId': 100001, 'authorId': 100002,
+                 'nickname': '阿青轻生活', 'avatar': 'https://picsum.photos/seed/c1/100/100',
+                 'parentCommentId': 0, 'replyCommentId': 0, 'replyUserId': 0, 'commentLevel': 1,
+                 'content': {'text': {'text': '拍得真好看！夕阳无限好 🌇', 'atIds': []}},
+                 'status': 0, 'likes': 5, 'replies': 2, 'hasLike': False, 'clientTime': now_ms - 3600000},
+                {'commentId': 9002, 'momentId': moment_id, 'momentAuthorId': 100001, 'authorId': 100003,
+                 'nickname': '逗咖萌主', 'avatar': 'https://picsum.photos/seed/c2/100/100',
+                 'parentCommentId': 0, 'replyCommentId': 0, 'replyUserId': 0, 'commentLevel': 1,
+                 'content': {'text': {'text': '这是在哪拍的呀？', 'atIds': []}},
+                 'status': 0, 'likes': 3, 'replies': 1, 'hasLike': True, 'clientTime': now_ms - 7200000},
+            ]
+            start = 0
+            if next_cid > 0:
+                for i, c in enumerate(mock_comments):
+                    if c['commentId'] <= next_cid:
+                        start = i + 1
+                    else:
+                        break
+            page = mock_comments[start:start + limit]
+            next_cursor_val = page[-1]['commentId'] if page else 0
+            has_more = start + limit < len(mock_comments)
+            self._send_json(200, {
+                'requestId': 'test-cmt-req-id', 'status': 0, 'state': 'OK',
+                'content': {
+                    'momentId': moment_id, 'parentCommentId': 0,
+                    'nextCommentId': next_cursor_val, 'hasMore': has_more,
+                    'commentList': page,
+                }, 'message': 'OK',
+            })
+
+        # ── 回复列表（游标分页）───────────────────────
+
+        elif path == '/api/social/comment/reply/list':
+            import time
+            now_ms = int(time.time() * 1000)
+            parent_id = int(qp.get('parentCommentId', [0])[0] or '0')
+            next_cid = int(qp.get('nextCommentId', [0])[0] or '0')
+            limit = int(qp.get('limit', [20])[0] or '20')
+            mock_replies = [
+                {'commentId': 9101, 'momentId': 0, 'momentAuthorId': 100001, 'authorId': 100001,
+                 'nickname': '千隅同学', 'avatar': 'https://picsum.photos/seed/detail_avatar/200/200',
+                 'parentCommentId': parent_id, 'replyCommentId': 9001, 'replyUserId': 100002,
+                 'commentLevel': 2,
+                 'content': {'text': {'text': '@阿青轻生活 谢谢！在深圳湾拍的 😄', 'atIds': [100002]}},
+                 'status': 0, 'likes': 1, 'replies': 0, 'hasLike': False,
+                 'clientTime': now_ms - 1800000},
+            ]
+            start = 0
+            if next_cid > 0:
+                for i, c in enumerate(mock_replies):
+                    if c['commentId'] <= next_cid:
+                        start = i + 1
+                    else:
+                        break
+            page = mock_replies[start:start + limit]
+            next_cursor_val = page[-1]['commentId'] if page else 0
+            has_more = start + limit < len(mock_replies)
+            self._send_json(200, {
+                'requestId': 'test-reply-req-id', 'status': 0, 'state': 'OK',
+                'content': {
+                    'momentId': 0, 'parentCommentId': parent_id,
+                    'nextCommentId': next_cursor_val, 'hasMore': has_more,
+                    'commentList': page,
+                }, 'message': 'OK',
+            })
+
         else:
             self._send_json(404, {'code': 404, 'message': 'not found'})
 
@@ -314,6 +486,110 @@ class TestHandler(BaseHTTPRequestHandler):
                     },
                 },
                 'message': 'OK',
+            })
+
+        # ── 文件上传 ─────────────────────────────────
+
+        if path == '/api/storage/upload':
+            import time
+            file_id = int(time.time() * 1000) % 100000
+            return self._send_json(200, {
+                'requestId': 'test-storage-req-id',
+                'status': 0,
+                'state': 'OK',
+                'content': {
+                    'id': file_id,
+                    'url': f'https://cdn.clmcat.com/moment/image/test_{file_id}.jpg',
+                    'key': f'moment/image/test_{file_id}.jpg',
+                    'platform': 'oss',
+                    'fileType': 'jpg',
+                },
+                'message': 'OK',
+            })
+
+        # ── 动态发布 ─────────────────────────────────
+
+        if path == '/api/social/moment/publish':
+            content_data = body.get('content', {}) if isinstance(body, dict) else {}
+            import time
+            now_ms = int(time.time() * 1000)
+            mock_moment_id = 8257117397155900 + (now_ms % 1000)
+            return self._send_json(200, {
+                'requestId': 'test-moment-req-id',
+                'status': 0,
+                'state': 'OK',
+                'content': {
+                    'momentId': mock_moment_id,
+                    'authorId': 100001,
+                    'content': content_data,
+                    'latitude': body.get('latitude', 0),
+                    'longitude': body.get('longitude', 0),
+                    'country': body.get('country', 'CN'),
+                    'likes': 0,
+                    'comments': 0,
+                    'hasLike': False,
+                    'status': 0,
+                    'createTime': now_ms,
+                },
+                'message': 'OK',
+            })
+
+        # ── 评论发布 ─────────────────────────────────
+
+        if path == '/api/social/comment/publish':
+            import time
+            now_ms = int(time.time() * 1000)
+            mock_comment_id = 9900 + (now_ms % 1000)
+            parent_cid = body.get('parentCommentId', 0) if isinstance(body, dict) else 0
+            return self._send_json(200, {
+                'requestId': 'test-cmt-pub-req-id', 'status': 0, 'state': 'OK',
+                'content': {
+                    'commentId': mock_comment_id, 'momentId': body.get('momentId', 0),
+                    'momentAuthorId': 100001, 'authorId': 100001,
+                    'nickname': '千隅同学', 'avatar': '',
+                    'parentCommentId': parent_cid,
+                    'replyCommentId': body.get('replyCommentId', 0),
+                    'replyUserId': 0, 'commentLevel': 1 if parent_cid == 0 else 2,
+                    'content': body.get('content', {}),
+                    'status': 0, 'likes': 0, 'replies': 0, 'hasLike': False,
+                    'clientTime': now_ms,
+                }, 'message': 'OK',
+            })
+
+        # ── 删除评论 ─────────────────────────────────
+
+        elif path == '/api/social/comment/delete':
+            return self._send_json(200, {
+                'requestId': 'test-cmt-del-req-id', 'status': 0, 'state': 'OK',
+                'content': True, 'message': 'OK',
+            })
+
+        # ── 点赞/取消点赞动态 ─────────────────────────
+
+        elif path == '/api/social/like/moment':
+            return self._send_json(200, {
+                'requestId': 'test-like-req-id', 'status': 0, 'state': 'OK',
+                'content': True, 'message': 'OK',
+            })
+
+        elif path == '/api/social/like/moment/cancel':
+            return self._send_json(200, {
+                'requestId': 'test-like-req-id', 'status': 0, 'state': 'OK',
+                'content': True, 'message': 'OK',
+            })
+
+        # ── 点赞/取消点赞评论 ─────────────────────────
+
+        elif path == '/api/social/like/comment':
+            return self._send_json(200, {
+                'requestId': 'test-like-req-id', 'status': 0, 'state': 'OK',
+                'content': True, 'message': 'OK',
+            })
+
+        elif path == '/api/social/like/comment/cancel':
+            return self._send_json(200, {
+                'requestId': 'test-like-req-id', 'status': 0, 'state': 'OK',
+                'content': True, 'message': 'OK',
             })
 
         # ── 默认回声 ─────────────────────────────────

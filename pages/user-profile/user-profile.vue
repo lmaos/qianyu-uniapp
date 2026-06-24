@@ -139,8 +139,11 @@ import { buildMessageChatUrl } from '@/components/message/messageMock.js'
 import UserContentTabBar from '@/components/user-center/main/UserContentTabBar.vue'
 import UserDynamicList from '@/components/user-center/main/UserDynamicList.vue'
 import UserWorkGrid from '@/components/user-center/main/UserWorkGrid.vue'
-import { createMainTabPageState, getUserCenterMainMock } from '@/components/user-center/userCenterMock.js'
+import { createMainTabPageState } from '@/components/user-center/userCenterMock.js'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
+import { getUserInfo } from '@/core/user/UserService.js'
+import { followUser, unfollowUser, fetchFollowRelation, fetchFollowCount } from '@/composables/useSocialApi.js'
+import { fetchAuthorMomentList, adaptMomentToProfileItem } from '@/composables/useMomentApi.js'
 
 const { safeTopPx, rpxToPx } = useSafeAreaMetrics()
 
@@ -160,7 +163,6 @@ const pageConfig = {
 	bottomPullCollapseDurationMs: 380
 }
 
-const profileMock = ref(getUserCenterMainMock())
 const profile = ref({
 	userId: 'user-unknown',
 	nickname: '好友',
@@ -181,8 +183,70 @@ const tabList = ref([
 	{ key: 'dynamic', label: '动态' },
 	{ key: 'works', label: '作品' }
 ])
-const dynamicSourceList = ref([...profileMock.value.dynamicSourceList])
-const workSourceList = ref([...profileMock.value.workSourceList])
+const dynamicSourceList = ref([])
+const workSourceList = ref([])
+const userStats = ref({ likeCount: 0, followCount: 0, followerCount: 0 })
+
+// ── API 加载函数 ──
+
+async function loadUserProfile(userId) {
+	if (!userId || userId === 'user-unknown') return
+	const info = await getUserInfo(Number(userId))
+	if (!info) return
+	profile.value = {
+		...profile.value,
+		nickname: info.nickname || profile.value.nickname,
+		avatar: info.avatar || '',
+		avatarText: (info.nickname || '?')[0],
+		signature: info.bio || '',
+		locationText: [info.country, info.province, info.city].filter(Boolean).join(' · ') || ''
+	}
+}
+
+async function loadFollowRelation(userId) {
+	if (!userId || userId === 'user-unknown') return
+	const numId = Number(userId)
+	const [relation, counts] = await Promise.all([
+		fetchFollowRelation(numId),
+		fetchFollowCount(numId)
+	])
+	if (relation) {
+		profile.value = {
+			...profile.value,
+			isFollowed: relation.follow,
+			isMutualFollow: relation.follower,
+			isFriend: relation.friend
+		}
+	}
+	if (counts) {
+		userStats.value = {
+			...userStats.value,
+			followCount: counts.followCount || 0,
+			followerCount: counts.followerCount || 0
+		}
+	}
+}
+
+async function loadAuthorMoments(userId) {
+	if (!userId || userId === 'user-unknown') return
+	const res = await fetchAuthorMomentList(Number(userId))
+	const items = res.datas.map(adaptMomentToProfileItem)
+	dynamicSourceList.value = items
+	workSourceList.value = items.filter(i => i.hasMedia)
+	dynamicPage.value = 1
+	workPage.value = 1
+	dynamicNoMore.value = !res.hasMore
+	workNoMore.value = !res.hasMore
+}
+
+function formatNum(num) {
+	if (num == null || num === 0) return '0'
+	const n = Number(num)
+	if (n >= 10000) {
+		return (n / 10000).toFixed(1).replace(/\.0$/, '') + 'w'
+	}
+	return String(n)
+}
 const activeTab = ref('dynamic')
 const dynamicPage = ref(1)
 const workPage = ref(1)
@@ -354,45 +418,41 @@ const resonanceActionList = computed(() => [
 
 const statsList = computed(() => {
 	return [
-		{ label: '获赞', value: createMockCount(16) },
-		{ label: '关注', value: createMockCount(8) },
-		{ label: '粉丝', value: createMockCount(28) }
+		{ label: '获赞', value: formatNum(userStats.value.likeCount) },
+		{ label: '关注', value: formatNum(userStats.value.followCount) },
+		{ label: '粉丝', value: formatNum(userStats.value.followerCount) }
 	]
 })
 
-onLoad((options) => {
+onLoad(async (options) => {
 	const userId = `${options.userId || ''}`.trim() || 'user-unknown'
-	const relationFlags = resolveRelationFlags(options)
-	const nextMock = getUserCenterMainMock(userId)
-	const nickname = decodeValue(options.nickname) || '好友'
 
-	profileMock.value = nextMock
-	dynamicSourceList.value = [...nextMock.dynamicSourceList]
-	workSourceList.value = [...nextMock.workSourceList]
-	dynamicPage.value = 1
-	workPage.value = 1
-	dynamicNoMore.value = dynamicSourceList.value.length <= pageConfig.pageSize
-	workNoMore.value = workSourceList.value.length <= pageConfig.pageSize
-
+	// 先设置基础信息（可能从路由参数传来）
 	profile.value = {
 		userId,
-		nickname,
+		nickname: decodeValue(options.nickname) || '',
 		displayId: decodeValue(options.displayId) || buildDisplayId(userId),
-		avatar: decodeValue(options.avatar),
-		avatarText: decodeValue(options.avatarText) || nickname.slice(0, 2),
+		avatar: decodeValue(options.avatar) || '',
+		avatarText: decodeValue(options.avatarText) || (decodeValue(options.nickname) || '?').slice(0, 2),
 		vipLevel: normalizeVipLevel(options.vipLevel),
-		signature: decodeValue(options.signature) || buildMockSignature(nickname),
-		locationText: decodeValue(options.locationText) || buildMockLocation(userId),
+		signature: decodeValue(options.signature) || '',
+		locationText: decodeValue(options.locationText) || '',
 		conversationId: `${options.conversationId || ''}`.trim(),
 		onlineState: normalizeOnlineState(options.onlineState),
-		isFollowed: relationFlags.isFollowed,
-		isMutualFollow: relationFlags.isMutualFollow,
-		isFriend: relationFlags.isFriend
+		isFollowed: false,
+		isMutualFollow: false,
+		isFriend: false
 	}
 
+	// 并行加载用户信息、关注关系、动态列表
+	await Promise.all([
+		loadUserProfile(userId),
+		loadFollowRelation(userId),
+		loadAuthorMoments(userId)
+	])
+
 	scheduleMeasureListAnchor()
-	// TODO：替换好友资料页初始化接口
-})
+}))
 
 onMounted(() => {
 	scheduleMeasureListAnchor()
@@ -408,44 +468,37 @@ function handleBack() {
 	})
 }
 
-function handleFollow() {
+async function handleFollow() {
 	if (!profile.value.isFollowed) {
-		profile.value = {
-			...profile.value,
-			isFollowed: true,
-			isMutualFollow: false,
-			isFriend: false
+		try {
+			await followUser(Number(profile.value.userId))
+			profile.value = {
+				...profile.value,
+				isFollowed: true
+			}
+		} catch (e) {
+			uni.showToast({ title: '关注失败', icon: 'none' })
 		}
-
-		onFollowChange(true)
-		uni.showToast({
-			title: '关注回调占位',
-			icon: 'none'
-		})
 		return
 	}
 
 	uni.showModal({
 		title: '取消关注',
 		content: `确定不再关注 ${profile.value.nickname} 吗？`,
-		success: (result) => {
-			if (!result.confirm) {
-				return
+		success: async (result) => {
+			if (!result.confirm) return
+			try {
+				await unfollowUser(Number(profile.value.userId))
+				profile.value = {
+					...profile.value,
+					isFollowed: false,
+					isMutualFollow: false,
+					isFriend: false
+				}
+			} catch (e) {
+				uni.showToast({ title: '取消失败', icon: 'none' })
 			}
-
-			profile.value = {
-				...profile.value,
-				isFollowed: false,
-				isMutualFollow: false,
-				isFriend: false
-			}
-
-			onFollowChange(false)
-			uni.showToast({
-				title: '取消关注回调占位',
-				icon: 'none'
-			})
-		}
+	}
 	})
 }
 
@@ -592,7 +645,6 @@ async function handleParentRefresh() {
 	}
 
 	if (!refreshTask.wasHandled()) {
-		applyMockRefreshFallback(tabKey)
 	}
 
 	refreshing.value = false
@@ -877,23 +929,7 @@ function appendProfileTabData(tabKey, nextList = [], options = {}) {
 	setTabNoMore(tabKey, inferTabNoMore(appendList, options))
 }
 
-function applyMockRefreshFallback(tabKey) {
-	if (tabKey === 'dynamic') {
-		replaceProfileTabData(tabKey, profileMock.value.dynamicSourceList, {
-			hasMore: profileMock.value.dynamicSourceList.length > pageConfig.pageSize
-		})
-		return
-	}
-
-	replaceProfileTabData(tabKey, profileMock.value.workSourceList, {
-		hasMore: profileMock.value.workSourceList.length > pageConfig.pageSize
-	})
-}
-
-function clearBottomPullTimers() {
-	if (bottomPullCollapseTimer) {
-		clearTimeout(bottomPullCollapseTimer)
-		bottomPullCollapseTimer = null
+mPullCollapseTimer = null
 	}
 
 	if (bottomPullResetTimer) {
@@ -1002,27 +1038,7 @@ function getTouchClientY(event) {
 	)
 }
 
-function waitTask(delay = 0) {
-	return new Promise((resolve) => {
-		setTimeout(() => {
-			resolve()
-		}, delay)
-	})
-}
-
-function navigateByUrl(url) {
-	if (!url) {
-		return
-	}
-
-	uni.navigateTo({
-		url
-	})
-}
-
-function onFollowChange(nextState) {
-	// TODO：替换好友资料关注/取消关注逻辑
-	console.log('user-profile-follow-change', profile.value.userId, nextState)
+w-change', profile.value.userId, nextState)
 }
 
 function onMessage() {
@@ -1056,46 +1072,37 @@ function onWorkItemClick(item) {
 }
 
 async function onProfileRefresh(payload) {
-	// TODO：替换好友资料页刷新接口
-	// TODO：请求成功后可直接调用 payload.applyReplace(apiList, { hasMore: true })
-	console.log('user-profile-refresh', payload)
-	await waitTask(460)
+	const numId = Number(payload.userId)
+	if (!numId) { payload.markNoMore(); return }
+	const res = await fetchAuthorMomentList(numId)
+	const items = res.datas.map(adaptMomentToProfileItem)
+	if (items.length) {
+		payload.applyReplace(items, { hasMore: res.hasMore })
+		// 同步作品列表
+		workSourceList.value = items.filter(i => i.hasMedia)
+		workPage.value = 1
+		workNoMore.value = !res.hasMore
+	} else {
+		payload.markNoMore()
+	}
 }
 
 async function onProfileLoadMore(payload) {
-	// TODO：替换好友资料页分页加载接口
-	// TODO：请求成功后可直接调用 payload.applyAppend(apiList, { hasMore: true })
-	// TODO：如果后端明确无更多数据，可直接调用 payload.markNoMore()
-	console.log('user-profile-load-more', payload)
-	await waitTask(420)
-}
-
-function resolveRelationFlags(options = {}) {
-	const relationState = `${options.relationState || ''}`.trim()
-	if (relationState === 'friend') {
-		return {
-			isFollowed: true,
-			isMutualFollow: true,
-			isFriend: true
-		}
-	}
-
-	if (relationState === 'followed') {
-		return {
-			isFollowed: true,
-			isMutualFollow: false,
-			isFriend: false
-		}
-	}
-
-	const isFriend = `${options.isFriend || ''}` === '1'
-	const isMutualFollow = isFriend || `${options.isMutualFollow || ''}` === '1'
-	const isFollowed = isMutualFollow || `${options.isFollowed || ''}` === '1'
-
-	return {
-		isFollowed,
-		isMutualFollow,
-		isFriend
+	const currentList = payload.renderedList
+	const lastItem = currentList[currentList.length - 1]
+	// 用上一条的 momentId 作为游标
+	const reqMomentId = lastItem ? Number(lastItem.id) : undefined
+	const res = await fetchAuthorMomentList(Number(payload.userId), reqMomentId)
+	const items = res.datas.map(adaptMomentToProfileItem)
+	if (items.length) {
+		payload.applyAppend(items, { hasMore: res.hasMore })
+		// 同步作品列表
+		const newWorks = items.filter(i => i.hasMedia)
+		workSourceList.value = [...workSourceList.value, ...newWorks]
+		workPage.value += 1
+		if (!res.hasMore) workNoMore.value = true
+	} else {
+		payload.markNoMore()
 	}
 }
 
@@ -1132,43 +1139,7 @@ function buildDisplayId(userId) {
 		.toLowerCase() || 'friend_1024'
 }
 
-function buildMockSignature(nickname) {
-	return `${nickname} 的资料页占位，当前用于承接消息页联系人动态跳转、关注关系与私聊入口，底部内容流结构已与个人中心保持一致。`
-}
-
-function buildMockLocation(userId) {
-	const locationList = ['上海 · 徐汇', '深圳 · 南山', '杭州 · 滨江', '北京 · 朝阳', '广州 · 天河', '成都 · 高新']
-	return locationList[computeSeed(userId) % locationList.length]
-}
-
-function createMockCount(multiplier) {
-	return `${(computeSeed(profile.value.userId) % 900 + multiplier) * 10}`
-}
-
-function computeSeed(value) {
-	let hash = 0
-	for (const char of `${value || 'user'}`) {
-		hash += char.charCodeAt(0)
-	}
-
-	return hash
-}
-</script>
-
-<style scoped>
-.user-profile-page {
-	position: relative;
-	height: 100%;
-	background:
-		radial-gradient(circle at top right, rgba(255, 195, 208, 0.42) 0%, rgba(255, 195, 208, 0) 32%),
-		linear-gradient(180deg, #fff7fa 0%, #f8fafc 42%, #f8fafc 100%);
-	overflow: hidden;
-}
-
-.user-profile-refresh-cover {
-	position: absolute;
-	top: 0;
-	right: 0;
+ 0;
 	left: 0;
 	z-index: 12;
 	display: flex;

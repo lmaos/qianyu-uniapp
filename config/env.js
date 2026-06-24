@@ -24,7 +24,7 @@ const ENV_MAP = {
 		...GLOBAL,
 		debug: true,
 		// #ifdef APP
-		baseURL: 'http://192.168.0.104:8080',
+		baseURL: 'http://192.168.0.103:8080',
 		// #endif
 		// #ifndef APP
 		baseURL: 'http://127.0.0.1:8080',

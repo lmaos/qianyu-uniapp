@@ -1,6 +1,7 @@
 <template>
 	<view class="recommend-card" @tap="emit('click', item)">
-		<view class="recommend-cover" :style="{ height: `${uniformCoverHeightRpx}rpx`, background: item.coverBackground }">
+		<view v-if="item.coverUrl || item.contentType === 'video'" class="recommend-cover" :style="{ height: `${uniformCoverHeightRpx}rpx`, background: item.coverBackground }">
+			<image v-if="item.coverUrl" class="recommend-cover-img" :src="item.coverUrl" mode="aspectFill" />
 			<view v-if="item.contentType === 'video'" class="recommend-video-badge">
 				<text class="recommend-video-badge-text">短视频</text>
 			</view>
@@ -16,8 +17,9 @@
 
 			<view class="recommend-meta">
 				<view class="recommend-author" @tap.stop="emit('author-click', item)">
-					<view class="recommend-avatar" :style="{ background: item.authorAvatarBackground }">
-						{{ item.authorAvatarText }}
+					<image v-if="item.authorAvatar" class="recommend-avatar-img" :src="item.authorAvatar" mode="aspectFill" />
+					<view v-else class="recommend-avatar" :style="{ background: item.authorAvatarFallback }">
+						{{ item.authorName ? item.authorName[0] : '?' }}
 					</view>
 					<text class="recommend-author-name">{{ item.authorName }}</text>
 				</view>
@@ -53,6 +55,22 @@ const uniformCoverHeightRpx = 468
 .recommend-cover {
 	position: relative;
 	border-radius: 16rpx;
+	overflow: hidden;
+}
+
+.recommend-cover-img {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.recommend-avatar-img {
+	width: 40rpx;
+	height: 40rpx;
+	border-radius: 20rpx;
+	flex-shrink: 0;
 }
 
 .recommend-video-badge {

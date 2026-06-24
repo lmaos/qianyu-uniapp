@@ -69,6 +69,10 @@ export function normalizePublishMedia(item = {}, index = 0) {
 		type,
 		url,
 		thumbUrl: item.thumbUrl || item.tempFilePath || item.path || url,
-		name: item.name || `media-${index + 1}`
+		name: item.name || `media-${index + 1}`,
+		// 媒体尺寸信息（video 由 uni.chooseMedia 返回，image 后续通过 uni.getImageInfo 获取）
+		...(item.width != null ? { width: item.width } : {}),
+		...(item.height != null ? { height: item.height } : {}),
+		...(item.duration != null ? { duration: item.duration } : {}),
 	}
 }

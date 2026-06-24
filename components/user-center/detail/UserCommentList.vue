@@ -1,7 +1,8 @@
 <template>
 	<view class="user-comment-list">
 		<view v-for="item in commentList" :key="item.id" class="user-comment-item">
-			<view class="user-comment-avatar" :style="{ background: item.avatarBackground }">
+			<image v-if="item.avatar" class="user-comment-avatar-img" :src="item.avatar" mode="aspectFill" />
+			<view v-else class="user-comment-avatar" :style="{ background: item.avatarBackground }">
 				<text class="user-comment-avatar-text">{{ item.avatarText }}</text>
 			</view>
 			<view class="user-comment-body">
@@ -27,7 +28,8 @@
 				<view v-if="item.replyCount" class="user-comment-reply-block">
 					<view v-if="item.repliesExpanded" class="user-comment-reply-list">
 						<view v-for="reply in item.visibleReplyList" :key="reply.id" class="user-comment-reply-item">
-							<view class="user-comment-reply-avatar" :style="{ background: reply.avatarBackground }">
+							<image v-if="reply.avatar" class="user-comment-reply-avatar-img" :src="reply.avatar" mode="aspectFill" />
+							<view v-else class="user-comment-reply-avatar" :style="{ background: reply.avatarBackground }">
 								<text class="user-comment-reply-avatar-text">{{ reply.avatarText }}</text>
 							</view>
 							<view class="user-comment-reply-body">

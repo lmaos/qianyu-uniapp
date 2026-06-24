@@ -131,6 +131,72 @@ export async function batchGetUserInfo(userIds) {
  * @param {string} userNo 用户外显 ID
  * @returns {Promise<Object|null>} UserInfo 或 null（未命中 / 参数非法）
  */
+// ===== 查自己 =====
+
+/**
+ * 查询当前登录用户完整资料（含 phone/email），不走缓存
+ * @returns {Promise<Object|null>} UserInfo 或 null
+ */
+export async function getSelfUserInfo() {
+  try {
+    const { code, response } = await request.get({
+      url: '/api/user/user_info/self',
+      silent4xx: true,
+    })
+    console.log('[UserService] get /user_info/self → code=', code, 'state=', response?.state)
+    if (code !== 200 || !response || response.state !== 'OK' || !response.content) return null
+
+    const userInfo = createUserInfo(response.content)
+    // 回填缓存，方便后续 getUserInfo(userId) 命中
+    setCachedUserInfo(userInfo.userId, userInfo)
+    return userInfo
+  } catch (e) {
+    console.error('[UserService] 查询自身信息失败:', e)
+    return null
+  }
+}
+
+// ===== 修改资料 =====
+
+/**
+ * 修改当前登录用户个人资料（增量更新，只传需要改的字段）
+ * @param {Object} data UserInfoUpdateDto
+ * @param {string} [data.nickname]
+ * @param {string} [data.avatar]
+ * @param {string} [data.bio]
+ * @param {number} [data.gender] 0-未知 1-女性 2-男性
+ * @param {string} [data.birthday] yyyy-MM-dd
+ * @param {string} [data.country] ISO 3166-1 alpha-2
+ * @param {string} [data.province]
+ * @param {string} [data.city]
+ * @returns {Promise<Object|null>} 修改后的 UserInfo 或 null
+ */
+export async function updateUserInfo(data) {
+  if (!data || Object.keys(data).length === 0) {
+    console.warn('[UserService] updateUserInfo 没有可更新的字段')
+    return null
+  }
+
+  try {
+    const { code, response } = await request.post({
+      url: '/api/user/user_info/update',
+      type: 'json',
+      data,
+      silent4xx: true,
+    })
+    console.log('[UserService] post /user_info/update → code=', code, 'state=', response?.state)
+    if (code !== 200 || !response || response.state !== 'OK' || !response.content) return null
+
+    const userInfo = createUserInfo(response.content)
+    // 更新缓存
+    setCachedUserInfo(userInfo.userId, userInfo)
+    return userInfo
+  } catch (e) {
+    console.error('[UserService] 更新用户信息失败:', e)
+    return null
+  }
+}
+
 export async function searchByUserNo(userNo) {
   // 客户端基本校验：后端也会校验（errplace=userNo）
   if (!userNo || typeof userNo !== 'string' || !userNo.trim()) {

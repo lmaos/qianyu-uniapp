@@ -47,7 +47,8 @@
 				<view class="note-detail-page">
 					<UserSectionCard class="note-detail-card">
 						<view class="note-detail-author">
-							<view class="note-detail-avatar" :style="{ background: pageMock.authorInfo.avatarBackground }">
+							<image v-if="pageMock.authorInfo.avatar" class="note-detail-avatar-img" :src="pageMock.authorInfo.avatar" mode="aspectFill" />
+							<view v-else class="note-detail-avatar" :style="{ background: pageMock.authorInfo.avatarBackground }">
 								<text class="note-detail-avatar-text">{{ pageMock.authorInfo.avatarText }}</text>
 							</view>
 							<view class="note-detail-author-meta">
@@ -56,12 +57,17 @@
 							</view>
 						</view>
 
-						<view class="note-detail-cover" :style="{ background: pageMock.coverBackground }">
-							<text class="note-detail-cover-text">{{ pageMock.coverText }}</text>
+						<template v-if="pageMock.coverUrl || pageMock.isVideo">
+							<view class="note-detail-cover" :style="{ background: pageMock.coverBackground }">
+								<image class="note-detail-cover-img" :src="pageMock.coverUrl" mode="aspectFill" />
+							</view>
+						</template>
+						<view v-else class="note-detail-cover note-detail-cover-text-only">
+							<text class="note-detail-cover-text-content">{{ pageMock.title || pageMock.content }}</text>
 						</view>
 
-						<text class="note-detail-title">{{ pageMock.title }}</text>
-						<text class="note-detail-content">{{ pageMock.content }}</text>
+						<text v-if="pageMock.coverUrl || pageMock.isVideo" class="note-detail-title">{{ pageMock.title }}</text>
+						<text v-if="pageMock.coverUrl || pageMock.isVideo" class="note-detail-content">{{ pageMock.content }}</text>
 
 						<view class="note-detail-stat-row">
 							<view class="note-detail-stat-item">
@@ -170,11 +176,9 @@ import {
 	USER_SUB_PAGE_HEADER_AREA_STYLE,
 	userSubPageBackIconSvg
 } from '@/components/user-center/common/userSubPageSurface.js'
-import {
-	formatCount,
-	getNoteDetailPageMock,
-	loadNoteDetailCommentPageMock
-} from '@/components/user-center/userCenterMock.js'
+import { formatCount, getNoteDetailPageMock } from '@/components/user-center/userCenterMock.js'
+import { getMomentDetail } from '@/composables/useMomentApi.js'
+import { adaptMomentDetail, fetchCommentList, fetchReplyList, publishComment, likeMoment, unlikeMoment, likeComment, unlikeComment } from '@/composables/useSocialApi.js'
 import {
 	userCommentStatDarkIconSvg,
 	userLikeStatActiveIconSvg,
@@ -296,23 +300,78 @@ const bottomPullSlotStyle = computed(() => ({
 }))
 
 onLoad((options) => {
-	loadPageMock(options?.noteId)
+	loadPageData(options?.noteId)
 })
 
 onBeforeUnmount(() => {
 	clearTimers()
 })
 
-function loadPageMock(noteId = '') {
+const momentCursor = ref(0)
+
+async function loadPageData(momentId = '') {
 	requestId += 1
-	pageMock.value = getNoteDetailPageMock(noteId)
-	commentPage.value = pageMock.value.commentPage || 1
-	pageSize.value = pageMock.value.commentPageSize || pageMock.value.pageSize || 6
-	commentNoMore.value = !pageMock.value.hasNextCommentPage
+	const id = Number(momentId) || 0
+	console.log('[NoteDetail] loadPageData', { momentId, id })
+	if (!id) {
+		loadPageMockFallback(momentId)
+		return
+	}
+
+	try {
+		const vo = await getMomentDetail(id)
+		console.log('[NoteDetail] API response', { voKeys: Object.keys(vo), hasContent: !!vo?.content })
+		const currentReqId = ++requestId
+		if (currentReqId !== requestId) return // superseded
+		const detail = adaptMomentDetail(vo)
+		console.log('[NoteDetail] adapted', { coverUrl: detail.coverUrl, type: detail.isVideo })
+
+		pageMock.value = {
+			noteInfo: detail,
+			noteId: String(vo.momentId),
+			authorInfo: detail.authorInfo,
+			publishTimeText: detail.publishTimeText,
+			coverBackground: detail.coverBackground,
+			coverUrl: detail.coverUrl,
+			coverText: detail.coverText,
+			title: detail.title,
+			content: detail.content,
+			watchCountValue: detail.watchCountValue,
+			watchCount: detail.watchCount,
+			likeCountValue: detail.likeCountValue,
+			likeCount: detail.likeCount,
+			commentCountValue: detail.commentCountValue,
+			commentCount: detail.commentCount,
+			liked: detail.liked,
+			commentSourceList: [],
+			commentPage: 1,
+			hasNextCommentPage: false,
+			commentLoadDelayMs: 0,
+			pageSize: 20,
+			videoUrl: detail.videoUrl,
+			isVideo: detail.isVideo,
+		}
+		momentCursor.value = 0
+		commentNoMore.value = false
+		// 加载第一页评论
+		await loadNextCommentPageFromApi()
+	} catch (err) {
+		console.error('[NoteDetail] load failed', err)
+		loadPageMockFallback(momentId)
+	}
 	commentDraft.value = ''
 	commentInputFocused.value = false
 	replyTarget.value = createEmptyReplyTarget()
 	resetBottomPull(true)
+}
+
+function loadPageMockFallback(noteId = '') {
+	requestId += 1
+	const mock = getNoteDetailPageMock(noteId)
+	pageMock.value = mock
+	commentPage.value = mock.commentPage || 1
+	pageSize.value = mock.commentPageSize || mock.pageSize || 6
+	commentNoMore.value = !mock.hasNextCommentPage
 }
 
 function handleBack() {
@@ -334,12 +393,22 @@ function handleTouchEnd() {
 	}
 }
 
-function handleToggleLike() {
+async function handleToggleLike() {
 	const nextLiked = !pageMock.value.liked
-	pageMock.value.liked = nextLiked
-	pageMock.value.likeCountValue = Math.max(0, Number(pageMock.value.likeCountValue || 0) + (nextLiked ? 1 : -1))
-	pageMock.value.likeCount = formatCount(pageMock.value.likeCountValue)
-	playLikeAnimation()
+	const momentId = Number(pageMock.value.noteId)
+	try {
+		if (nextLiked) {
+			await likeMoment(momentId)
+		} else {
+			await unlikeMoment(momentId)
+		}
+		pageMock.value.liked = nextLiked
+		pageMock.value.likeCountValue = Math.max(0, Number(pageMock.value.likeCountValue || 0) + (nextLiked ? 1 : -1))
+		pageMock.value.likeCount = formatCount(pageMock.value.likeCountValue)
+		playLikeAnimation()
+	} catch (err) {
+		console.error('[NoteDetail] like failed', err)
+	}
 }
 
 function handleOpenCommentComposer() {
@@ -364,19 +433,28 @@ function handleComposerBlur() {
 	commentInputFocused.value = false
 }
 
-function handleCommentLike(payload) {
+async function handleCommentLike(payload) {
 	const target = findCommentTarget(payload.commentId, payload.parentId)
 	if (!target) {
 		return
 	}
 
 	const nextLiked = !target.liked
-	target.liked = nextLiked
-	target.likeCountValue = Math.max(0, Number(target.likeCountValue || 0) + (nextLiked ? 1 : -1))
-	target.likeCountText = formatCount(target.likeCountValue)
+	try {
+		if (nextLiked) {
+			await likeComment(Number(target.commentId || target.id))
+		} else {
+			await unlikeComment(Number(target.commentId || target.id))
+		}
+		target.liked = nextLiked
+		target.likeCountValue = Math.max(0, Number(target.likeCountValue || 0) + (nextLiked ? 1 : -1))
+		target.likeCountText = formatCount(target.likeCountValue)
+	} catch (err) {
+		console.error('[NoteDetail] comment like failed', err)
+	}
 }
 
-function handleToggleReplies(payload) {
+async function handleToggleReplies(payload) {
 	const target = findCommentTarget(payload.commentId)
 	if (!target) {
 		return
@@ -389,6 +467,18 @@ function handleToggleReplies(payload) {
 	}
 
 	target.repliesExpanded = true
+	// 尝试从 API 加载回复
+	if (!target.replySourceList.length && target.replyCount > 0) {
+		try {
+			const result = await fetchReplyList(Number(target.commentId || target.id), 0, 20)
+			target.replySourceList = result.replyList.map(r => ({
+				...r,
+				replyToNickname: r.replyToNickname || target.nickname,
+			}))
+		} catch (err) {
+			console.error('[NoteDetail] load replies failed', err)
+		}
+	}
 	target.visibleReplyCount = Math.min(REPLY_PAGE_SIZE, getReplyList(target).length)
 }
 
@@ -405,20 +495,52 @@ function handleLoadMoreReplies(payload) {
 	)
 }
 
-function handleSubmitComment() {
-	const content = commentDraft.value.trim()
-	if (!content) {
+async function handleSubmitComment() {
+	const text = commentDraft.value.trim()
+	if (!text) {
 		return
 	}
 
-	if (replyTarget.value.parentId) {
-		appendReply(content)
-	} else {
-		appendRootComment(content)
+	const momentId = Number(pageMock.value.noteId)
+	if (!momentId) {
+		// Fallback: 没有 momentId 时用旧 mock 方式
+		if (replyTarget.value.parentId) {
+			appendReply(text)
+		} else {
+			appendRootComment(text)
+		}
+		commentDraft.value = ''
+		clearReplyTarget()
+		return
+	}
+
+	try {
+		await publishComment(momentId, text, {
+			parentCommentId: replyTarget.value.parentId ? Number(replyTarget.value.parentCommentId || replyTarget.value.parentId) : 0,
+			replyCommentId: replyTarget.value.parentId ? Number(replyTarget.value.commentId) : 0,
+		})
+		// 发布成功后刷新评论列表
+		await refreshComments()
+		pageMock.value.commentCountValue = (pageMock.value.commentCountValue || 0) + 1
+		pageMock.value.commentCount = formatCount(pageMock.value.commentCountValue)
+	} catch (err) {
+		console.error('[NoteDetail] publish comment failed', err)
 	}
 
 	commentDraft.value = ''
 	clearReplyTarget()
+}
+
+async function refreshComments() {
+	momentCursor.value = 0
+	try {
+		const result = await fetchCommentList(Number(pageMock.value.noteId), 0, 20)
+		pageMock.value.commentSourceList = result.commentList
+		momentCursor.value = result.nextCommentId
+		commentNoMore.value = !result.hasMore
+	} catch (err) {
+		console.error('[NoteDetail] refresh comments failed', err)
+	}
 }
 
 function appendRootComment(content) {
@@ -598,19 +720,26 @@ function canLoadMoreComments() {
 }
 
 async function loadNextCommentPage() {
+	return await loadNextCommentPageFromApi()
+}
+
+async function loadNextCommentPageFromApi() {
 	const currentRequestId = ++requestId
 	loadingMore.value = true
 
 	try {
-		const nextPage = commentPage.value + 1
-		const result = await loadNoteDetailCommentPageMock(pageMock.value.noteId, nextPage, pageSize.value)
+		const momentId = Number(pageMock.value.noteId)
+		if (!momentId) {
+			return await loadLegacyCommentPage()
+		}
+		const result = await fetchCommentList(momentId, momentCursor.value, pageSize.value)
 		if (currentRequestId !== requestId) {
 			return 'cancelled'
 		}
 
-		if (Array.isArray(result.list) && result.list.length) {
-			pageMock.value.commentSourceList.push(...result.list)
-			commentPage.value = result.page
+		if (result.commentList.length) {
+			pageMock.value.commentSourceList.push(...result.commentList)
+			momentCursor.value = result.nextCommentId
 			commentNoMore.value = !result.hasMore
 			return result.hasMore ? 'loaded' : 'no-more'
 		}
@@ -620,6 +749,25 @@ async function loadNextCommentPage() {
 	} finally {
 		loadingMore.value = false
 	}
+}
+
+async function loadLegacyCommentPage() {
+	const nextPage = commentPage.value + 1
+	const result = await loadNoteDetailCommentPageMock(pageMock.value.noteId, nextPage, pageSize.value)
+
+	if (Array.isArray(result.list) && result.list.length) {
+		pageMock.value.commentSourceList.push(...result.list)
+		commentPage.value = result.page
+		commentNoMore.value = !result.hasMore
+		return result.hasMore ? 'loaded' : 'no-more'
+	}
+
+	commentNoMore.value = true
+	return 'no-more'
+}
+
+function loadNoteDetailCommentPageMock(...args) {
+	return import('@/components/user-center/userCenterMock.js').then(m => m.loadNoteDetailCommentPageMock(...args))
 }
 
 async function requestNextCommentPage({ showBottomPullFeedback = false } = {}) {
@@ -846,12 +994,41 @@ function clearTimers() {
 }
 
 .note-detail-cover {
+	position: relative;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	height: 420rpx;
 	margin-top: 22rpx;
 	border-radius: 24rpx;
+	overflow: hidden;
+}
+
+.note-detail-cover-img {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.note-detail-cover-text-only {
+	background: transparent !important;
+}
+
+.note-detail-cover-text-content {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	font-size: 28rpx;
+	line-height: 44rpx;
+	color: #475467;
+	text-align: center;
+	padding: 0 32rpx;
+	white-space: pre-wrap;
+	overflow: hidden;
 }
 
 .note-detail-cover-text {

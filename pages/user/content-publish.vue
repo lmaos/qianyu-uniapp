@@ -93,7 +93,7 @@
 					@tap="handleSubmit"
 				>
 					<text :class="['publish-footer-button-text', canSubmit ? '' : 'publish-footer-button-text-disabled']">
-						{{ pageMock.submitLabel }}
+						{{ submitting ? '发布中...' : pageMock.submitLabel }}
 					</text>
 				</view>
 			</view>
@@ -111,16 +111,20 @@ import {
 	normalizePublishMedia,
 	parseContentPublishMediaList
 } from '@/components/user-center/contentPublishMock.js'
+import { uploadFile } from '@/composables/useStorageApi.js'
+import { publishMoment } from '@/composables/useMomentApi.js'
 
 const sceneKey = ref('recommend')
 const pageMock = ref(getContentPublishPageMock())
 const draftTitle = ref('')
 const selectedMediaList = ref([])
+const submitting = ref(false)
+
 const hasVideo = computed(() => {
 	return selectedMediaList.value.some((item) => item.type === 'video')
 })
 const canSubmit = computed(() => {
-	return selectedMediaList.value.length > 0
+	return selectedMediaList.value.length > 0 && !submitting.value
 })
 const canAppendImage = computed(() => {
 	if (hasVideo.value) {
@@ -147,6 +151,8 @@ onLoad((options) => {
 	pageMock.value = getContentPublishPageMock(nextSceneKey)
 	selectedMediaList.value = parseContentPublishMediaList(options?.mediaPayload)
 })
+
+// ── 选择图片 ────────────────────────────────────
 
 async function handlePickImages() {
 	const remainCount = Math.max(1, pageMock.value.maxImageCount - selectedMediaList.value.length)
@@ -206,25 +212,130 @@ function removeMedia(index) {
 	selectedMediaList.value = selectedMediaList.value.filter((_, itemIndex) => itemIndex !== index)
 }
 
-function handleSubmit() {
+// ── 发布提交 ────────────────────────────────────
+
+async function handleSubmit() {
 	if (!canSubmit.value) {
-		uni.showToast({
-			title: '先选择要发布的内容',
-			icon: 'none'
-		})
+		if (!selectedMediaList.value.length) {
+			uni.showToast({ title: '先选择要发布的内容', icon: 'none' })
+		}
 		return
 	}
 
-	onSubmitPublish()
-	uni.showToast({
-		title: `${pageMock.value.submitLabel}占位`,
-		icon: 'none'
-	})
+	submitting.value = true
+
+	try {
+		uni.showLoading({ title: '发布中...', mask: true })
+
+		const content = await buildPublishContent()
+		if (!content) {
+			uni.hideLoading()
+			submitting.value = false
+			return
+		}
+
+		await publishMoment({ content })
+		uni.hideLoading()
+		uni.showToast({ title: '发布成功', icon: 'success' })
+
+		// 发布成功后返回上一页
+		setTimeout(() => {
+			uni.navigateBack({ delta: 1 })
+		}, 600)
+	} catch (err) {
+		uni.hideLoading()
+		console.error('[Publish] failed', err)
+		// baseRequest 已 toast 具体错误信息
+	} finally {
+		submitting.value = false
+	}
 }
 
-function handleBack() {
-	uni.navigateBack({
-		delta: 1
+/**
+ * 构造 MomentContent：
+ *   1. 上传文件 → 获取 CDN URL
+ *   2. 获取图片尺寸
+ *   3. 组装成 API 需要的结构
+ */
+async function buildPublishContent() {
+	const content = {
+		type: hasVideo.value ? 'video' : (selectedMediaList.value.length > 0 ? 'image' : 'text'),
+		text: {
+			text: draftTitle.value || '',
+			atIds: []
+		}
+	}
+
+	if (hasVideo.value) {
+		const videoItem = selectedMediaList.value[0]
+
+		// 上传视频文件
+		const videoResult = await uploadFile(videoItem.url, 'moment/video')
+		if (!videoResult) return null
+
+		content.video = {
+			videoId: String(videoResult.id),
+			videoUrl: videoResult.url,
+			coverUrl: videoResult.url,
+			width: videoItem.width || 0,
+			height: videoItem.height || 0,
+			duration: videoItem.duration || 0
+		}
+
+		// 如果有视频缩略图，上传作为封面
+		if (videoItem.thumbUrl && videoItem.thumbUrl !== videoItem.url) {
+			try {
+				const coverResult = await uploadFile(videoItem.thumbUrl, 'moment/image')
+				if (coverResult) {
+					content.video.coverUrl = coverResult.url
+				}
+			} catch (err) {
+				console.warn('[Publish] cover upload failed, using video URL as cover', err)
+			}
+		}
+	} else if (selectedMediaList.value.length > 0) {
+		// 上传图片，逐张上传
+		const imageResults = []
+
+		for (const item of selectedMediaList.value) {
+			// 获取图片尺寸
+			let width = 0
+			let height = 0
+			try {
+				const info = await getImageInfo(item.url)
+				width = info.width
+				height = info.height
+			} catch (err) {
+				console.warn('[Publish] get image info failed', err)
+			}
+
+			// 上传图片
+			const result = await uploadFile(item.url, 'moment/image')
+			if (!result) return null
+
+			imageResults.push({
+				imageId: String(result.id),
+				imageUrl: result.url,
+				width,
+				height
+			})
+		}
+
+		content.image = imageResults
+	}
+
+	return content
+}
+
+// ── uni API 封装 ──────────────────────────────
+
+function getImageInfo(src) {
+	return new Promise((resolve, reject) => {
+		uni.getImageInfo({
+			src,
+			success: (res) => resolve(res),
+			fail: (err) => reject(err)
+		})
 	})
 }
 
@@ -232,15 +343,10 @@ function chooseImageAsync(options) {
 	return new Promise((resolve) => {
 		uni.chooseImage({
 			...options,
-			success: (result) => {
-				resolve(result)
-			},
+			success: (result) => resolve(result),
 			fail: (error) => {
 				if (!isUserCancelError(error)) {
-					uni.showToast({
-						title: '选择图片失败',
-						icon: 'none'
-					})
+					uni.showToast({ title: '选择图片失败', icon: 'none' })
 				}
 				resolve(null)
 			}
@@ -252,15 +358,10 @@ function chooseMediaAsync(options) {
 	return new Promise((resolve) => {
 		uni.chooseMedia({
 			...options,
-			success: (result) => {
-				resolve(result)
-			},
+			success: (result) => resolve(result),
 			fail: (error) => {
 				if (!isUserCancelError(error)) {
-					uni.showToast({
-						title: '选择视频失败',
-						icon: 'none'
-					})
+					uni.showToast({ title: '选择视频失败', icon: 'none' })
 				}
 				resolve(null)
 			}
@@ -273,9 +374,8 @@ function isUserCancelError(error) {
 	return errorMessage.includes('cancel')
 }
 
-function onSubmitPublish() {
-	// TODO：替换作品/动态发布接口
-	console.log('user-content-publish-submit', sceneKey.value, draftTitle.value, selectedMediaList.value.length)
+function handleBack() {
+	uni.navigateBack({ delta: 1 })
 }
 </script>
 
