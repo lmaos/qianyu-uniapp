@@ -62,8 +62,10 @@ class ImServiceImpl {
 
       console.log('[ImService] 收到消息: convId=', convId, ', sender=', body.sender, ', type=', body.messageType, ', body=', JSON.stringify(body))
 
-      // ① 写入聊天记录
-      this._storage.appendMessage(convId, body)
+      // ① 写入聊天记录：自己发的消息 sendMessage 已乐观写入，跳过避免重复存储（否则重进页面会重复显示）
+      if (body.sender !== this._userId) {
+        this._storage.appendMessage(convId, body)
+      }
 
       // ② 更新会话列表数据库（含 saveConversations 写回）
       this._updateConversationPreview(convId, body)

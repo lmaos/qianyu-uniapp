@@ -155,7 +155,10 @@ function adaptShortcuts(shortcuts) {
 		.map((s) => {
 			const meta = CLIENT_SHORTCUT_META[s.key] || {}
 			const iconKey = meta.iconKey || s.key
-			const path = s.linkUrl || meta.path || ''
+			// 服务端可能下发未替换的 sprintf 占位符（如 `/pages/user/merchant-center?userId=%s`），
+			// 视为脏数据，回退到客户端兜底路径（这些子页面都走 @LoginVerify，userId 从 token 取，URL 里不需要带）
+			const linkUrl = s.linkUrl && !/%s/.test(s.linkUrl) ? s.linkUrl : ''
+			const path = linkUrl || meta.path || ''
 			return {
 				key: s.key,
 				label: s.name || meta.label || s.key,

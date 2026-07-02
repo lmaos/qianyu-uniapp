@@ -174,6 +174,18 @@ export async function fetchFollowRelation(targetId) {
 }
 
 /**
+ * 常用联系人（好友）列表
+ * @returns {Promise<Array<{userId:number,nickname:string,avatar:string,userNo:string}>>}
+ */
+export async function fetchFriendContacts() {
+	const res = await request.get({ url: '/api/social/follow/friends' })
+	if (res.code !== 200) return []
+	const body = res.response
+	if (Number(body.status) !== 0) return []
+	return Array.isArray(body.content) ? body.content : []
+}
+
+/**
  * 查询指定用户的关注和粉丝数
  * @param {number} userId
  * @returns {Promise<{followCount: number, followerCount: number}|null>}

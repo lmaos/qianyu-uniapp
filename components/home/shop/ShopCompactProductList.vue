@@ -7,7 +7,13 @@
 			@tap="handleItemClick(item)"
 		>
 			<view class="shop-compact-cover" :style="{ background: item.coverBackground }">
-				<text class="shop-compact-cover-text">{{ item.coverText || '商品' }}</text>
+				<image
+					v-if="item.coverImage"
+					class="shop-compact-cover-image"
+					:src="item.coverImage"
+					mode="aspectFill"
+				></image>
+				<text v-if="!item.coverImage" class="shop-compact-cover-text">{{ item.coverText || '商品' }}</text>
 				<text v-if="item.compactBadge" class="shop-compact-cover-badge">{{ item.compactBadge }}</text>
 			</view>
 			<view class="shop-compact-price-row">
@@ -71,7 +77,20 @@ function formatPrice(value) {
 	overflow: hidden;
 }
 
+.shop-compact-cover-image {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 0;
+}
+
 .shop-compact-cover-text {
+	position: relative;
+	z-index: 1;
 	font-size: 20rpx;
 	font-weight: 700;
 	line-height: 24rpx;

@@ -39,7 +39,12 @@
 					<text class="add-friend-desc">{{ item.desc }}</text>
 				</view>
 
-				<view class="add-friend-button" @tap="handleAddFriend(item)">添加</view>
+				<!-- 关注按钮：未关注=添加(可点)；已关注/互相关注=置灰(点击弹窗确认取消) -->
+				<view
+					class="add-friend-button"
+					:class="{ 'add-friend-button-muted': isFollowed }"
+					@tap="handleAddFriend(item)"
+				>{{ followButtonText }}</view>
 			</view>
 		</UserSectionCard>
 	</UserSubPageLayout>
@@ -52,6 +57,7 @@ import UserSectionCard from '@/components/user-center/common/UserSectionCard.vue
 import UserSubPageLayout from '@/components/user-center/common/UserSubPageLayout.vue'
 import { getAddFriendPageMock } from '@/components/user-center/userCenterMock.js'
 import { searchByUserNo } from '@/core/user/UserService.js'
+import { followUser, unfollowUser, fetchFollowRelation } from '@/composables/useSocialApi.js'
 
 const pageMock = ref(getAddFriendPageMock())
 const searchKeyword = ref('')
@@ -59,6 +65,8 @@ const searchKeyword = ref('')
 // 搜索状态：idle（无搜索）/ searching（请求中）/ hit（命中）/ miss（未命中）
 const searchState = ref('idle')
 const searchResult = ref(null)        // 命中时的 userInfo
+// 与命中用户的关注关系：{ follow, follower, friend } | null
+const followRelation = ref(null)
 
 /**
  * 列表渲染逻辑：
@@ -72,6 +80,7 @@ const displaySuggestionList = computed(() => {
 		if (searchState.value !== 'idle') {
 			searchState.value = 'idle'
 			searchResult.value = null
+			followRelation.value = null
 		}
 		return pageMock.value.suggestionList || []
 	}
@@ -103,8 +112,23 @@ const isSearching = computed(() => searchState.value === 'searching')
 const isEmptyResult = computed(() => searchKeyword.value.trim() && searchState.value === 'miss')
 const isHit = computed(() => searchState.value === 'hit' && searchResult.value)
 
+// 关注状态衍生：互相关注 / 已关注 / 未关注
+const isFollowed = computed(() => followRelation.value?.follow === true)
+const isMutual = computed(() => followRelation.value?.friend === true)
+const followButtonText = computed(() => {
+	if (isMutual.value) return '互相关注'
+	if (isFollowed.value) return '已关注'
+	return '添加'
+})
+
 onLoad((options) => {
 	pageMock.value = getAddFriendPageMock(options?.userId)
+	// 支持带 userNo 进入时自动搜索（如从消息搜索页点击用户跳转过来）
+	const initialUserNo = decodeURIComponent(`${options?.userNo || ''}`).trim()
+	if (initialUserNo) {
+		searchKeyword.value = initialUserNo
+		onSearchChange(initialUserNo)
+	}
 })
 
 function handleBack() {
@@ -123,29 +147,25 @@ function handleSearchInput(event) {
 	}, 350)
 }
 
-function handleAddFriend(item) {
-	onAddFriend(item)
-	uni.showToast({
-		title: '好友申请已发送（占位）',
-		icon: 'none'
-	})
-}
-
 async function onSearchChange(keyword) {
 	const trimmed = (keyword || '').trim()
 	if (!trimmed) {
 		// 清空搜索
 		searchState.value = 'idle'
 		searchResult.value = null
+		followRelation.value = null
 		return
 	}
 
 	searchState.value = 'searching'
+	followRelation.value = null
 	const userInfo = await searchByUserNo(trimmed)
 	if (userInfo) {
 		searchState.value = 'hit'
 		searchResult.value = userInfo
 		console.log('[add-friend] 搜索命中:', { userId: userInfo.userId, nickname: userInfo.nickname })
+		// 命中后查询关注关系，驱动按钮状态
+		loadFollowRelation(userInfo.userId)
 	} else {
 		searchState.value = 'miss'
 		searchResult.value = null
@@ -153,10 +173,86 @@ async function onSearchChange(keyword) {
 	}
 }
 
-function onAddFriend(item) {
-	// TODO：后端无"加好友申请"专用接口；当前建议直接调 FollowService.follow(targetId) 走"直接关注"流程
-	// （FollowController 已有 /api/social/follow/follow，添加好友 = 关注）
-	console.log('user-add-friend-submit', { id: item.id, nickname: item.nickname })
+// 查询与命中用户的关注关系
+async function loadFollowRelation(targetId) {
+	if (!targetId) {
+		followRelation.value = null
+		return
+	}
+	try {
+		followRelation.value = await fetchFollowRelation(targetId)
+	} catch (e) {
+		followRelation.value = null
+	}
+}
+
+// 关注目标用户
+async function doFollow(targetId) {
+	try {
+		uni.showLoading({ title: '处理中…', mask: true })
+		const ok = await followUser(targetId)
+		if (ok) {
+			// 本地更新为已关注；若对方已关注我(follower)则升为互相关注
+			const follower = followRelation.value?.follower ?? false
+			followRelation.value = { follow: true, follower, friend: follower }
+			uni.showToast({ title: '已关注', icon: 'success' })
+		} else {
+			uni.showToast({ title: '关注失败', icon: 'none' })
+		}
+	} catch (e) {
+		uni.showToast({ title: e?.message || '关注失败', icon: 'none' })
+	} finally {
+		uni.hideLoading()
+	}
+}
+
+// 取消关注（带二次确认弹窗）
+function confirmUnfollow(targetId) {
+	uni.showModal({
+		title: '取消关注',
+		content: '是否取消关注？',
+		confirmText: '是',
+		cancelText: '否',
+		success: async (res) => {
+			// 否 → 关闭弹窗，不操作
+			if (!res.confirm) return
+			try {
+				uni.showLoading({ title: '处理中…', mask: true })
+				const ok = await unfollowUser(targetId)
+				if (ok) {
+					followRelation.value = {
+						follow: false,
+						follower: followRelation.value?.follower ?? false,
+						friend: false
+					}
+					uni.showToast({ title: '已取消', icon: 'success' })
+				} else {
+					uni.showToast({ title: '取消失败', icon: 'none' })
+				}
+			} catch (e) {
+				uni.showToast({ title: e?.message || '取消失败', icon: 'none' })
+			} finally {
+				uni.hideLoading()
+			}
+		}
+	})
+}
+
+async function handleAddFriend(item) {
+	const targetId = item?.id
+	if (!targetId) return
+	// 仅对真实搜索命中走关注/取关逻辑；mock 推荐项保留占位提示
+	if (!searchResult.value || searchResult.value.userId !== targetId) {
+		uni.showToast({ title: '好友申请已发送（占位）', icon: 'none' })
+		return
+	}
+	// 已关注 / 互相关注 → 弹窗确认取消
+	if (isFollowed.value) {
+		confirmUnfollow(targetId)
+		return
+	}
+	// 未关注 → 关注
+	await doFollow(targetId)
 }
 </script>
 
@@ -266,6 +362,12 @@ function onAddFriend(item) {
 	background: linear-gradient(135deg, #fe2c55 0%, #fb7185 100%);
 	font-size: 24rpx;
 	font-weight: 600;
+	color: #ffffff;
+}
+
+/* 已关注 / 互相关注：置灰样式（仍可点击 → 弹窗确认取消） */
+.add-friend-button-muted {
+	background: #cbd5e1;
 	color: #ffffff;
 }
 </style>

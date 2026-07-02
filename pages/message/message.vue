@@ -52,7 +52,7 @@
 					<scroll-view class="message-contact-scroll" scroll-x show-scrollbar="false">
 						<view class="message-contact-row">
 							<view
-								v-for="item in pageMock.contactList"
+								v-for="item in contactList"
 								:key="item.id"
 								class="message-contact-card"
 								@tap.stop="handleContactClick(item)"
@@ -159,6 +159,7 @@ import PullPagingShell from '@/components/common/PullPagingShell.vue'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import { useIm } from '@/composables/useIm.js'
 import { useUserDirectory } from '@/composables/useUserDirectory.js'
+import { fetchFriendContacts } from '@/composables/useSocialApi.js'
 import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
 import {
 	buildMessageContactListUrl,
@@ -178,6 +179,8 @@ const props = defineProps({
 const im = useIm()
 const { userDirectory, ensureUsers } = useUserDirectory()
 const pageMock = buildMessagePageMock()
+// 常用联系人：初始用 mock 占位，onShow 时拉取真实好友列表
+const contactList = ref(pageMock.contactList || [])
 const notificationUnreadCount = Number(pageMock.notificationBadge?.unreadCount || 0)
 const { safeTopPx, rpxToPx } = useSafeAreaMetrics()
 const muteIconSvg =
@@ -404,8 +407,28 @@ function deactivateMessagePage() {
 	}
 }
 
+// 加载常用联系人（好友）列表，映射为联系人卡片视图模型
+async function loadContacts() {
+	try {
+		const list = await fetchFriendContacts()
+		contactList.value = (list || []).map((f) => ({
+			id: f.userId,
+			userId: f.userId,
+			name: f.nickname || f.userNo || '',
+			avatarText: (f.nickname || f.userNo || '?').charAt(0).toUpperCase(),
+			avatarBackground: 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
+			onlineState: 'offline',
+			hasNewMessage: false,
+			hasMomentUpdate: false
+		}))
+	} catch (e) {
+		console.error('[message] 加载常用联系人失败:', e)
+	}
+}
+
 onShow(() => {
 	pageShown.value = true
+	loadContacts()
 })
 
 onHide(() => {

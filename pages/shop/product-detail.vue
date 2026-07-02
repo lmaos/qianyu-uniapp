@@ -227,8 +227,27 @@ const formattedPrice = computed(() => {
 })
 
 // 当前选中 SKU 的轮播素材。
+// 优先级：SKU 自带图片 > SPU 图片列表 (images) > SPU 主图 (mainImage/coverImage)
 const currentMediaList = computed(() => {
-	return currentSku.value.mediaList || []
+	if (Array.isArray(currentSku.value.mediaList) && currentSku.value.mediaList.length) {
+		return currentSku.value.mediaList
+	}
+
+	// SPU 级 images（多图）
+	const spuImages = Array.isArray(goodsDetail.value.images) ? goodsDetail.value.images : []
+	if (spuImages.length) {
+		return spuImages
+			.filter((url) => !!url)
+			.map((url, index) => ({ id: `spu-image-${index}`, type: 'image', url }))
+	}
+
+	// SPU 主图兜底
+	const spuMainImage = goodsDetail.value.coverImage
+	if (spuMainImage) {
+		return [{ id: 'spu-main-image', type: 'image', url: spuMainImage }]
+	}
+
+	return []
 })
 
 onLoad((options) => {

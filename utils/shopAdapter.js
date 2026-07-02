@@ -52,6 +52,13 @@ export function adaptSpuDetail(vo) {
     coverImage: vo.mainImage,
     images: vo.images || [],
     description: vo.description,
+    keywords: vo.keywords || '',
+    unit: vo.unit || '',
+    categoryId: vo.categoryId,
+    categoryName: vo.categoryName || '',
+    brandId: vo.brandId,
+    brandName: vo.brandName || '',
+    freightTemplateId: vo.freightTemplateId,
     shopName: vo.shopInfo?.shopName || vo.merchantName,
     sales: vo.sales,
     commentCount: vo.commentCount,
@@ -75,6 +82,7 @@ export function adaptSpuDetail(vo) {
  */
 export function adaptSkuItem(vo) {
   if (!vo) return null
+  const image = vo.image || ''
   return {
     id: vo.id,
     name: vo.skuName,
@@ -82,9 +90,11 @@ export function adaptSkuItem(vo) {
     shortDesc: vo.specs,
     price: vo.price,
     originalPrice: vo.originalPrice,
-    stock: vo.stock,
+    stock: Number(vo.stock) || 0,
     soldCount: 0,                    // SPU 级销量暂用，前端展示 SKU 销量
-    coverImage: vo.image,
+    coverImage: image,
+    // 媒体列表：SKU 自带图片优先；空则交给前端 fallback 到 SPU 图片
+    mediaList: image ? [{ id: `${vo.id}-image-1`, type: 'image', url: image }] : [],
     paramList: buildParamList(vo.specs, vo._specGroups || []),
     isDefault: vo.isDefault,
   }
@@ -156,7 +166,7 @@ export function adaptCartItem(vo) {
     coverImage: vo.skuImage,
     coverText: (vo.spuName || '').slice(0, 1),
     price: vo.price,
-    stock: vo.stock,
+    stock: Number(vo.stock) || 0,
     quantity: vo.quantity,
     checked: vo.checked,
     shipTime: '',
@@ -189,6 +199,7 @@ export function adaptOrderSimple(vo) {
     price: firstItem.price,
     quantity: firstItem.quantity,
     timeText: vo.createTime,
+    buyerNick: vo.buyerNick || '',
     items: vo.items || [],
   }
 }

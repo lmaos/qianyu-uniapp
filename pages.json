@@ -245,7 +245,21 @@
 			}
 		},
 		{
-			"path": "pages/shop/merchant-promotion",
+			"path": "pages/shop/merchant-finance",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/merchant-shop",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColor": "#f8fafc"
+			}
+		},
+		{
+			"path": "pages/shop/product-create",
 			"style": {
 				"navigationStyle": "custom",
 				"backgroundColor": "#f8fafc"

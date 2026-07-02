@@ -36,6 +36,37 @@
 					</view>
 				</view>
 
+				<!-- 用户（按 userNo 精确搜索，走后端 /api/user/user_info/search） -->
+				<view v-if="keyword.trim()" class="message-search-section">
+					<view class="message-search-section-head">
+						<text class="message-search-section-title">用户</text>
+						<text v-if="userSearchState === 'searching'" class="message-search-section-count">搜索中…</text>
+					</view>
+
+					<view v-if="userSearchState === 'searching'" class="message-search-state">
+						搜索中…
+					</view>
+
+					<view v-else-if="userSearchState === 'miss'" class="message-search-state">
+						未找到用户“{{ keyword.trim() }}”
+					</view>
+
+					<view
+						v-else-if="userSearchState === 'hit' && foundUserDisplay"
+						class="message-search-card"
+						@tap="handleUserClick"
+					>
+						<view class="message-search-avatar" :style="{ background: foundUserDisplay.avatarBackground }">
+							{{ foundUserDisplay.avatarText }}
+						</view>
+
+						<view class="message-search-main">
+							<text class="message-search-name">{{ foundUserDisplay.nickname }}</text>
+							<text class="message-search-id">ID：{{ foundUserDisplay.displayId }}</text>
+						</view>
+					</view>
+				</view>
+
 				<view class="message-search-section">
 					<view class="message-search-section-head">
 						<text class="message-search-section-title">联系人</text>
@@ -96,10 +127,9 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
 import { useIm } from '@/composables/useIm.js'
 import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
-import {
-	buildMessageSearchPageMock,
-	buildMessageUserProfileUrl
-} from '@/components/message/messageMock.js'
+import { buildMessageSearchPageMock } from '@/components/message/messageMock.js'
+import { searchByUserNo } from '@/core/user/UserService.js'
+import { fetchFriendContacts } from '@/composables/useSocialApi.js'
 
 const { safeTopPx } = useSafeAreaMetrics()
 const im = useIm()
@@ -108,8 +138,28 @@ const pageMock = buildMessageSearchPageMock()
 const keyword = ref('')
 const searchPlaceholder = pageMock.searchPlaceholder
 const recentKeywordList = pageMock.recentKeywordList
-const contactList = ref(pageMock.contactList)
+const contactList = ref([])  // 真实好友，由 loadContacts 拉取
 const conversationList = ref([])
+
+// userNo 用户搜索状态：idle（无搜索）/ searching（请求中）/ hit（命中）/ miss（未命中）
+const userSearchState = ref('idle')
+const foundUser = ref(null)
+let _userSearchTimer = null
+
+// 命中用户的展示对象（映射到既有 .message-search-card 结构）
+const foundUserDisplay = computed(() => {
+	const u = foundUser.value
+	if (!u) return null
+	return {
+		userId: u.userId,
+		nickname: u.nickname || u.userNo,
+		displayId: u.userNo,
+		avatar: u.avatar || '',
+		avatarText: (u.nickname || u.userNo || '?').charAt(0).toUpperCase(),
+		avatarBackground: 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
+		bio: u.bio || ''
+	}
+})
 
 // 加载真实会话数据用于搜索
 async function loadConversationData() {
@@ -169,9 +219,54 @@ function buildChatUrl(item) {
 	})
 }
 
+// 按 userNo 搜索用户（复用 core/user/UserService.searchByUserNo，镜像 add-friend.vue 状态机）
+async function runUserSearch(rawKeyword) {
+	const trimmed = `${rawKeyword || ''}`.trim()
+	if (!trimmed) {
+		userSearchState.value = 'idle'
+		foundUser.value = null
+		return
+	}
+
+	userSearchState.value = 'searching'
+	const userInfo = await searchByUserNo(trimmed)
+	if (userInfo) {
+		userSearchState.value = 'hit'
+		foundUser.value = userInfo
+		console.log('[search.vue] userNo 搜索命中:', { userId: userInfo.userId, nickname: userInfo.nickname })
+	} else {
+		userSearchState.value = 'miss'
+		foundUser.value = null
+		console.log('[search.vue] userNo 搜索未命中:', trimmed)
+	}
+}
+
+// 加载真实好友作为联系人候选（供本地关键字过滤）
+async function loadContacts() {
+	try {
+		const list = await fetchFriendContacts()
+		contactList.value = (list || []).map((f) => ({
+			id: f.userId,
+			userId: f.userId,
+			name: f.nickname || f.userNo || '',
+			displayId: f.userNo,
+			avatarText: (f.nickname || f.userNo || '?').charAt(0).toUpperCase(),
+			avatarBackground: 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
+			hasMomentUpdate: false
+		}))
+	} catch (e) {
+		console.error('[search.vue] 加载联系人失败:', e)
+	}
+}
+
 onLoad((options) => {
 	keyword.value = decodeURIComponent(`${options.keyword || ''}`.trim())
 	loadConversationData()
+	loadContacts()
+	// 消息页入口可带 keyword，直接触发一次 userNo 搜索
+	if (keyword.value) {
+		runUserSearch(keyword.value)
+	}
 })
 
 watch(
@@ -196,14 +291,23 @@ function handleBack() {
 
 function handleKeywordInput(event) {
 	keyword.value = `${event?.detail?.value || ''}`
+	// 防抖 350ms 触发 userNo 用户搜索（避免每输入一个字符就发请求）
+	if (_userSearchTimer) clearTimeout(_userSearchTimer)
+	_userSearchTimer = setTimeout(() => {
+		runUserSearch(keyword.value)
+	}, 350)
 }
 
 function handleSearchConfirm() {
 	console.log('message-search-confirm', keyword.value)
+	// 回车立即搜索（取消挂起的防抖）
+	if (_userSearchTimer) clearTimeout(_userSearchTimer)
+	runUserSearch(keyword.value)
 }
 
 function handleRecentKeywordClick(item) {
 	keyword.value = item
+	runUserSearch(item)
 }
 
 function handleContactClick(item) {
@@ -215,6 +319,15 @@ function handleContactClick(item) {
 function handleConversationClick(item) {
 	uni.navigateTo({
 		url: buildChatUrl(item)
+	})
+}
+
+function handleUserClick() {
+	const d = foundUserDisplay.value
+	if (!d) return
+	// user-profile 页待修复，暂跳「添加好友」页并带入 userNo 自动搜索
+	uni.navigateTo({
+		url: buildPageUrl('/pages/user/add-friend', { userNo: d.displayId })
 	})
 }
 </script>
@@ -376,6 +489,14 @@ function handleConversationClick(item) {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.message-search-state {
+	padding: 40rpx 0;
+	font-size: 24rpx;
+	line-height: 34rpx;
+	color: #98a2b3;
+	text-align: center;
 }
 
 .message-search-side-badge {

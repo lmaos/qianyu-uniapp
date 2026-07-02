@@ -9,7 +9,7 @@
 		<scroll-view class="contact-scroll" scroll-y show-scrollbar="false">
 			<view class="contact-content">
 				<view
-					v-for="item in pageMock.contactList"
+					v-for="item in contactList"
 					:key="item.id"
 					class="contact-card"
 					@tap="handleContactClick(item)"
@@ -46,7 +46,10 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useSafeAreaMetrics } from '@/composables/useSafeAreaMetrics.js'
+import { fetchFriendContacts } from '@/composables/useSocialApi.js'
 import { buildPageUrl } from '@/components/user-center/userCenterMock.js'
 import {
 	buildMessageContactListPageMock,
@@ -56,6 +59,30 @@ import {
 
 const { safeTopPx } = useSafeAreaMetrics()
 const pageMock = buildMessageContactListPageMock()
+// 联系人列表：拉取真实好友；红点(hasNewMessage)/动态标识(hasMomentUpdate)/在线态 暂保留设计、先不接后端
+const contactList = ref([])
+
+async function loadContacts() {
+	try {
+		const list = await fetchFriendContacts()
+		contactList.value = (list || []).map((f) => ({
+			id: f.userId,
+			userId: f.userId,
+			name: f.nickname || f.userNo || '',
+			avatarText: (f.nickname || f.userNo || '?').charAt(0).toUpperCase(),
+			avatarBackground: 'linear-gradient(135deg, #98a7ff 0%, #88d6ff 100%)',
+			hasNewMessage: false,
+			hasMomentUpdate: false,
+			onlineState: 'offline'
+		}))
+	} catch (e) {
+		console.error('[contact-list] 加载联系人失败:', e)
+	}
+}
+
+onShow(() => {
+	loadContacts()
+})
 
 function buildChatUrl(item) {
 	return buildPageUrl('/pages/message/chat', {

@@ -13,11 +13,11 @@
 			:header-z-index="20"
 		>
 			<template #header>
-				<ShopSubPageHeader title="发货管理" @back="handleBack" />
+				<ShopSubPageHeader title="订单发货" @back="handleBack" />
 			</template>
 
 			<view class="shop-merchant-summary-grid">
-				<view v-for="item in pageMock.summaryList" :key="item.key" class="shop-merchant-summary-card">
+				<view v-for="item in summaryList" :key="item.key" class="shop-merchant-summary-card">
 					<text class="shop-merchant-summary-value">{{ item.value }}</text>
 					<text class="shop-merchant-summary-label">{{ item.label }}</text>
 				</view>
@@ -25,7 +25,7 @@
 
 			<view class="shop-merchant-filter-row">
 				<view
-					v-for="item in pageMock.filterList"
+					v-for="item in filterList"
 					:key="item.key"
 					:class="['shop-merchant-filter', activeFilter === item.key ? 'shop-merchant-filter-active' : '']"
 					@tap="handleFilterChange(item)"
@@ -35,28 +35,36 @@
 			</view>
 
 			<view
-				v-for="item in displayDeliveryList"
+				v-for="item in deliveryList"
 				:key="item.id"
 				class="shop-merchant-delivery-card"
 			>
 				<view class="shop-merchant-delivery-head">
-					<text class="shop-merchant-delivery-order">{{ item.orderId }}</text>
+					<text class="shop-merchant-delivery-order">{{ item.orderSn }}</text>
 					<text class="shop-merchant-delivery-status">{{ item.statusText }}</text>
 				</view>
+				<text v-if="item.buyerNick" class="shop-merchant-delivery-desc">买家：{{ item.buyerNick }}</text>
 				<text class="shop-merchant-delivery-title">{{ item.title }}</text>
 				<text class="shop-merchant-delivery-desc">{{ item.specText }}</text>
-				<text class="shop-merchant-delivery-desc">{{ item.addressText }}</text>
 				<view class="shop-merchant-item-actions">
 					<view class="shop-merchant-item-button shop-merchant-item-button-light" @tap="handleDeliveryAction(item, 'logistics')">查看物流</view>
-					<view class="shop-merchant-item-button" @tap="handleDeliveryAction(item, 'ship')">去发货</view>
+					<view
+						v-if="activeFilter === 'pending'"
+						class="shop-merchant-item-button"
+						@tap="handleDeliveryAction(item, 'ship')"
+					>去发货</view>
 				</view>
+			</view>
+
+			<view v-if="!loading && !deliveryList.length" class="shop-merchant-empty">
+				<text class="shop-merchant-empty-text">暂无订单</text>
 			</view>
 		</FullScreenPageLayout>
 	</view>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { ref, watch } from 'vue'
 import FullScreenPageLayout from '@/components/common/FullScreenPageLayout.vue'
 import ShopSubPageHeader from '@/components/shop/common/ShopSubPageHeader.vue'
 import {
@@ -64,10 +72,24 @@ import {
 	SHOP_HEADER_BACKGROUND,
 	SHOP_PAGE_BACKGROUND
 } from '@/components/shop/common/shopSurface.js'
-import { getShopMerchantDeliveryPageMock } from '@/components/shop/common/shopFlowMock.js'
+import request from '@/composables/baseRequest'
+import API from '@/utils/api'
+import { adaptOrderSimple, extractPage } from '@/utils/shopAdapter'
 
-const pageMock = ref(getShopMerchantDeliveryPageMock())
+// 前端 tab key → 后端 OrderQueryDTO.status（符号码，非 OmsOrder.status）
+// 后端：1=待付款 2=待发货 3=待收货 4=已完成 5=售后中 6=已取消/已关闭
+const FILTER_TO_BACKEND = { pending: 2, shipping: 3, signed: 4 }
+
+const filterList = [
+	{ key: 'pending', label: '待发货' },
+	{ key: 'shipping', label: '运输中' },
+	{ key: 'signed', label: '已签收' }
+]
+
+const summaryList = ref([])
+const deliveryList = ref([])
 const activeFilter = ref('pending')
+const loading = ref(false)
 
 const contentProps = {
 	'scroll-y': true
@@ -79,9 +101,69 @@ const contentStyle = {
 	paddingBottom: '36rpx'
 }
 
-const displayDeliveryList = computed(() => {
-	return pageMock.value.deliveryList.filter((item) => item.status === activeFilter.value)
-})
+// 三个 tab 的 totalRow 都要展示，并行请求后取当前 tab 的 records
+async function loadDeliveryPage() {
+	loading.value = true
+	try {
+		const [pendingRes, shippingRes, signedRes] = await Promise.all([
+			request.post({
+				url: API.M_OMS_ORDER_LIST,
+				data: { status: FILTER_TO_BACKEND.pending, pageNum: 1, pageSize: 20 }
+			}),
+			request.post({
+				url: API.M_OMS_ORDER_LIST,
+				data: { status: FILTER_TO_BACKEND.shipping, pageNum: 1, pageSize: 20 }
+			}),
+			request.post({
+				url: API.M_OMS_ORDER_LIST,
+				data: { status: FILTER_TO_BACKEND.signed, pageNum: 1, pageSize: 20 }
+			})
+		])
+
+		const pendingTotal = pickTotalRow(pendingRes)
+		const shippingTotal = pickTotalRow(shippingRes)
+		const signedTotal = pickTotalRow(signedRes)
+
+		summaryList.value = [
+			{ key: 'pending', label: '待发货', value: String(pendingTotal) },
+			{ key: 'shipping', label: '运输中', value: String(shippingTotal) },
+			{ key: 'signed', label: '已签收', value: String(signedTotal) }
+		]
+
+		const activeRes = { pending: pendingRes, shipping: shippingRes, signed: signedRes }[activeFilter.value] || pendingRes
+		const page = extractPage(activeRes?.response?.content)
+		deliveryList.value = (page.records || []).map(adaptOrderSimple).filter(Boolean)
+	} finally {
+		loading.value = false
+	}
+}
+
+function pickTotalRow(res) {
+	if (res?.code !== 200) return 0
+	if (res?.response?.state !== 'OK') return 0
+	return extractPage(res.response.content).totalRow || 0
+}
+
+// 发货（MVP：物流公司/单号传占位，后续迭代接入弹窗）
+async function shipOrder(orderId) {
+	const { code, response } = await request.post({
+		url: API.M_OMS_ORDER_SHIP,
+		data: {
+			orderId,
+			logisticsCompany: '占位物流',
+			logisticsNo: `SF${Date.now()}`
+		}
+	})
+	if (code === 200 && response?.state === 'OK') {
+		uni.showToast({ title: '已发货', icon: 'success' })
+		loadDeliveryPage()
+	} else {
+		uni.showToast({ title: '发货失败', icon: 'none' })
+	}
+}
+
+watch(activeFilter, () => loadDeliveryPage())
+loadDeliveryPage()
 
 function handleBack() {
 	uni.navigateBack({
@@ -91,25 +173,17 @@ function handleBack() {
 
 function handleFilterChange(filterItem) {
 	activeFilter.value = filterItem.key
-	onFilterChange(filterItem)
 }
 
 function handleDeliveryAction(item, actionKey) {
-	onDeliveryAction(item, actionKey)
-	uni.showToast({
-		title: actionKey === 'ship' ? '去发货占位' : '物流详情占位',
-		icon: 'none'
-	})
-}
-
-function onFilterChange(filterItem) {
-	// TODO：替换发货管理筛选逻辑
-	console.log('shop-merchant-delivery-filter-change', filterItem.key)
-}
-
-function onDeliveryAction(item, actionKey) {
-	// TODO：替换发货管理卡片操作逻辑
-	console.log('shop-merchant-delivery-action', item.id, actionKey)
+	if (actionKey === 'ship') {
+		shipOrder(item.id)
+		return
+	}
+	if (actionKey === 'logistics') {
+		// MVP 阶段：直接跳物流查询页（C 端共用），后续可换 B 端专用物流详情
+		uni.showToast({ title: '物流详情占位', icon: 'none' })
+	}
 }
 </script>
 
@@ -237,5 +311,15 @@ function onDeliveryAction(item, actionKey) {
 .shop-merchant-item-button-light {
 	background: #f8fafc;
 	color: #0f172a;
+}
+
+.shop-merchant-empty {
+	padding: 80rpx 0;
+	text-align: center;
+}
+
+.shop-merchant-empty-text {
+	font-size: 26rpx;
+	color: #94a3b8;
 }
 </style>

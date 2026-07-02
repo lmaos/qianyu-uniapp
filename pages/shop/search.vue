@@ -357,14 +357,13 @@ async function loadDiscovery() {
 	await Promise.all([loadHistoryList(), loadHotKeywords()])
 }
 
-async function loadHistoryList() {
-	const { code, response } = await request.post({ url: API.HIS_BROWSE_LIST })
-	if (code !== 200 || response?.state !== 'OK') return
-	// 兼容后端返回两种形态：list<{keyword}> 或 list<string>
-	const rawList = response.content?.list || response.content || []
-	historyList.value = rawList
-		.map((item) => (typeof item === 'string' ? item : (item?.keyword || '')))
-		.filter(Boolean)
+// 搜索历史改为本地存储（后端无"我的搜索关键词历史"列表接口；HIS_BROWSE_LIST 是浏览商品历史，数据源不对）
+const SHOP_SEARCH_HISTORY_KEY = 'qianyu_shop_search_history'
+const SHOP_SEARCH_HISTORY_MAX = 12
+
+function loadHistoryList() {
+	const list = uni.getStorageSync(SHOP_SEARCH_HISTORY_KEY)
+	historyList.value = Array.isArray(list) ? list.filter((k) => typeof k === 'string' && k) : []
 }
 
 async function loadHotKeywords() {
@@ -376,17 +375,20 @@ async function loadHotKeywords() {
 		.filter(Boolean)
 }
 
-async function recordSearchKeyword(keyword) {
-	if (!keyword) return
-	await request.post({ url: API.HIS_SEARCH_RECORD, data: { keyword } })
-	await loadHistoryList()
+function recordSearchKeyword(keyword) {
+	const trimmed = `${keyword || ''}`.trim()
+	if (!trimmed) return
+	const prev = uni.getStorageSync(SHOP_SEARCH_HISTORY_KEY)
+	const list = Array.isArray(prev) ? prev.filter((k) => typeof k === 'string') : []
+	// 去重 + 置顶 + 限制条数
+	const next = [trimmed, ...list.filter((k) => k !== trimmed)].slice(0, SHOP_SEARCH_HISTORY_MAX)
+	uni.setStorageSync(SHOP_SEARCH_HISTORY_KEY, next)
+	historyList.value = next
 }
 
-async function handleClearHistory() {
-	const { code } = await request.post({ url: API.HIS_BROWSE_DELETE })
-	if (code === 200) {
-		historyList.value = []
-	}
+function handleClearHistory() {
+	uni.removeStorageSync(SHOP_SEARCH_HISTORY_KEY)
+	historyList.value = []
 }
 
 // ════════════════════════════════════════════════════════════

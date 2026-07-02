@@ -110,6 +110,7 @@ export default {
   M_OMS_ORDER_LIST: '/api/mall/merchant/oms/orderList',
   M_OMS_ORDER_DETAIL: '/api/mall/merchant/oms/orderDetail',
   M_OMS_ORDER_SHIP: '/api/mall/merchant/oms/orderShip',
+  M_OMS_AFTERSALE_LIST: '/api/mall/merchant/oms/aftersaleList',
   M_OMS_AFTERSALE_AUDIT: '/api/mall/merchant/oms/aftersaleAudit',
 
   // ========== B 端：评价 ==========

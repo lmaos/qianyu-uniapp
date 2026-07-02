@@ -25,8 +25,9 @@ import UserSectionCard from '@/components/user-center/common/UserSectionCard.vue
 import UserSubPageLayout from '@/components/user-center/common/UserSubPageLayout.vue'
 import {
 	buildShopMerchantDeliveryUrl,
+	buildShopMerchantFinanceUrl,
 	buildShopMerchantGoodsUrl,
-	buildShopMerchantPromotionUrl
+	buildShopMerchantShopUrl
 } from '@/components/shop/common/shopFlowMock.js'
 import request from '@/composables/baseRequest'
 import API from '@/utils/api'
@@ -43,10 +44,12 @@ const dashboardData = ref({
 })
 
 // 经营入口（前端静态配置，不依赖后端）
+// 4 个入口均已对接真实页面
 const menuList = [
   { key: 'goods', label: '商品管理' },
-  { key: 'delivery', label: '发货管理' },
-  { key: 'promotion', label: '营销活动' }
+  { key: 'delivery', label: '订单发货' },
+  { key: 'finance', label: '资金对账' },
+  { key: 'shop', label: '店铺设置' }
 ]
 
 async function loadDashboard() {
@@ -64,7 +67,9 @@ async function loadDashboard() {
 }
 
 onLoad(async (options) => {
-	currentUserId.value = options?.userId || 'mine-self'
+	// 兜底处理上游误传的字面量 %s / 空 userId；该页面本身走 @LoginVerify，userId 仅用于子页面跳转透传
+	const rawUserId = `${options?.userId || ''}`.trim()
+	currentUserId.value = rawUserId && rawUserId !== '%s' ? rawUserId : 'mine-self'
 	await loadDashboard()
 })
 
@@ -77,7 +82,8 @@ function handleMenuSelect(item) {
 	const routeMap = {
 		goods: buildShopMerchantGoodsUrl(currentUserId.value),
 		delivery: buildShopMerchantDeliveryUrl(currentUserId.value),
-		promotion: buildShopMerchantPromotionUrl(currentUserId.value)
+		finance: buildShopMerchantFinanceUrl(currentUserId.value),
+		shop: buildShopMerchantShopUrl(currentUserId.value)
 	}
 
 	if (routeMap[item.key]) {
@@ -88,7 +94,7 @@ function handleMenuSelect(item) {
 	}
 
 	uni.showToast({
-		title: `${item.label}占位`,
+		title: `${item.label}功能开发中`,
 		icon: 'none'
 	})
 }

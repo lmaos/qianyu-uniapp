@@ -41,8 +41,18 @@ export function buildShopMerchantDeliveryUrl(userId = DEFAULT_USER_ID) {
 	return buildPageUrl('/pages/shop/merchant-delivery', { userId })
 }
 
-export function buildShopMerchantPromotionUrl(userId = DEFAULT_USER_ID) {
-	return buildPageUrl('/pages/shop/merchant-promotion', { userId })
+export function buildShopMerchantFinanceUrl(userId = DEFAULT_USER_ID) {
+	return buildPageUrl('/pages/shop/merchant-finance', { userId })
+}
+
+export function buildShopMerchantShopUrl(userId = DEFAULT_USER_ID) {
+	return buildPageUrl('/pages/shop/merchant-shop', { userId })
+}
+
+export function buildShopProductCreateUrl({ userId = DEFAULT_USER_ID, spuId = '' } = {}) {
+	const params = { userId }
+	if (spuId) params.spuId = spuId
+	return buildPageUrl('/pages/shop/product-create', params)
 }
 
 export function getShopSearchPageMock({ keyword = '', categoryId = '' } = {}) {
@@ -322,46 +332,6 @@ export function getShopMerchantGoodsPageMock() {
 			coverText: item.coverText,
 			coverBackground: item.coverBackground
 		}))
-	}
-}
-
-export function getShopMerchantDeliveryPageMock() {
-	return {
-		summaryList: [
-			{ key: 'pending', label: '待发货', value: '18' },
-			{ key: 'shipping', label: '运输中', value: '26' },
-			{ key: 'signed', label: '已签收', value: '42' }
-		],
-		filterList: [
-			{ key: 'pending', label: '待发货' },
-			{ key: 'shipping', label: '运输中' },
-			{ key: 'signed', label: '已签收' }
-		],
-		deliveryList: Array.from({ length: 6 }, (_, index) => ({
-			id: `delivery-item-${index + 1}`,
-			orderId: `shop-order-${index + 1001}`,
-			title: `待发货商品 ${index + 1}`,
-			specText: index % 2 === 0 ? '高配款 / 云雾灰' : '标准款 / 星曜黑',
-			addressText: '深圳市南山区科技园 mock 地址 1001 室',
-			status: index % 3 === 0 ? 'shipping' : index % 2 === 0 ? 'signed' : 'pending',
-			statusText: index % 3 === 0 ? '运输中' : index % 2 === 0 ? '已签收' : '待发货'
-		}))
-	}
-}
-
-export function getShopMerchantPromotionPageMock() {
-	return {
-		summaryList: [
-			{ key: 'running', label: '进行中活动', value: '6' },
-			{ key: 'coupon', label: '优惠券包', value: '12' },
-			{ key: 'flash', label: '秒杀场次', value: '3' }
-		],
-		promotionList: [
-			{ key: 'coupon-pack', title: '店铺券拉新活动', statusText: '进行中', statText: '已领取 286 次', desc: '满 199 减 20，提升新客转化' },
-			{ key: 'flash-sale', title: '午间秒杀场', statusText: '待开始', statText: '报名商品 18 个', desc: '今日 12:00-14:00 限时秒杀' },
-			{ key: 'live-hot', title: '直播同款会场', statusText: '进行中', statText: '曝光 1.2w', desc: '承接直播间商品挂载与会场流量' },
-			{ key: 'full-reduction', title: '跨店满减活动', statusText: '草稿', statText: '待发布', desc: '满 299 减 30，支持叠加店铺券' }
-		]
 	}
 }
 

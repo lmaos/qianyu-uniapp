@@ -68,6 +68,8 @@ import {
 import request from '@/composables/baseRequest'
 import API from '@/utils/api'
 import { extractPage } from '@/utils/shopAdapter'
+import { buildShopProductCreateUrl } from '@/components/shop/common/shopFlowMock.js'
+import { buildShopProductDetailUrl } from '@/components/home/shop/shopProductMock.js'
 
 // filter → 后端值
 const FILTER_TO_BACKEND = { all: 0, selling: 1, pending: 2, warning: 3 }
@@ -157,18 +159,45 @@ function handleFilterChange(filterItem) {
 
 function handleGoodsAction(item, actionKey) {
 	if (actionKey === 'edit') {
-		uni.showToast({ title: '编辑商品占位', icon: 'none' })
+		uni.navigateTo({ url: buildShopProductCreateUrl({ spuId: item.id }) })
 		return
 	}
 	if (actionKey === 'on' || actionKey === 'off') {
 		changeSpuStatus(item.id, actionKey)
 		return
 	}
-	uni.showToast({ title: '更多操作占位', icon: 'none' })
+	if (actionKey === 'more') {
+		showMoreActions(item)
+		return
+	}
+}
+
+// 「更多操作」：按当前状态决定显示上架/下架，附复制商品链接
+function showMoreActions(item) {
+	const canPutOnShelf = item.statusText === '待上架' || item.statusText === '已下架'
+	const itemList = [canPutOnShelf ? '上架' : '下架', '复制商品链接']
+	uni.showActionSheet({
+		itemList,
+		success: (res) => {
+			if (res.tapIndex === 0) {
+				changeSpuStatus(item.id, canPutOnShelf ? 'on' : 'off')
+			} else if (res.tapIndex === 1) {
+				copyProductLink(item)
+			}
+		}
+	})
+}
+
+function copyProductLink(item) {
+	const url = buildShopProductDetailUrl({ id: item.id })
+	uni.setClipboardData({
+		data: url,
+		success: () => uni.showToast({ title: '链接已复制', icon: 'none' })
+	})
 }
 
 function handleCreateGoods() {
-	uni.showToast({ title: '新增商品占位', icon: 'none' })
+	uni.navigateTo({ url: buildShopProductCreateUrl() })
 }
 </script>
 

@@ -1,10 +1,16 @@
 <template>
 	<view class="shop-product-item" @tap="handleTap">
 		<view class="shop-product-cover" :style="coverStyle">
+			<image
+				v-if="productInfo.coverImage"
+				class="shop-product-cover-image"
+				:src="productInfo.coverImage"
+				mode="aspectFill"
+			></image>
 			<view class="shop-product-cover-light"></view>
 			<text v-if="badgeMap.topLeft" class="shop-product-badge shop-product-badge-top-left">{{ badgeMap.topLeft }}</text>
 			<text v-if="badgeMap.topRight" class="shop-product-badge shop-product-badge-top-right">{{ badgeMap.topRight }}</text>
-			<text class="shop-product-cover-text">{{ productInfo.coverText || '商品图' }}</text>
+			<text v-if="!productInfo.coverImage" class="shop-product-cover-text">{{ productInfo.coverText || '商品图' }}</text>
 			<view class="shop-product-cover-tags">
 				<text v-for="tag in coverActivityTags" :key="tag" class="shop-product-cover-tag">{{ tag }}</text>
 			</view>
@@ -117,6 +123,18 @@ function formatPrice(value) {
 	height: 320rpx;
 	padding: 18rpx;
 	box-sizing: border-box;
+	overflow: hidden;
+}
+
+.shop-product-cover-image {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 0;
 }
 
 .shop-product-cover-light {
@@ -125,6 +143,7 @@ function formatPrice(value) {
 	right: 0;
 	left: 0;
 	height: 128rpx;
+	z-index: 1;
 	background: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 100%);
 }
 
